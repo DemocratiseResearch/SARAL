@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Union
+from datetime import datetime
 
 class APIKeysRequest(BaseModel):
     gemini_key: Optional[str] = None
@@ -68,3 +69,12 @@ class MediaResponse(BaseModel):
     audio_files: List[str]
     video_path: Optional[str] = None
     paper_id: str
+    
+class FeedbackRequest(BaseModel):
+    audio: int
+    video: int
+    slides: int
+    remarks: Optional[str]
+    timestamp: datetime
+    userId: str
+    paperId: str  
