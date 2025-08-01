@@ -7,6 +7,11 @@ from fastapi.exceptions import RequestValidationError
 import os
 from pathlib import Path
 import logging
+from app.routes import feedback
+from motor.motor_asyncio import AsyncIOMotorClient
+from contextlib import asynccontextmanager
+from beanie import init_beanie
+from app.models.db_models import Feedback
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +26,16 @@ temp_dirs = [
     "temp/videos", "temp/audio", "temp/latex_template",
     "temp/slides", "temp/scripts"
 ]
-
+    
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    MONGODB_URI = os.getenv("MONGODB_URI")
+    client = AsyncIOMotorClient(MONGODB_URI)
+    await init_beanie(
+        database=client.get_default_database(),
+        document_models=[Feedback])
+    yield  # Run the app
+    
 for dir_path in temp_dirs:
     Path(dir_path).mkdir(parents=True, exist_ok=True)
 
@@ -30,7 +44,8 @@ app = FastAPI(
     description="Convert academic papers to presentation videos with Google OAuth",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Enhanced CORS middleware
@@ -98,6 +113,8 @@ app.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
 app.include_router(slides.router, prefix="/api/slides", tags=["Slides"])
 app.include_router(media.router, prefix="/api/media", tags=["Media"])
 app.include_router(images.router, prefix="/api/images", tags=["Images"])
+app.include_router(feedback.router, prefix="/api/feedback", tags=["Feedback"])
+
 
 # Public endpoints
 @app.get("/")
