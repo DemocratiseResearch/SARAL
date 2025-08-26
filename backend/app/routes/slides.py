@@ -4,10 +4,11 @@ from pathlib import Path
 import os
 import shutil
 from app.auth.dependencies import get_current_user
-from app.models.request_models import SlideResponse
+from app.models.request_models import SlideResponse, SlideGenerationRequest
 from app.routes.papers import papers_storage
 from app.routes.scripts import scripts_storage
 from app.services.beamer_generator import create_beamer_presentation
+from app.services.powerpoint_generator import create_powerpoint_presentation, copy_paper_images_for_pptx
 from app.utils.latex_to_images import compile_latex, convert_pdf_to_images
 
 router = APIRouter()
@@ -16,8 +17,8 @@ router = APIRouter()
 slides_storage = {}
 
 @router.post("/{paper_id}/generate", response_model=SlideResponse)
-async def generate_slides(paper_id: str):
-    """Generate slides from scripts with bullet points."""
+async def generate_slides(paper_id: str, request: SlideGenerationRequest = SlideGenerationRequest()):
+    """Generate slides from scripts with bullet points in specified format."""
     
     if paper_id not in papers_storage:
         raise HTTPException(status_code=404, detail="Paper not found")
@@ -40,60 +41,106 @@ async def generate_slides(paper_id: str):
         output_dir = f"temp/slides/{paper_id}"
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
-        # Copy theme files to output directory
-        copy_beamer_theme_files(output_dir)
-        
-        # Copy images to output directory
-        copy_paper_images(paper_info.get("image_files", []), output_dir)
-        
         # Get image assignments
         image_assignments = {}
         for section_name, section_data in scripts_info.get("sections", {}).items():
             if section_data.get("assigned_image"):
                 image_assignments[section_name] = section_data["assigned_image"]
         
-        # Create Beamer presentation with bullet points
-        latex_file = create_beamer_presentation(
-            paper_id,
-            scripts_info,
-            paper_info["metadata"],
-            image_assignments
-        )
-        
-        # Copy LaTeX file to output directory
-        output_latex = os.path.join(output_dir, f"{paper_id}_presentation.tex")
-        shutil.copy2(latex_file, output_latex)
-        
-        # Compile LaTeX to PDF
-        pdf_path = compile_latex(output_latex, output_dir)
-        
-        if not pdf_path:
-            raise Exception("Failed to compile LaTeX to PDF")
-        
-        # Convert PDF to images
-        image_paths = convert_pdf_to_images(pdf_path, output_dir, dpi=300)
-        
-        if not image_paths:
-            raise Exception("Failed to convert PDF to images")
-        
-        # Store slide info
-        slides_storage[paper_id] = {
-            "pdf_path": pdf_path,
-            "image_paths": image_paths,
-            "latex_path": output_latex,
-            "output_dir": output_dir,
-            "status": "generated"
-        }
-        
-        return SlideResponse(
-            pdf_path=pdf_path,
-            image_paths=[f"/api/slides/{paper_id}/{os.path.basename(p)}" for p in image_paths],
-            paper_id=paper_id
-        )
+        if request.format.lower() == "powerpoint":
+            # Generate PowerPoint presentation
+            return await generate_powerpoint_slides(paper_id, paper_info, scripts_info, image_assignments, output_dir)
+        else:
+            # Generate Beamer presentation (default)
+            return await generate_beamer_slides(paper_id, paper_info, scripts_info, image_assignments, output_dir)
         
     except Exception as e:
         print(f"Error generating slides: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating slides: {str(e)}")
+
+async def generate_beamer_slides(paper_id: str, paper_info: dict, scripts_info: dict, image_assignments: dict, output_dir: str):
+    """Generate Beamer slides."""
+    # Copy theme files to output directory
+    copy_beamer_theme_files(output_dir)
+    
+    # Copy images to output directory
+    copy_paper_images(paper_info.get("image_files", []), output_dir)
+    
+    # Create Beamer presentation with bullet points
+    latex_file = create_beamer_presentation(
+        paper_id,
+        scripts_info,
+        paper_info["metadata"],
+        image_assignments
+    )
+    
+    # Copy LaTeX file to output directory
+    output_latex = os.path.join(output_dir, f"{paper_id}_presentation.tex")
+    shutil.copy2(latex_file, output_latex)
+    
+    # Compile LaTeX to PDF
+    pdf_path = compile_latex(output_latex, output_dir)
+    
+    if not pdf_path:
+        raise Exception("Failed to compile LaTeX to PDF")
+    
+    # Convert PDF to images
+    image_paths = convert_pdf_to_images(pdf_path, output_dir, dpi=300)
+    
+    if not image_paths:
+        raise Exception("Failed to convert PDF to images")
+    
+    # Store slide info
+    slides_storage[paper_id] = {
+        "pdf_path": pdf_path,
+        "image_paths": image_paths,
+        "latex_path": output_latex,
+        "output_dir": output_dir,
+        "status": "generated",
+        "format": "beamer"
+    }
+    
+    return SlideResponse(
+        pdf_path=pdf_path,
+        image_paths=[f"/api/slides/{paper_id}/{os.path.basename(p)}" for p in image_paths],
+        paper_id=paper_id,
+        format="beamer"
+    )
+
+async def generate_powerpoint_slides(paper_id: str, paper_info: dict, scripts_info: dict, image_assignments: dict, output_dir: str):
+    """Generate PowerPoint slides."""
+    # Copy images to output directory for PowerPoint
+    copy_paper_images_for_pptx(paper_info.get("image_files", []), paper_id)
+    
+    # Create PowerPoint presentation
+    pptx_file = create_powerpoint_presentation(
+        paper_id,
+        scripts_info,
+        paper_info["metadata"],
+        image_assignments
+    )
+    
+    if not pptx_file or not os.path.exists(pptx_file):
+        raise Exception("Failed to create PowerPoint presentation")
+    
+    # For PowerPoint, we don't convert to images by default, but we can create thumbnails
+    image_paths = []
+    
+    # Store slide info
+    slides_storage[paper_id] = {
+        "pptx_path": pptx_file,
+        "image_paths": image_paths,
+        "output_dir": output_dir,
+        "status": "generated",
+        "format": "powerpoint"
+    }
+    
+    return SlideResponse(
+        pptx_path=pptx_file,
+        image_paths=image_paths,
+        paper_id=paper_id,
+        format="powerpoint"
+    )
 
 def copy_beamer_theme_files(output_dir: str):
     """Copy Beamer theme files to output directory."""
@@ -167,6 +214,25 @@ async def download_latex_source(paper_id: str):
         latex_path,
         media_type='text/plain',
         filename=f"slides_{paper_id}.tex"
+    )
+
+@router.get("/{paper_id}/download-pptx")
+async def download_powerpoint(paper_id: str):
+    """Download the PowerPoint presentation file."""
+    
+    if paper_id not in slides_storage:
+        raise HTTPException(status_code=404, detail="Slides not generated yet")
+    
+    slides_info = slides_storage[paper_id]
+    pptx_path = slides_info.get("pptx_path")
+    
+    if not pptx_path or not os.path.exists(pptx_path):
+        raise HTTPException(status_code=404, detail="PowerPoint file not found")
+    
+    return FileResponse(
+        pptx_path,
+        media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        filename=f"slides_{paper_id}.pptx"
     )
 
 @router.get("/{paper_id}/preview")

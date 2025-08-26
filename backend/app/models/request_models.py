@@ -47,6 +47,15 @@ class VideoGenerationRequest(BaseModel):
     background_music_file: Optional[str] = None
     selected_language: str
 
+class SlideGenerationRequest(BaseModel):
+    format: str = "beamer"  # "beamer" or "powerpoint"
+
+class SlideResponse(BaseModel):
+    pdf_path: Optional[str] = None
+    pptx_path: Optional[str] = None
+    image_paths: List[str]
+    paper_id: str
+    format: str
 
 class PaperResponse(BaseModel):
     paper_id: str
@@ -59,9 +68,9 @@ class ScriptResponse(BaseModel):
     sections_scripts: Dict[str, str]
     paper_id: str
 
-class SlideResponse(BaseModel):
-    pdf_path: str
-    image_paths: List[str]
+class MediaResponse(BaseModel):
+    audio_files: List[str]
+    video_path: Optional[str] = None
     paper_id: str
 
 class MediaResponse(BaseModel):

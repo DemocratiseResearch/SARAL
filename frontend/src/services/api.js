@@ -414,8 +414,8 @@ class SlidesService {
     this.http = httpClient;
   }
 
-  async generate(paperId) {
-    return this.http.post(`/slides/${paperId}/generate`);
+  async generate(paperId, format = 'beamer') {
+    return this.http.post(`/slides/${paperId}/generate`, { format });
   }
 
   async getPreview(paperId) {
@@ -434,6 +434,12 @@ class SlidesService {
 
   async downloadLatexSource(paperId) {
     return this.http.get(`/slides/${paperId}/download-latex`, {
+      responseType: 'blob'
+    });
+  }
+
+  async downloadPowerPoint(paperId) {
+    return this.http.get(`/slides/${paperId}/download-pptx`, {
       responseType: 'blob'
     });
   }
@@ -556,11 +562,12 @@ class ApiService {
   getImageUrl = (paperId, imageName) => this.images.getImageUrl(paperId, imageName);
   getImage = (paperId, imageName) => this.images.getImage(paperId, imageName);
   
-  generateSlides = (paperId) => this.slides.generate(paperId);
+  generateSlides = (paperId, format = 'beamer') => this.slides.generate(paperId, format);
   getSlidePreview = (paperId) => this.slides.getPreview(paperId);
   getSlideImageUrl = (paperId, imageName) => this.slides.getSlideImageUrl(paperId, imageName);
   downloadSlides = (paperId) => this.slides.download(paperId);
   downloadLatexSource = (paperId) => this.slides.downloadLatexSource(paperId);
+  downloadPowerPoint = (paperId) => this.slides.downloadPowerPoint(paperId);
   
   generateAudio = (paperId, config) => this.media.generateAudio(paperId, config);
   generateVideo = (paperId, config) => this.media.generateVideo(paperId, config);

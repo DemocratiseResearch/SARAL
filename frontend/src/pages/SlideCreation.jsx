@@ -95,12 +95,14 @@ const PreviewCard = ({ slides, loading, current, setCurrent }) => (
 
 /* ─────────────────────────── main page ─────────────────────────── */
 const SlideCreation = () => {
-  const { paperId, slides, setSlides, progressToNextStep } = useWorkflow();
-
+  const { paperId, progressToNextStep } = useWorkflow();
+  const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [downPdf, setDownPdf] = useState(false);
   const [downLatex, setDownLatex] = useState(false);
+  const [downPptx, setDownPptx] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState('beamer'); // 'beamer' or 'powerpoint'
 
   // Guard to prevent multiple auto-runs
   const autoGenerateRef = useRef(false);
@@ -110,14 +112,22 @@ const SlideCreation = () => {
     if (!paperId) return;
     setLoading(true);
     try {
-      await apiService.generateSlides(paperId);
-      const { data } = await apiService.getSlidePreview(paperId);
-      const urls = (data.images || []).map(img =>
-        apiService.getSlideImageUrl(paperId, img)
-      );
-      setSlides(urls);
-      setCurrentSlide(0);
-      toast.success(`${urls.length} slides generated`);
+      await apiService.generateSlides(paperId, selectedFormat);
+      
+      // Only get preview for Beamer format (which generates images)
+      if (selectedFormat === 'beamer') {
+        const { data } = await apiService.getSlidePreview(paperId);
+        const urls = (data.images || []).map(img =>
+          apiService.getSlideImageUrl(paperId, img)
+        );
+        setSlides(urls);
+        setCurrentSlide(0);
+        toast.success(`${urls.length} slides generated`);
+      } else {
+        // For PowerPoint, just show success message
+        setSlides([]);
+        toast.success('PowerPoint presentation generated successfully');
+      }
     } catch (error) {
       console.error('Slide generation failed:', error);
       toast.error('Failed to generate slides');
@@ -153,6 +163,21 @@ const SlideCreation = () => {
       toast.error('Failed to download LaTeX');
     } finally {
       setDownLatex(false);
+    }
+  };
+
+  const dlPptx = async () => {
+    if (!paperId) return;
+    setDownPptx(true);
+    try {
+      const { data } = await apiService.downloadPowerPoint(paperId);
+      downloadBlob(data, `slides_${paperId}.pptx`);
+      toast.success('PowerPoint downloaded');
+    } catch (error) {
+      console.error('PowerPoint download failed:', error);
+      toast.error('Failed to download PowerPoint');
+    } finally {
+      setDownPptx(false);
     }
   };
 
@@ -195,17 +220,21 @@ const SlideCreation = () => {
           loading={loading}
           downPdf={downPdf}
           downLatex={downLatex}
+          downPptx={downPptx}
+          selectedFormat={selectedFormat}
+          setSelectedFormat={setSelectedFormat}
           genSlides={genSlides}
           dlPdf={dlPdf}
           dlLatex={dlLatex}
+          dlPptx={dlPptx}
           toNext={progressToNextStep}
         />
 
         {/* progress banner */}
         {loading && <ProgressBanner />}
 
-        {/* preview - only show if slides exist */}
-        {slides?.length > 0 && (
+        {/* preview - only show if slides exist for Beamer format */}
+        {slides?.length > 0 && selectedFormat === 'beamer' && (
           <PreviewCard
             slides={slides}
             loading={loading}
@@ -215,8 +244,23 @@ const SlideCreation = () => {
           />
         )}
 
+        {/* PowerPoint success message */}
+        {selectedFormat === 'powerpoint' && !loading && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md p-4">
+            <div className="text-green-800 dark:text-green-200">
+              <h3 className="font-semibold">PowerPoint presentation generated successfully!</h3>
+              <p className="text-sm mt-1">Use the download button above to get your .pptx file.</p>
+            </div>
+          </div>
+        )}
+
         {/* empty state - only show if no slides and not loading */}
-        {!slides?.length && !loading && (
+        {!slides?.length && !loading && selectedFormat === 'beamer' && (
+          <GeneratePrompt onGenerate={genSlides} loading={loading} />
+        )}
+
+        {/* PowerPoint generation prompt */}
+        {selectedFormat === 'powerpoint' && !loading && (
           <GeneratePrompt onGenerate={genSlides} loading={loading} />
         )}
       </motion.div>
@@ -231,9 +275,13 @@ const Header = ({
   loading,
   downPdf,
   downLatex,
+  downPptx,
+  selectedFormat,
+  setSelectedFormat,
   genSlides,
   dlPdf,
   dlLatex,
+  dlPptx,
   toNext
 }) => (
   <div className="bg-white dark:bg-neutral-800 rounded-md p-5 border border-neutral-300 dark:border-neutral-600 shadow-sm">
@@ -244,13 +292,37 @@ const Header = ({
           Create Presentation Slides
         </h2>
         <p className="font-sans text-neutral-600 dark:text-neutral-400">
-          Generate beautiful LaTeX slides from your scripts
+          Generate beautiful slides from your scripts
         </p>
       </div>
 
-      {/* action buttons */}
+      {/* format selection and action buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {!slides?.length ? (
+        {/* Format Selection */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSelectedFormat('beamer')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              selectedFormat === 'beamer'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            LaTeX/Beamer
+          </button>
+          <button
+            onClick={() => setSelectedFormat('powerpoint')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              selectedFormat === 'powerpoint'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            PowerPoint
+          </button>
+        </div>
+
+        {!slides?.length && selectedFormat === 'beamer' ? (
           <PrimaryButton
             onClick={genSlides}
             disabled={loading}
@@ -259,24 +331,47 @@ const Header = ({
           >
             Generate Slides
           </PrimaryButton>
+        ) : !slides?.length && selectedFormat === 'powerpoint' ? (
+          <PrimaryButton
+            onClick={genSlides}
+            disabled={loading}
+            icon={FiSliders}
+            loading={loading}
+          >
+            Generate PowerPoint
+          </PrimaryButton>
         ) : (
           <>
-            <NeutralButton
-              onClick={dlPdf}
-              disabled={downPdf}
-              icon={FiDownload}
-              loading={downPdf}
-            >
-              Download PDF
-            </NeutralButton>
-            <NeutralButton
-              onClick={dlLatex}
-              disabled={downLatex}
-              icon={FiDownload}
-              loading={downLatex}
-            >
-              Download LaTeX
-            </NeutralButton>
+            {selectedFormat === 'beamer' && (
+              <>
+                <NeutralButton
+                  onClick={dlPdf}
+                  disabled={downPdf}
+                  icon={FiDownload}
+                  loading={downPdf}
+                >
+                  Download PDF
+                </NeutralButton>
+                <NeutralButton
+                  onClick={dlLatex}
+                  disabled={downLatex}
+                  icon={FiDownload}
+                  loading={downLatex}
+                >
+                  Download LaTeX
+                </NeutralButton>
+              </>
+            )}
+            {selectedFormat === 'powerpoint' && (
+              <NeutralButton
+                onClick={dlPptx}
+                disabled={downPptx}
+                icon={FiDownload}
+                loading={downPptx}
+              >
+                Download PowerPoint
+              </NeutralButton>
+            )}
             <NeutralButton onClick={toNext} icon={FiArrowRight}>
               Continue to Audio & Video
             </NeutralButton>
