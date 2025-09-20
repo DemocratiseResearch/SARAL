@@ -47,6 +47,7 @@ SARAL AI transforms research papers into professional educational videos through
 - **Image Selection:** Assign extracted figures to slides.
 - **Multilingual Support:** Generate videos in English or Hindi (with Hinglish technical terms).
 - **Professional Output:** Download videos, LaTeX sources, and PDF slides.
+- **Editable Decks:** Export AI-generated content as PowerPoint (`.pptx`) files for quick post-processing.
 - **Modern UI:** Responsive React frontend with dark mode.
 
 ---
@@ -135,6 +136,8 @@ The tutorial covers:
 ---
 
 ## Installation
+
+Reinstall the backend dependencies (`pip install -r backend/requirements.txt`) when you pull this branch—the list now includes `python-pptx` to power the PowerPoint export pipeline.
 
 ### macOS Setup
 
@@ -275,7 +278,7 @@ App available at [http://localhost:3000](http://localhost:3000).
 1. **API Keys Setup:** Enter your Google Gemini API key (required) and Sarvam TTS API key (optional).
 2. **Paper Upload:** Enter an arXiv URL or upload a LaTeX ZIP.
 3. **Script Generation:** Generate and edit narration scripts for each section.
-4. **Slides Generation:** Assign images to slides and review bullet points.
+4. **Slides Generation:** Assign images to slides, review bullet points, and download either the PDF (Beamer) or PowerPoint deck.
 5. **Video Generation:** Generate audio narration, synthesize the video, and download results.
 
 ---
@@ -312,7 +315,7 @@ API endpoints are defined in [backend/app/routes/](backend/app/routes/):
 
 - `/papers`: Paper upload and management
 - `/scripts`: Script generation and editing
-- `/slides`: Slide creation and download
+- `/slides`: Slide creation with Beamer PDF, LaTeX source, and PowerPoint downloads
 - `/media`: Audio and video generation
 - `/images`: Image management
 
