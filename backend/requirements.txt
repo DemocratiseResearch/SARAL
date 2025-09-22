@@ -76,3 +76,4 @@ urllib3==2.4.0
 uvicorn==0.23.2
 websockets==12.0
 python-pptx==0.6.23
+pyspellchecker==0.8.3
