@@ -9,7 +9,7 @@ const API_CONFIG = {
   baseURL: process.env.NODE_ENV === 'production' 
   ? process.env.REACT_APP_API_URL 
   : 'http://localhost:8000',
-  timeout: 120000,
+  timeout: 200000,
   retryAttempts: 2,
   retryDelay: 1000,
 };
@@ -309,10 +309,38 @@ class PapersService {
     });
   }
 
+  async uploadPdfToVideo(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.http.post('/papertovideo/upload_pdf_to_video', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 5 * 60 * 1000 
+    });
+  }
+
+  async uploadZipToVideo(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.http.post('/papertovideo/upload_latex_to_video', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 5 * 60 * 1000 
+    });
+  }
+
   async scrapeArxiv(url) {
     return this.http.post('/papers/scrape-arxiv', { arxiv_url: url });
   }
 
+  async scrapeArxivToVideo(url) {
+    const formData = new FormData();
+    formData.append("arxiv_url", url);
+    return this.http.post('/papertovideo/upload_arxiv_to_video', formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+  }
+  
   async getMetadata(paperId) {
     return this.http.get(`/papers/${paperId}/metadata`);
   }
@@ -448,6 +476,10 @@ class MediaService {
     return this.http.post(`/media/${paperId}/generate-audio`, config);
   }
 
+  async generateBhashiniAudio(paperId, config) {
+    return this.http.post(`/media/${paperId}/generate-audio-bhashini`, config);
+  }
+
   async generateVideo(paperId, config) {
     return this.http.post(`/media/${paperId}/generate-video`, config);
   }
@@ -455,6 +487,24 @@ class MediaService {
   async downloadVideo(paperId) {
     return this.http.get(`/media/${paperId}/download-video`, {
       responseType: 'blob'
+    });
+  }
+
+  async downloadPresentationVideo(paperId) {
+    return this.http.get(`/papertovideo/${paperId}/download-video`, {
+      responseType: 'blob'
+    });
+  }
+
+  async downloadPresentationSlides(paperId) {
+    return this.http.get(`/papertovideo/${paperId}/download-slides`, {
+      responseType: 'blob'
+    });
+  }
+
+  async getPresentationMetaInfo(paperId){
+    return this.http.get(`/papertovideo/${paperId}/metadata`, {
+      responseType: 'json'
     });
   }
 
@@ -489,6 +539,20 @@ class MediaService {
   getVideoStreamUrl(paperId) {
     return `${API_CONFIG.baseURL}/api/media/${paperId}/stream-video`;
   }
+
+  getPresentationVideoStreamUrl(paperId) {
+    return `${API_CONFIG.baseURL}/api/papertovideo/${paperId}/stream-video`;
+  }
+}
+
+class YoutubeService {
+  constructor(httpClient) {
+    this.http = httpClient;
+  }
+
+  async googleUpload(payload) {
+    return this.http.post(`/youtube_upload/google_upload`, payload);
+  }
 }
 
 /**
@@ -506,6 +570,7 @@ class ApiService {
     this.images = new ImagesService(this.httpClient);
     this.slides = new SlidesService(this.httpClient);
     this.media = new MediaService(this.httpClient);
+    this.youtube = new YoutubeService(this.httpClient);
   }
 
   get interceptors() {
@@ -539,7 +604,10 @@ class ApiService {
   checkPaperExists = (paperId) => this.papers.checkExists(paperId);
   uploadZip = (file) => this.papers.uploadZip(file);
   uploadPdf = (file) => this.papers.uploadPdf(file);
+  uploadPdfToVideo = (file) => this.papers.uploadPdfToVideo(file);
+  uploadZipToVideo = (file) => this.papers.uploadZipToVideo(file);
   scrapeArxiv = (url) => this.papers.scrapeArxiv(url);
+  scrapeArxivToVideo = (url) => this.papers.scrapeArxivToVideo(url);
   getPaperMetadata = (paperId) => this.papers.getMetadata(paperId);
   updatePaperMetadata = (paperId, metadata) => this.papers.updateMetadata(paperId, metadata);
   downloadPaperPdf = (paperId) => this.papers.downloadPdf(paperId);
@@ -563,12 +631,18 @@ class ApiService {
   downloadLatexSource = (paperId) => this.slides.downloadLatexSource(paperId);
   
   generateAudio = (paperId, config) => this.media.generateAudio(paperId, config);
+  generateBhashiniAudio = (paperId, config) => this.media.generateBhashiniAudio(paperId, config);
   generateVideo = (paperId, config) => this.media.generateVideo(paperId, config);
   downloadVideo = (paperId) => this.media.downloadVideo(paperId);
+  downloadPresentationVideo = (paperId) => this.media.downloadPresentationVideo(paperId);
+  downloadPresentationSlides = (paperId) => this.media.downloadPresentationSlides(paperId);
+  getPresentationMetaInfo = paperId => this.media.getPresentationMetaInfo(paperId)
   downloadAudio = (paperId, filename) => this.media.downloadAudio(paperId, filename);
   getMediaStatus = (paperId) => this.media.getStatus(paperId);
   getAudioStreamUrl = (paperId, filename) => this.media.getAudioStreamUrl(paperId, filename);
   getVideoStreamUrl = (paperId) => this.media.getVideoStreamUrl(paperId);
+  getPresentationVideoStreamUrl = (paperId) => this.media.getPresentationVideoStreamUrl(paperId);
+  googleUpload = (code, paper_id) => this.youtube.googleUpload(code, paper_id)
 }
 
 // Create and export singleton instance
@@ -581,7 +655,8 @@ export const {
   scripts,
   images,
   slides,
-  media
+  media,
+  youtube
 } = apiService;
 
 // Export HTTP client for custom requests

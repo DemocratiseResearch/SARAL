@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowRight, FiFileText, FiMic, FiVideo, FiZap, FiCheck } from 'react-icons/fi';
 import ThemeToggle from '../components/common/ThemeToggle';
+import { apiService } from '../services/api';
+import toast from 'react-hot-toast';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useAuth } from '../contexts/AuthContext';
 
 const FeatureCard = ({ icon: Icon, title, description, delay = 0 }) => (
   <motion.div
@@ -24,6 +28,32 @@ const FeatureCard = ({ icon: Icon, title, description, delay = 0 }) => (
   );
 
 const LandingPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleGetStarted = async () => {
+    if (!isAuthenticated) {
+      navigate('/api-setup');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiService.getApiKeysStatus();
+      if (response.data.gemini_configured) {
+        navigate('/paper-processing');
+      } else {
+        navigate('/api-setup');
+      }
+    } catch (error) {
+      toast.error("Could not check settings, proceeding to setup.");
+      navigate('/api-setup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const features = [
     {
       icon: FiFileText,
@@ -73,6 +103,9 @@ const LandingPage = () => {
             
             <div className="flex items-center gap-4">
               <ThemeToggle />
+              <Link to="/testimonials" className="btn-secondary">
+              Testimonials
+            </Link>
               <Link to="/about" className="btn-secondary">
               About
             </Link>
@@ -102,31 +135,33 @@ const LandingPage = () => {
     <span className="font-semibold">Google Chrome</span> browser.
   </div>
 
-      {/* Hero Section ‑ Saral AI Demo with video */}
+      {/* Hero Section */}
   <section className="py-16 md:py-20 border-b border-neutral-200 dark:border-neutral-700">
-    <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-center gap-12">
+    <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center">
     {/* Copy block */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15, delay: 0.05 }}
-        className="md:w-1/2 text-center"
+        className="text-center"
       >
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-4">
           Turn Academic Papers into Engaging Video Presentations 
         </h1>
 
-        <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+        <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-3xl mx-auto">
           Saral AI seamlessly transforms your research papers into professional video presentations, utilizing AI-powered scripts, customized slides, and natural voice narration.
         </p>
 
         <div className="flex items-center justify-center gap-3">
-          <Link
-            to="/api-setup"
+          <button
+            onClick={handleGetStarted}
+            disabled={loading}
             className="btn-primary flex items-center gap-2"
           >
-            Get Started <FiArrowRight className="w-4 h-4" />
-          </Link>
+            {loading ? <LoadingSpinner size="sm" /> : 'Get Started'}
+            {!loading && <FiArrowRight className="w-4 h-4" />}
+          </button>
 
           <Link
             to="/sample"
@@ -139,7 +174,41 @@ const LandingPage = () => {
     </div>
   </section>
 
-
+    {/* Demo Video Section */}
+    <section className="py-16 md:py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+            <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15 }}
+            >
+                <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+                    See Saral AI in Action
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
+                    Prof. PK is giving demo to IndiaBiostreams
+                </p>
+            </motion.div>
+            {/* Video Embed */}
+            <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15, delay: 0.1 }}
+                className="w-full"
+            >
+                <div className="aspect-video rounded-lg overflow-hidden shadow-2xl border border-neutral-200 dark:border-neutral-700">
+                    <iframe
+                        className="w-full h-full"
+                        src="https://www.youtube.com/embed/rlWnGAp7P5A"
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                    ></iframe>
+                </div>
+            </motion.div>
+        </div>
+    </section>
 
       {/* Features Section */}
   <section className="py-24 bg-white dark:bg-neutral-800">
@@ -224,10 +293,10 @@ const LandingPage = () => {
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               Join researchers worldwide who are making their work more accessible through video presentations.
             </p>
-            <Link to="/api-setup" className="btn-primary w-full">
-            Create Your First Video
-            <FiArrowRight className="w-4 h-4 ml-2" />
-          </Link>
+            <button onClick={handleGetStarted} disabled={loading} className="btn-primary w-full">
+            {loading ? <LoadingSpinner size="sm" /> : 'Create Your First Video'}
+            {!loading && <FiArrowRight className="w-4 h-4 ml-2" />}
+          </button>
         </div>
       </motion.div>
     </div>
@@ -252,8 +321,8 @@ const LandingPage = () => {
       <Link to="/about" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-150">
       About
     </Link>
-    <a href="mailto:democratise.research@gmail.com" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-150">
-      Contact
+    <a href="mailto:pk.guru@iiit.ac.in" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-150">
+      Contact Us
     </a>
   </div>
 </div>

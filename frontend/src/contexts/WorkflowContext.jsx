@@ -11,6 +11,7 @@ const initialState = {
   currentStep      : 1,
   completedSteps   : [],
   paperId          : null,
+  isProcessed      : false,
   sessionId        : null,
   metadata         : { title:'', authors:'', date:'' },
   scripts          : {},
@@ -61,6 +62,7 @@ case 'MARK_STEP_COMPLETED' : return { ...state, completedSteps:[...new Set([...s
 case 'SET_PAPER_ID'        : return { ...state, paperId:      action.payload };
 case 'SET_SESSION_ID'      : return { ...state, sessionId:    action.payload };
 case 'SET_METADATA'        : return { ...state, metadata:     { ...state.metadata, ...action.payload }};
+case 'SET_IS_PROCESSED'    : return { ...state, isProcessed: !!action.payload };
 
 case 'SET_SCRIPTS'         : return { ...state, scripts: action.payload||{}, editedScripts: action.payload||{} };
 case 'SET_EDITED_SCRIPTS'  : return { ...state, editedScripts: action.payload||{} };
@@ -183,6 +185,7 @@ export const WorkflowProvider = ({ children }) => {
     setSessionId      : v => dispatch({ type:'SET_SESSION_ID',    payload:v }),
     setMetadata       : v => dispatch({ type:'SET_METADATA',      payload:v }),
     setScripts        : v => dispatch({ type:'SET_SCRIPTS',       payload:v }),
+    setIsProcessed    : v => dispatch({ type:'SET_IS_PROCESSED',  payload:!!v }),
     setEditedScripts  : v => dispatch({ type:'SET_EDITED_SCRIPTS',payload:v }),
     setBulletPoints   : v => dispatch({ type:'SET_BULLET_POINTS', payload:v }),
     updateScript      : (section,script)=>dispatch({ type:'UPDATE_SCRIPT',       payload:{section,script} }),

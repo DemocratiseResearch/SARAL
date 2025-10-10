@@ -72,6 +72,7 @@ const MediaGeneration = () => {
   const hasAudioFiles = audioFiles && audioFiles.length > 0;
   const hasVideoPath = videoPath && videoPath.trim() !== '';
   const mediaGenerated = hasAudioFiles && hasVideoPath;
+  const [progress, setProgress] = useState(0); // 0 to 100
 
   /* helper: update voice */
   const changeVoice = (lang, voice) =>
@@ -81,57 +82,65 @@ const MediaGeneration = () => {
     }));
 
   /* ───── 1. generate audio then auto-trigger video ───── */
-  const generateAudio = async () => {
-    if (!paperId) return;
-    setAudioLoading(true);
-    try {
-      const cfg = {
-        voice_selection   : voiceSelections,
-        hinglish_iterations: hinglishIterations,
-        show_hindi_debug  : false,
-        selected_language : selectedLanguage
-      };
-      const { data } = await apiService.generateAudio(paperId, cfg);
-      setAudioFiles(data.audio_files || []);
-      toast.success('Audio ready – generating video…');
+ const generateAudio = async () => {
+  if (!paperId) return;
+  setAudioLoading(true);
+  setProgress(10); // just to show immediate feedback
 
-      /* immediately kick off video build */
-      await generateVideo();
-    } catch (error) {
-      console.error('Audio generation failed:', error);
-      toast.error('Audio generation failed');
-    } finally {
-      setAudioLoading(false);
-    }
-  };
+  try {
+    const cfg = {
+      voice_selection   : voiceSelections,
+      hinglish_iterations: hinglishIterations,
+      show_hindi_debug  : false,
+      selected_language : selectedLanguage
+    };
+
+    const { data } = await apiService.generateAudio(paperId, cfg);
+    // const { data } = await apiService.generateBhashiniAudio(paperId, cfg);
+    setAudioFiles(data.audio_files || []);
+    setProgress(50); // halfway done after audio
+
+    toast.success('Audio ready – generating video…');
+    await generateVideo();
+  } catch (error) {
+    console.error('Audio generation failed:', error);
+    toast.error('Audio generation failed');
+    setProgress(0);
+  } finally {
+    setAudioLoading(false);
+  }
+};
+
 
   /* ───── 2. generate video then auto-redirect ───── */
   const generateVideo = async () => {
-    if (!paperId) return;
-    setVideoLoading(true);
-    try {
-      const cfg = { selected_language: selectedLanguage };
-      const { data } = await apiService.generateVideo(paperId, cfg);
-      setVideoPath(data.video_path);
-      
-      // Mark step 5 (Media Generation) as completed
-      markStepCompleted(5);
-      
-      toast.success('Video created successfully!');
+  if (!paperId) return;
+  setVideoLoading(true);
+  setProgress(60); // slight jump to show video starting
 
-      // Auto-progress to results page for first-time generation
-      const isFirstTimeGeneration = !completedSteps.includes(5);
-      if (isFirstTimeGeneration) {
-        progressToNextStep(); // This will automatically navigate to /results        
-      }
+  try {
+    const cfg = { selected_language: selectedLanguage };
+    const { data } = await apiService.generateVideo(paperId, cfg);
+    setVideoPath(data.video_path);
 
-    } catch (error) {
-      console.error('Video generation failed:', error);
-      toast.error('Video generation failed');
-    } finally {
-      setVideoLoading(false);
+    markStepCompleted(5);
+    setProgress(100); // complete
+    toast.success('Video created successfully!');
+
+    const isFirstTimeGeneration = !completedSteps.includes(5);
+    if (isFirstTimeGeneration) {
+      progressToNextStep();
     }
-  };
+
+  } catch (error) {
+    console.error('Video generation failed:', error);
+    toast.error('Video generation failed');
+    setProgress(50); // remain at audio
+  } finally {
+    setVideoLoading(false);
+  }
+};
+
 
 
   /* ───── 3. redirect to results page ───── */
@@ -178,10 +187,14 @@ const MediaGeneration = () => {
 
           {/* spinner bar */}
           {(audioLoading || videoLoading) && (
-            <div className="h-1 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden mb-4">
-              <div className="h-full w-full animate-pulse bg-gray-700 dark:bg-gray-400" />
+            <div className="h-2 w-full bg-gray-900 dark:bg-gray-700 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-blue-600 dark:bg-gray-900 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           )}
+
 
           {/* Success indicator */}
           {mediaGenerated && !audioLoading && !videoLoading && (

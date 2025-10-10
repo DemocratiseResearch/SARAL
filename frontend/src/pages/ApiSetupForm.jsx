@@ -19,14 +19,14 @@ const ApiKeyInput = ({ label, name, value, onChange, required, description, show
           ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
           : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
         }`}>
-        {status === 'valid' ? (
-          <FiCheck className="w-3 h-3" />
+          {status === 'valid' ? (
+            <FiCheck className="w-3 h-3" />
           ) : (
-          <FiAlertCircle className="w-3 h-3" />
+            <FiAlertCircle className="w-3 h-3" />
           )}
           {status === 'valid' ? 'Valid' : 'Invalid'}
         </div>
-        )}
+      )}
     </div>
     
     <div className="relative">
@@ -35,6 +35,7 @@ const ApiKeyInput = ({ label, name, value, onChange, required, description, show
         name={name}
         value={value}
         onChange={onChange}
+        required={required}
         className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900
                    border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100
                    focus:outline-none focus:ring-2 focus:ring-gray-700 pr-12"
@@ -51,26 +52,27 @@ const ApiKeyInput = ({ label, name, value, onChange, required, description, show
       </button>
     </div>
     <div className="flex flex-row justify-between">
-    {description && (
-      <span className="text-sm text-gray-600 dark:text-gray-400">{description}</span>
+      {description && (
+        <span className="text-sm text-gray-600 dark:text-gray-400">{description}</span>
       )}
-    <a
-      href={link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300 
-                 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-150"
-    >
-      Get API Key
-      <FiExternalLink className="w-3 h-3" />
-    </a>
+      <a
+        href={link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300 
+                   hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-150"
+      >
+        Get API Key
+        <FiExternalLink className="w-3 h-3" />
+      </a>
+    </div>
   </div>
-  </div>
-  );
+);
 
 const ApiSetupForm = () => {
-  const { progressToNextStep } = useWorkflow();
+  const { progressToNextStep, setCurrentStep } = useWorkflow();
   const [loading, setLoading] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(true);
   const [status, setStatus] = useState({});
   const [showPasswords, setShowPasswords] = useState({});
   const [apiKeys, setApiKeys] = useState({
@@ -80,8 +82,28 @@ const ApiSetupForm = () => {
   });
 
   useEffect(() => {
-    checkApiKeysStatus();
+    checkExistingSetup();
   }, []);
+
+  const checkExistingSetup = async () => {
+    try {
+      setCheckingExisting(true);
+      const response = await apiService.getApiKeysStatus();
+      setStatus(response.data);
+      
+      // If Gemini API key is already configured and valid, skip to paper upload
+      if (response.data.gemini_key === 'valid') {
+        toast.success('API keys already configured!');
+        // Skip to paper upload step (assuming it's step 2)
+        setCurrentStep(2); // or whatever step number paper upload is
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking existing API keys:', error);
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
 
   const checkApiKeysStatus = async () => {
     try {
@@ -101,8 +123,18 @@ const ApiSetupForm = () => {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
   };
 
+  const isFormValid = () => {
+    return apiKeys.gemini_key.trim() !== '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!isFormValid()) {
+      toast.error('Gemini API key is required to continue');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -112,7 +144,7 @@ const ApiSetupForm = () => {
       progressToNextStep();
     } catch (error) {
       console.error('API setup error:', error);
-      toast.error('Failed to configure API keys');
+      toast.error('Failed to configure API keys. Please check your keys and try again.');
     } finally {
       setLoading(false);
     }
@@ -122,8 +154,8 @@ const ApiSetupForm = () => {
     {
       name: 'gemini_key',
       label: 'Gemini API Key',
-      required: false,
-      description: 'Used for script generation and content analysis.',
+      required: true,
+      description: 'Required for script generation and content analysis.',
       link: 'https://makersuite.google.com/app/apikey'
     },
     {
@@ -142,6 +174,18 @@ const ApiSetupForm = () => {
     }
   ];
 
+  // Show loading while checking existing setup
+  if (checkingExisting) {
+    return (
+      <div className="max-w-3xl mx-auto flex items-center justify-center py-12">
+        <div className="text-center space-y-4">
+          <LoadingSpinner size="lg" />
+          <p className="text-gray-600 dark:text-gray-400">Checking existing configuration...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       {/* header */}
@@ -150,7 +194,7 @@ const ApiSetupForm = () => {
           Configure API Keys
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Set up your API keys to enable AI-powered features. All keys are optional and stored securely.
+          Set up your API keys to enable AI-powered features. Gemini API key is required to continue.
         </p>
       </div>
 
@@ -183,59 +227,58 @@ const ApiSetupForm = () => {
                 status={status[config.name]}
                 link={config.link}
               />
-              
-              
             </div>
-            ))}
+          ))}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-6">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isFormValid()}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3
                          rounded-md bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400
                          text-white font-medium transition-colors duration-150"
             >
               {loading ? (
                 <>
-                <LoadingSpinner size="sm" />
-                Configuring...
+                  <LoadingSpinner size="sm" />
+                  Configuring...
                 </>
-                ) : (
+              ) : (
                 <>
-                <FiKey className="w-5 h-5" />
-                Save Configuration
+                  <FiKey className="w-5 h-5" />
+                  Save Configuration & Continue
                 </>
-                )}
-              </button>
-              
-              <button
-                type="button"
-                onClick={progressToNextStep}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3
-                           rounded-md border border-gray-300 dark:border-gray-600
-                           bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800
-                           text-gray-900 dark:text-gray-100 font-medium 
-                           transition-colors duration-150"
-              >
-                Skip for Now
-              </button>
-            </div>
-          </form>
+              )}
+            </button>
+            
+            {/* Remove the Skip button since Gemini API key is now required */}
+          </div>
+        </form>
 
-          {/* security notice */}
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-            <div className="flex items-start gap-3">
-              <FiAlertCircle className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                <p className="font-medium mb-1">API Key Security</p>
-                <p>Your API keys are encrypted and stored securely. You can update or remove them at any time.</p>
-              </div>
+        {/* security notice */}
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+          <div className="flex items-start gap-3">
+            <FiAlertCircle className="w-5 h-5 text-gray-600 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="font-medium mb-1">API Key Security</p>
+              <p>Your API keys are encrypted and stored securely. You can update or remove them at any time in settings.</p>
             </div>
           </div>
-        </motion.div>
-      </div>
-      );
+        </div>
+
+        {/* Required field notice */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="flex items-start gap-3">
+            <FiKey className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-700 dark:text-blue-300">
+              <p className="font-medium mb-1">Gemini API Key Required</p>
+              <p>The Gemini API key is required to use the core features of this application. Other API keys are optional for enhanced functionality.</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
 };
 
 export default ApiSetupForm;

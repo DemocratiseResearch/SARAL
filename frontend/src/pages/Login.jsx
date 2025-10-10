@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { GoogleLogin } from '@react-oauth/google';
+import { auth, provider } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiArrowRight } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { signInWithPopup } from "firebase/auth";
 import ThemeToggle from '../components/common/ThemeToggle';
 
 const Login = () => {
@@ -13,25 +14,28 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const handleGoogleSuccess = async (credentialResponse) => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      const result = await loginWithGoogle(credentialResponse.credential);
-      if (result.success) {
+      // Use Firebase Auth to sign in with Google
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+      // console.log("Firebase ID Token:", idToken);
+      // Send Firebase ID token to backend
+      const loginResult = await loginWithGoogle(idToken);
+      console.log("Backend login result:", loginResult);
+      if (loginResult.success) {
         toast.success('Login successful!');
         navigate('/api-setup');
       } else {
-        toast.error(result.error || 'Login failed');
+        toast.error(loginResult.error || 'Login failed');
       }
     } catch (error) {
+      console.error("Login error:", error);
       toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleError = () => {
-    toast.error('Google login failed. Please try again.');
   };
 
   return (
@@ -66,17 +70,17 @@ const Login = () => {
                   Signing you in...
                 </span>
               </div>
-              ) : (
+            ) : (
               <div className="flex justify-center">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="outline"
-                  size="large"
-                  width={300}
-                />
+                <button
+                  onClick={handleGoogleLogin}
+                  className="btn btn-google"
+                  style={{ minWidth: 200, padding: '0.75rem 1.5rem', fontSize: '1rem', borderRadius: '0.5rem', background: '#4285F4', color: '#fff', border: 'none', cursor: 'pointer' }}
+                >
+                  <FiUser className="mr-2" /> Sign in with Google
+                </button>
               </div>
-              )}
+            )}
             </div>
 
           {/* Features Preview */}

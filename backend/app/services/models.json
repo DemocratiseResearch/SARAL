@@ -1,0 +1,31 @@
+[
+  {
+    "_id": {
+      "$oid": "68cbb5c30d8a058932f63a9b"
+    },
+    "model_id": "6872172f4f34535ffa89b8f6",
+    "access_start_date": {
+      "$date": "2025-09-18T00:00:00Z"
+    },
+    "access_end_date": {
+      "$date": "2030-12-31T23:59:59Z"
+    },
+    "requests_per_minute": 150,
+    "requested_at": {
+      "$date": "2025-09-18T07:33:23.818Z"
+    },
+    "user_id": "68cbb32d0d8a058932f639f8",
+    "status": "approved",
+    "model_name": "IIITH-Bhashaverse-English-Assamese",
+    "model_type": "mt",
+    "access_count": 0,
+    "access_token": "xxxxxxxxxxxxxxxxx",
+    "api_url": "xxxxxxxxxxxxxx",
+    "granted_at": {
+      "$date": "2025-09-18T07:57:57.432Z"
+    },
+    "source_language": "English",
+    "target_language": "Assamese",
+    "institution_name": "IIIT-Hyderabad"
+  }
+]

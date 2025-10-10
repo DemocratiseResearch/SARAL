@@ -16,7 +16,8 @@ const languageMap = {
   'Malayalam': 'മലയാളം (Malayalam)',
   'Marathi': 'मराठी (Marathi)',
   'Punjabi': 'ਪੰਜਾਬੀ (Punjabi)',
-  'Urdu': 'اردو (Urdu)'
+  'Urdu': 'اردو (Urdu)',
+  'Odia': 'ଓଡ଼ିଆ (Odia)'
 };
 
 const VideoCard = ({ video, index }) => {

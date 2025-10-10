@@ -7,7 +7,7 @@ import { useWorkflow } from '../contexts/WorkflowContext';
 import { FiUpload, FiEdit3 } from 'react-icons/fi';
 
 const PaperProcessing = () => {
-  const { paperId, metadata } = useWorkflow();
+  const { paperId, metadata, isProcessed } = useWorkflow();
   
   const breadcrumbs = [
     { label: 'Paper Processing', href: '/paper-processing' }
@@ -39,9 +39,9 @@ const PaperProcessing = () => {
             <PaperUpload />
           </div>
         ) : (
-          <div className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-md p-6">
-            <MetadataEditor />
-          </div>
+          <div>
+          {isProcessed ? <MetadataEditor /> : <PaperUpload/>}
+        </div>
         )}
 
         {/* Processing Status */}

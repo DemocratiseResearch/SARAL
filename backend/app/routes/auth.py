@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from app.services.auth_service import auth_service
 from app.auth.dependencies import get_current_user
+from app.firebase import db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,21 +25,18 @@ class UserResponse(BaseModel):
 
 @router.post("/google/login", response_model=AuthResponse)
 async def google_login(request: GoogleLoginRequest):
-    """Authenticate with Google and return JWT token"""
+    """Authenticate with Google/Firebase and return access token and user info"""
     try:
-        # Verify Google token
-        user_data = auth_service.verify_google_token(request.token)
-        
-        # Create JWT token
-        access_token = auth_service.create_access_token(user_data)
-        
+        # Verify Firebase token
+        # print("token", request.token)
+        user_data = auth_service.verify_firebase_token(request.token)
+        # Ensure user exists in Firestore
+        auth_service.get_or_create_user(user_data)
         logger.info(f"User authenticated: {user_data['email']}")
-        
         return AuthResponse(
-            access_token=access_token,
+            access_token=request.token,
             user=user_data
         )
-        
     except HTTPException:
         raise
     except Exception as e:

@@ -1,13 +1,13 @@
 # app/services/auth_service.py
 import os
-import jwt
-from datetime import datetime, timedelta
-from google.oauth2 import id_token
-from google.auth.transport import requests
-from fastapi import HTTPException, status
+import firebase_admin
+from firebase_admin import auth as firebase_auth
+from fastapi import HTTPException, status, Depends
 from typing import Dict, Optional
 import logging
 from dotenv import load_dotenv
+
+from app.firebase import db
 
 load_dotenv()
 
@@ -18,80 +18,50 @@ class AuthService:
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
         self.jwt_secret = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
         self.jwt_algorithm = "HS256"
-        self.token_expire_hours = 24
+        self.token_expire_days = 7  # Changed from hours to days
         
         if not self.google_client_id:
             logger.warning("GOOGLE_CLIENT_ID not configured")
     
-    def verify_google_token(self, token: str) -> Dict:
-        """Verify Google ID token and extract user info"""
+    def verify_firebase_token(self, token: str) -> Dict:
+        """Verify Firebase ID token and extract user info"""
         try:
-            idinfo = id_token.verify_oauth2_token(
-                token, requests.Request(), self.google_client_id
-            )
-            
-            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-                raise ValueError('Invalid token issuer')
-                
+            decoded_token = firebase_auth.verify_id_token(token)
+            uid = decoded_token['uid']
+            user_record = firebase_auth.get_user(uid)
             return {
-                'id': idinfo['sub'],
-                'email': idinfo['email'],
-                'name': idinfo['name'],
-                'picture': idinfo.get('picture', ''),
-                'verified_email': idinfo.get('email_verified', False)
+                'id': user_record.uid,
+                'email': user_record.email,
+                'name': user_record.display_name,
+                'picture': user_record.photo_url,
+                'verified_email': user_record.email_verified
             }
         except Exception as e:
-            logger.error(f"Google token verification failed: {e}")
+            logger.error(f"Firebase token verification failed: {e}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Google token"
+                detail="Invalid Firebase token"
             )
-    
-    def create_access_token(self, user_data: Dict) -> str:
-        """Create JWT access token"""
-        try:
-            expire = datetime.utcnow() + timedelta(hours=self.token_expire_hours)
-            payload = {
-                **user_data,
-                'exp': expire,
-                'iat': datetime.utcnow(),
-                'type': 'access_token'
-            }
-            
-            token = jwt.encode(payload, self.jwt_secret, algorithm=self.jwt_algorithm)
-            return token if isinstance(token, str) else token.decode('utf-8')
-            
-        except Exception as e:
-            logger.error(f"Token creation failed: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create access token"
-            )
-    
+
+    def get_or_create_user(self, user_data: dict) -> dict:
+        users_ref = db.collection('users')
+        user_doc = users_ref.document(user_data['id']).get()
+        if user_doc.exists:
+            return user_doc.to_dict()
+        new_user = {
+            'id': user_data['id'],
+            'email': user_data['email'],
+            'name': user_data.get('name', ''),
+            'picture': user_data.get('picture', ''),
+            'verified_email': user_data.get('verified_email', False)
+        }
+        users_ref.document(new_user['id']).set(new_user)
+        return new_user
+
+    # Firebase handles access tokens, so no need for custom JWT creation/verification
     def verify_access_token(self, token: str) -> Dict:
-        """Verify JWT access token and return user data"""
-        try:
-            payload = jwt.decode(
-                token, 
-                self.jwt_secret, 
-                algorithms=[self.jwt_algorithm]
-            )
-            
-            if payload.get('type') != 'access_token':
-                raise jwt.InvalidTokenError("Invalid token type")
-                
-            return payload
-            
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            )
-        except jwt.InvalidTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
+        """Verify Firebase ID token and return user data"""
+        return self.verify_firebase_token(token)
 
 # Global auth service instance
 auth_service = AuthService()

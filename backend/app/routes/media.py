@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
 from fastapi.responses import FileResponse, StreamingResponse
 import os
 from pathlib import Path
+import json
 import traceback
 from app.auth.dependencies import get_current_user
 from app.models.request_models import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
@@ -10,6 +11,7 @@ from app.routes.scripts import scripts_storage
 from app.routes.slides import slides_storage
 from app.routes.api_keys import get_api_keys
 from app.services.tts_service import ensure_audio_is_generated, ensure_hindi_audio_is_generated, ensure_language_audio_is_generated
+from app.services.tts_service import ensure_audio_is_generated_bhashini, bhashini_mt
 from app.services.video_service import create_video_with_audio
 from app.services.hindi_service import generate_hindi_script_with_google
 from app.services.language_service import translate_to_language
@@ -328,3 +330,131 @@ async def stream_video(paper_id: str, request: Request):
                 "Cache-Control": "no-cache",
             },
         )
+
+
+
+@router.post("/{paper_id}/generate-audio-bhashini", response_model=MediaResponse)
+async def generate_audio_bhashini(
+    paper_id: str,
+    request: AudioGenerationRequest,
+    api_keys: dict = Depends(get_api_keys)
+):
+    print(f"using voice selection:, {request.voice_selection}")
+    print(f"Generating audio for paper ID: {paper_id}")
+    lang = request.selected_language
+    gender = "male"
+    print("lang", lang)
+    if paper_id not in scripts_storage:
+        scripts_file = f"temp/scripts/{paper_id}_scripts.json"
+        if os.path.exists(scripts_file):
+            with open(scripts_file, 'r', encoding='utf-8') as f:
+                scripts_storage[paper_id] = json.load(f)
+        else:
+            raise HTTPException(status_code=404, detail="Scripts not found")
+
+    if not api_keys.get("sarvam_key"):
+        raise HTTPException(status_code=400, detail="Sarvam API key required for TTS")
+
+    try:
+        scripts_info = scripts_storage[paper_id]
+        audio_dir = f"temp/audio/{paper_id}"
+        Path(audio_dir).mkdir(parents=True, exist_ok=True)
+
+         # Load model details for MT and TTS
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        print("BASE_DIR", BASE_DIR)
+        MODEL_PATH = os.path.join(BASE_DIR, "..", "services", "models.json")
+
+        api_url = None
+        access_token = None
+        with open(MODEL_PATH, "r") as f:
+            data = json.load(f)
+
+
+        sections_scripts = {}
+        for section_name, section_data in scripts_info.get("sections", {}).items():
+            if isinstance(section_data, dict):
+                sections_scripts[section_name] = section_data.get("script", "")
+            else:
+                sections_scripts[section_name] = str(section_data)
+
+        
+        # translate to required lang if required
+        if lang == "English":
+            print(f"Generating {lang} script")
+            title_intro_script = scripts_info.get("title_intro_script", "")
+            language = "English"
+        else:
+            print(f"Generating {lang} script")
+            # print(f"Title intro script: {scripts_info.get('title_intro_script', '')}")
+
+            if isinstance(data, list):
+                for item in data:
+                    if (
+                        item.get("model_type") == "mt"
+                        and item.get("source_language") == "English"
+                        and item.get("target_language") == lang
+                    ):
+                        api_url = item.get("api_url")
+                        access_token = item.get("access_token")
+
+                headers = {"access-token": access_token}
+
+                title_intro = await bhashini_mt(
+                    scripts_info.get("title_intro_script", ""),
+                    headers,
+                    api_url
+                )
+                nonEngish_sections_scripts = {
+                    name: await bhashini_mt(script, headers, api_url)
+                    for name, script in sections_scripts.items()
+                }
+                print("title_intro", title_intro)
+                print("nonEngish_sections_scripts", nonEngish_sections_scripts)
+                title_intro_script = title_intro
+                sections_scripts = nonEngish_sections_scripts
+        
+
+
+        # generate audio
+        
+        for item in data:
+            if (
+                item.get("model_type") == "tts"
+                and item.get("source_language") == lang
+            ):
+                api_url = item.get("api_url")
+                access_token = item.get("access_token")
+
+        headers = {"access-token": access_token}
+
+
+        print("calling aduio generator of bhashini ")
+        audio_response = await ensure_audio_is_generated_bhashini(
+            language=lang,
+            gender = gender,
+            headers = headers,
+            api_url = api_url,
+            paper_id=paper_id,
+            title_intro_script=title_intro_script,
+            sections_scripts=sections_scripts
+        )
+        print("audio_response", audio_response)
+
+
+        audio_files = audio_response["audio_files"]
+        if paper_id not in media_storage:
+            media_storage[paper_id] = {}
+
+        media_storage[paper_id]["audio_files"] = [os.path.join(audio_dir, f) for f in audio_files]
+        media_storage[paper_id]["audio_dir"] = audio_dir
+
+        return MediaResponse(
+            audio_files=audio_files,
+            paper_id=paper_id
+        )
+
+    except Exception as e:
+        print(f"Error generating audio: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")

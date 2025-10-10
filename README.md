@@ -95,6 +95,7 @@ The tutorial covers:
 │   ├── .env
 │   ├── .python-version
 │   ├── requirements.txt
+│   ├── firebase_service_account.json
 │   ├── app/
 │   │   ├── main.py
 │   │   ├── models/
@@ -232,14 +233,17 @@ yarn install
 ### API Keys
 
 Create a `.env` file in the `backend/` directory:
+Add your Firebase service account JSON to backend/firebase_service_account.json
 
 ```
 GOOGLE_API_KEY=your_gemini_api_key
 SARVAM_API_KEY=your_sarvam_api_key
+FIREBASE_SERVICE_ACCOUNT=./firebase_service_account.json
 ```
 
 - **Google Gemini API Key:** [Google AI Studio](https://makersuite.google.com/)
 - **Sarvam TTS API Key (optional):** [Sarvam AI](https://sarvam.ai/)
+- **Firebase service account :** [Firebase Console](https://console.firebase.google.com/)
 
 You can also provide these keys via the web interface at runtime.
 

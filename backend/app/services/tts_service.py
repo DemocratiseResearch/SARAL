@@ -7,6 +7,11 @@ import re
 import subprocess
 import grapheme  # Add this import for proper Unicode grapheme handling
 
+import json
+import aiohttp
+import asyncio
+from fastapi import HTTPException
+
 def clean_script_for_tts_and_video(script_text):
     """Clean script text for TTS processing."""
     if not script_text or not script_text.strip():
@@ -154,7 +159,7 @@ def ensure_hindi_audio_is_generated(
     # Use appropriate voice for Hindi content
     voice = voice_selections.get("Hindi", "vidya")
     print(f"Using Hindi voice: {voice}")
-
+    print("sarvam_api_key", sarvam_api_key)
     # Initialize TTS client
     try:
         tts_client = SarvamTTS(api_key=sarvam_api_key)
@@ -676,3 +681,355 @@ def test_sarvam_sdk(api_key: str, voice: str = "meera"):
     except Exception as e:
         print(f"SDK test failed: {e}")
         return False
+
+
+
+
+
+
+
+ 
+# ---------------------------
+# Bhashini TTS call 
+# ---------------------------
+async def bhashini_tts(clean_text, gender, headers, api_url):
+    data = {"text": clean_text, "gender": gender}
+    print("data", data)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, json=data, headers=headers, ssl=False) as response:
+            response_text = await response.text()
+            print("response", response)
+            if response.status == 200:
+                result = await response.json()
+                url = result.get("data", {}).get("s3_url", "")
+                print("url", url)
+                return url
+            else:
+                raise HTTPException(
+                    status_code=response.status,
+                    detail=f"TTS API error: {response.status} - {response_text}",
+                )
+
+
+# ---------------------------
+# Bhashini MT call 
+# ---------------------------
+async def bhashini_mt(clean_text, headers, api_url):
+    data = {"input_text": clean_text}
+    print("data", data)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, json=data, headers=headers, ssl=False) as response:
+            print("response", response)
+            if response.status == 200:
+                result = await response.json()
+                print("NMT Result: ",result)
+                return result.get("data", {}).get("output_text", "")
+            else:
+                error_text = await response.text()
+                print("Error response body:", error_text)
+
+                raise HTTPException(status_code=500, detail="Translation API error")
+
+
+# ---------------------------
+# File download helper 
+# ---------------------------
+async def download_audio_file(url: str, save_path: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                with open(save_path, "wb") as f:
+                    f.write(await resp.read())
+                return save_path
+            else:
+                raise Exception(f"Failed to download audio. Status: {resp.status}")
+
+
+# ---------------------------
+# Single audio generation task
+# ---------------------------
+async def generate_single_audio(
+    section_name: str,
+    script_text: str,
+    output_path: str,
+    headers: dict,
+    api_url: str,
+    gender: str = "male"
+):
+    """Generate audio for a single section"""
+    try:
+        if not script_text or not script_text.strip():
+            return None
+        
+        print(f"Starting {section_name} audio generation...")
+        
+        cleaned_text = clean_script_for_tts_and_video(script_text)
+        if not cleaned_text:
+            return None
+            
+        audio_url = await bhashini_tts(cleaned_text, gender, headers, api_url)
+        if audio_url:
+            await download_audio_file(audio_url, output_path)
+            print(f"✓ {section_name} audio completed: {output_path}")
+            return output_path
+        
+        return None
+        
+    except Exception as e:
+        print(f"✗ Error generating {section_name} audio: {e}")
+        return None
+
+
+# ---------------------------
+# Parallel audio generation
+# ---------------------------
+async def ensure_audio_is_generated_bhashini(
+    language: str,
+    gender: str,
+    headers,
+    api_url: str,
+    paper_id: str,
+    title_intro_script: str,
+    sections_scripts: Dict[str, str],
+):
+    """Generate audio files in parallel for faster processing"""
+
+    output_dir = f"temp/audio/{paper_id}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    # Load config (same as before)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(BASE_DIR, "models.json")
+
+    api_url_from_config = None
+    access_token = None
+    print("language", language)
+    with open(MODEL_PATH, "r") as f:
+        data = json.load(f)
+
+    if isinstance(data, list):
+        for item in data:
+            if (
+                item.get("model_type") == "tts"
+                and item.get("source_language") == language
+            ):
+                api_url_from_config = item.get("api_url")
+                access_token = item.get("access_token")
+
+    if not api_url_from_config or not access_token:
+        raise ValueError("No valid TTS model found in models.json")
+
+    headers = {"access-token": access_token}
+    final_api_url = api_url or api_url_from_config
+
+    # Prepare all tasks for parallel execution
+    tasks = []
+    
+    # Title audio task
+    if title_intro_script and title_intro_script.strip():
+        title_audio_path = os.path.join(output_dir, "00_title_introduction.wav")
+        tasks.append(
+            generate_single_audio(
+                "Title Introduction",
+                title_intro_script,
+                title_audio_path,
+                headers,
+                final_api_url,
+                gender
+            )
+        )
+
+    # Section audio tasks
+    section_order = [
+        "Introduction",
+        "Methodology", 
+        "Results",
+        "Discussion",
+        "Conclusion",
+    ]
+
+    for i, section_name in enumerate(section_order, start=1):
+        if section_name in sections_scripts:
+            script_text = sections_scripts[section_name]
+            if script_text and script_text.strip():
+                audio_path = os.path.join(
+                    output_dir, f"{i:02d}_{section_name.lower()}.wav"
+                )
+                tasks.append(
+                    generate_single_audio(
+                        section_name,
+                        script_text,
+                        audio_path,
+                        headers,
+                        final_api_url,
+                        gender
+                    )
+                )
+
+    if not tasks:
+        raise ValueError("No valid scripts found for audio generation")
+
+    print(f"Starting parallel generation of {len(tasks)} audio files...")
+    
+    # Execute all tasks in parallel
+    # start_time = time.time()
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # end_time = time.time()
+
+    # Process results
+    successful_files = []
+    failed_generations = []
+
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            failed_generations.append(f"Task {i}: {result}")
+        elif result is not None:
+            successful_files.append(result)
+
+    if failed_generations:
+        print("Some audio generations failed:")
+        for failure in failed_generations:
+            print(f"  - {failure}")
+
+    if not successful_files:
+        raise ValueError("No audio files were generated successfully")
+
+    print(f"✓ Generated {len(successful_files)} audio files ")
+    # print(f"✓ Generated {len(successful_files)} audio files in {end_time - start_time:.2f} seconds")
+    
+    return {
+        "audio_files": [Path(f).name for f in successful_files],
+        "successful_count": len(successful_files),
+        "failed_count": len(failed_generations),
+        # "generation_time": end_time - start_time
+    }
+
+
+# ---------------------------
+# Alternative with concurrency limit
+# ---------------------------
+async def ensure_audio_is_generated_bhashini_parallel_limited(
+    language: str,
+    gender: str,
+    headers,
+    api_url: str,
+    paper_id: str,
+    title_intro_script: str,
+    sections_scripts: Dict[str, str],
+    max_concurrent: int = 3  # Limit concurrent requests to avoid overwhelming the API
+):
+    """Generate audio files in parallel with concurrency limit"""
+
+    output_dir = f"temp/audio/{paper_id}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    # Load config (same as before)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(BASE_DIR, "models.json")
+
+    api_url_from_config = None
+    access_token = None
+    
+    with open(MODEL_PATH, "r") as f:
+        data = json.load(f)
+
+    if isinstance(data, list):
+        for item in data:
+            if (
+                item.get("model_type") == "tts"
+                and item.get("source_language") == "English"
+            ):
+                api_url_from_config = item.get("api_url")
+                access_token = item.get("access_token")
+
+    if not api_url_from_config or not access_token:
+        raise ValueError("No valid TTS model found in models.json")
+
+    headers = {"access-token": access_token}
+    final_api_url = api_url or api_url_from_config
+
+    # Create semaphore for limiting concurrent requests
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def generate_with_semaphore(section_name, script_text, output_path):
+        async with semaphore:
+            return await generate_single_audio(
+                section_name, script_text, output_path, headers, final_api_url, gender
+            )
+
+    # Prepare all tasks
+    tasks = []
+    
+    # Title audio task
+    if title_intro_script and title_intro_script.strip():
+        title_audio_path = os.path.join(output_dir, "00_title_introduction.wav")
+        tasks.append(
+            generate_with_semaphore(
+                "Title Introduction",
+                title_intro_script,
+                title_audio_path
+            )
+        )
+
+    # Section audio tasks
+    section_order = [
+        "Introduction",
+        "Methodology", 
+        "Results",
+        "Discussion",
+        "Conclusion",
+    ]
+
+    for i, section_name in enumerate(section_order, start=1):
+        if section_name in sections_scripts:
+            script_text = sections_scripts[section_name]
+            if script_text and script_text.strip():
+                audio_path = os.path.join(
+                    output_dir, f"{i:02d}_{section_name.lower()}.wav"
+                )
+                tasks.append(
+                    generate_with_semaphore(
+                        section_name,
+                        script_text,
+                        audio_path
+                    )
+                )
+
+    if not tasks:
+        raise ValueError("No valid scripts found for audio generation")
+
+    print(f"Starting parallel generation of {len(tasks)} audio files (max {max_concurrent} concurrent)...")
+    
+    # Execute all tasks in parallel with concurrency limit
+    start_time = time.time()
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    end_time = time.time()
+
+    # Process results (same as before)
+    successful_files = []
+    failed_generations = []
+
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            failed_generations.append(f"Task {i}: {result}")
+        elif result is not None:
+            successful_files.append(result)
+
+    if failed_generations:
+        print("Some audio generations failed:")
+        for failure in failed_generations:
+            print(f"  - {failure}")
+
+    if not successful_files:
+        raise ValueError("No audio files were generated successfully")
+
+    print(f"✓ Generated {len(successful_files)} audio files in {end_time - start_time:.2f} seconds")
+    
+    return {
+        "audio_files": [Path(f).name for f in successful_files],
+        "successful_count": len(successful_files),
+        "failed_count": len(failed_generations),
+        "generation_time": end_time - start_time
+    }

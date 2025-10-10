@@ -12,8 +12,12 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth
+from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload
 from app.auth.google_auth import get_current_user, get_current_user_optional
+## Removed: from app.database import create_tables (no longer needed)
+
+# Create database tables on startup
+## Removed: create_tables() (no longer needed)
 
 # Create temp directories
 temp_dirs = [
@@ -43,6 +47,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
         "http://localhost:3001",
+        "http://34.61.172.31:3000"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -98,6 +103,8 @@ app.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
 app.include_router(slides.router, prefix="/api/slides", tags=["Slides"])
 app.include_router(media.router, prefix="/api/media", tags=["Media"])
 app.include_router(images.router, prefix="/api/images", tags=["Images"])
+app.include_router(papertovideo.router, prefix="/api/papertovideo", tags=["pdftovideo"])
+app.include_router(youtube_upload.router, prefix="/api/youtube_upload", tags=["youtube_upload"])
 
 # Public endpoints
 @app.get("/")

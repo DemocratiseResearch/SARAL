@@ -19,9 +19,16 @@ import MediaGeneration from './pages/MediaGeneration';
 import Results from './pages/Results';
 import About from './pages/About';
 import VideosPage from './pages/VideosPage'
+import Testimonials from './pages/Testimonials';
+import YouTubeLogin from './pages/YouTubeLogin';
+import OAuthCallback from './pages/OAuthCallback';
+import VideoPreview from './pages/VideoPreview';
+import VideoDisplay from './pages/VideoDisplay'
+
 
 function App() {
   return (
+    
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
     <AuthProvider>
     <ErrorBoundary>
@@ -34,6 +41,7 @@ function App() {
     <Route path="/" element={<LandingPage />} />
     <Route path="/about" element={<About />} />
     <Route path="/sample" element={<VideosPage/>} />
+    <Route path="/testimonials" element={<Testimonials />} />
     <Route path="/api-setup" element={
       <ProtectedRoute>
       <ApiSetup />
@@ -65,6 +73,19 @@ function App() {
       </ProtectedRoute>
     } />
     
+    <Route path="/youtube-login" element={
+
+      <YouTubeLogin />
+    } />
+     <Route path="/oauth2callback" element={
+     
+      <OAuthCallback />
+    } />
+      <Route path="/video-preview" element={ <VideoPreview/>
+    }/>
+    <Route path="/video-display" element={ <VideoDisplay/>
+    }/>
+
     <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     

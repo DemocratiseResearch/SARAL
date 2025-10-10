@@ -168,8 +168,9 @@ export default function About() {
           className="text-center mb-16"
         >
           <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-4">
-            About Saral AI
+            About SARAL AI
           </h1>
+
           <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-3xl mx-auto leading-relaxed">
             We democratize research by making academic workflows smoother, faster, and more accessible 
             through AI-integrated tools that transform complex papers into engaging video presentations.
@@ -191,6 +192,19 @@ export default function About() {
             and complex formatting. Saral AI bridges this gap by automatically converting academic papers 
             into accessible, engaging video presentations that can reach broader audiences and facilitate 
             better knowledge transfer.
+          </p>
+        </motion.section>
+
+        
+
+        <motion.section
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15, delay: 0.38 }}
+          className="text-center mb-16"
+        >
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+            Under the guidance of <span className="text-primary-600 dark:text-primary-400">ANRF</span>
           </p>
         </motion.section>
 
@@ -238,7 +252,7 @@ export default function About() {
             Have questions about Saral AI or want to collaborate with us?
           </p>
           <a
-            href="mailto:democratise.research@gmail.com"
+            href="mailto:pk.guru@iiit.ac.in"
             className="btn-primary inline-flex items-center gap-2"
           >
             <FiMail className="w-4 h-4" />

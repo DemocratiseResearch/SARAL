@@ -68,3 +68,11 @@ class MediaResponse(BaseModel):
     audio_files: List[str]
     video_path: Optional[str] = None
     paper_id: str
+
+
+class GoogleTokenRequest(BaseModel):
+    access_token: str
+    refresh_token: str | None = None
+    scope: str
+    token_type: str
+    expiry_date: str | None = None  # optional (frontend may send expiry)
