@@ -1,4 +1,3 @@
-# app/services/rag_service.py (updated)
 import os
 import logging
 from pathlib import Path
@@ -7,12 +6,15 @@ import time
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-# ⭐️ Use SentenceTransformers for local embeddings
 from langchain_community.embeddings import SentenceTransformerEmbeddings 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+
+# ⭐️ IMPORT THE MULTI-QUERY RETRIEVER ⭐️
+from langchain.retrievers.multi_query import MultiQueryRetriever
 
 from app.services.pdf_processor import process_pdf_file
 from fastapi import UploadFile, HTTPException
@@ -25,12 +27,11 @@ logger = logging.getLogger(__name__)
 VECTOR_STORE_DIR = "temp/vector_stores"
 Path(VECTOR_STORE_DIR).mkdir(parents=True, exist_ok=True)
 
-# ⭐️ Initialize the local embedding model once.
-# This downloads the model on the first run and keeps it in memory.
+# Initialize the local embedding model once.
 try:
     logger.info("Loading local sentence transformer model...")
     embedding_function = SentenceTransformerEmbeddings(
-        model_name="all-MiniLM-L6-v2"
+        model_name="BAAI/bge-large-en-v1.5" 
     )
     logger.info("✅ Model loaded successfully.")
 except Exception as e:
@@ -38,7 +39,7 @@ except Exception as e:
     embedding_function = None
 
 @retry(
-    wait=wait_exponential(multiplier=1, min=4, max=10),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(3),
     retry_error_callback=lambda retry_state: logger.error(
         f"Embedding failed after {retry_state.attempt_number} attempts: {retry_state.outcome.exception()}"
@@ -51,8 +52,7 @@ def add_texts_with_retry(vector_store, texts):
 
 def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
     """
-    Processes an uploaded PDF, creates a Chroma vector store with local embeddings,
-    and persists it.
+    Processes an uploaded PDF, creates a Chroma vector store, and persists it.
     """
     if embedding_function is None:
         raise HTTPException(status_code=500, detail="Embedding model is not available.")
@@ -71,15 +71,15 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
         # 1. Process PDF to extract text
         paper_info = process_pdf_file(pdf_path, paper_id)
         text_file_path = paper_info.get("text_file_path")
-
+        
         if not text_file_path or not os.path.exists(text_file_path):
             raise Exception("Text extraction failed.")
 
         with open(text_file_path, "r", encoding="utf-8") as f:
             document_text = f.read()
-
+            
         # 2. Split Text into Chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
         chunks = text_splitter.split_text(document_text)
         logger.info(f"Document split into {len(chunks)} chunks.")
 
@@ -91,27 +91,24 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
             persist_directory=persist_directory
         )
         
-        batch_size = 100  # Process 100 chunks at a time
+        batch_size = 100
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i:i + batch_size]
             logger.info(f"Processing batch {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}...")
             
             try:
-                # Use the retry wrapper here
                 add_texts_with_retry(vector_store, batch)
             except RetryError as e:
                  raise Exception(f"Failed to add texts to vector store after multiple retries: {e}")
 
-            time.sleep(1) # Small delay to prevent overwhelming CPU
+            time.sleep(0.5)
 
-        logger.info("Persisting the vector store...")
         vector_store.persist()
         logger.info(f"✅ Successfully created vector store for chat paper_id: {paper_id} at {persist_directory}")
         return paper_id
 
     except Exception as e:
         logger.error(f"Failed to create vector store for paper_id {paper_id}: {e}", exc_info=True)
-        # Clean up created directory if something fails
         if os.path.exists(temp_dir):
             import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -120,8 +117,7 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
 
 def get_conversational_chain(paper_id: str, gemini_api_key: str):
     """
-    Loads an existing vector store and builds the conversational RAG chain
-    using the local embedding model.
+    Loads an existing vector store and builds a smarter conversational RAG chain.
     """
     if embedding_function is None:
         raise HTTPException(status_code=500, detail="Embedding model is not available.")
@@ -132,26 +128,48 @@ def get_conversational_chain(paper_id: str, gemini_api_key: str):
         logger.error(f"Vector store for paper_id {paper_id} not found.")
         return None
 
-    # 1. Load the Chroma Vector Store with the same local embedding function
     vector_store = Chroma(
         persist_directory=persist_directory,
         embedding_function=embedding_function
     )
     
-    # 2. Set up memory to maintain conversation context
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         return_messages=True
     )
     
-    # 3. Create the Conversational Chain with Gemini for the language model part
-    # ⭐️ CHANGED MODEL TO gemini-1.5-flash-latest ⭐️
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_api_key, temperature=0.3)
+    custom_prompt_template = """You are a helpful and knowledgeable research assistant. Your task is to answer the user's question based on the provided document excerpts.
+
+1.  **Prioritize the Document:** First, carefully analyze the provided context from the research paper. Formulate your primary answer based directly on this information.
+2.  **Supplement with General Knowledge:** After answering based on the document, you may supplement your answer with your own general knowledge to provide more context, define key terms, or elaborate on concepts mentioned in the paper.
+3.  **Be Factual:** If the document does not contain the answer, state that and then try to answer using your general knowledge if appropriate.
+
+Context from the document:
+{context}
+
+Based on the context and your general knowledge, answer the following question.
+
+Question: {question}
+Helpful Answer:"""
+    
+    QA_PROMPT = PromptTemplate(
+        template=custom_prompt_template, input_variables=["context", "question"]
+    )
+
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=gemini_api_key, temperature=0.2)
+    
+    # ⭐️ UPGRADE the retriever to use MultiQueryRetriever ⭐️
+    retriever_from_llm = MultiQueryRetriever.from_llm(
+        retriever=vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 5}),
+        llm=llm
+    )
     
     chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        retriever=vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 3}),
+        retriever=retriever_from_llm, # Use the new multi-query retriever
         memory=memory,
+        combine_docs_chain_kwargs={"prompt": QA_PROMPT}
     )
     
     return chain
+
