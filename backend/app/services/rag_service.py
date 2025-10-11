@@ -133,16 +133,19 @@ def get_conversational_chain(paper_id: str, gemini_api_key: str):
         embedding_function=embedding_function
     )
     
+    # Simple in-memory conversation buffer for this session
     memory = ConversationBufferMemory(
         memory_key="chat_history",
-        return_messages=True
+        return_messages=True,
+        output_key="answer"
     )
     
-    custom_prompt_template = """You are a helpful and knowledgeable research assistant. Your task is to answer the user's question based on the provided document excerpts.
+    custom_prompt_template = """You are a helpful and knowledgeable research assistant. Your task is to answer the user's question based on the provided document excerpts and previous conversation context.
 
 1.  **Prioritize the Document:** First, carefully analyze the provided context from the research paper. Formulate your primary answer based directly on this information.
-2.  **Supplement with General Knowledge:** After answering based on the document, you may supplement your answer with your own general knowledge to provide more context, define key terms, or elaborate on concepts mentioned in the paper.
-3.  **Be Factual:** If the document does not contain the answer, state that and then try to answer using your general knowledge if appropriate.
+2.  **Consider Previous Conversation:** Take into account the previous conversation to provide contextually relevant answers.
+3.  **Supplement with General Knowledge:** After answering based on the document, you may supplement your answer with your own general knowledge to provide more context, define key terms, or elaborate on concepts mentioned in the paper.
+4.  **Be Factual:** If the document does not contain the answer, state that and then try to answer using your general knowledge if appropriate.
 
 Context from the document:
 {context}
@@ -168,7 +171,9 @@ Helpful Answer:"""
         llm=llm,
         retriever=retriever_from_llm, # Use the new multi-query retriever
         memory=memory,
-        combine_docs_chain_kwargs={"prompt": QA_PROMPT}
+        combine_docs_chain_kwargs={"prompt": QA_PROMPT},
+        return_source_documents=True,
+        output_key="answer"
     )
     
     return chain

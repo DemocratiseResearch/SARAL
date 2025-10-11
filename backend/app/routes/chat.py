@@ -1,11 +1,15 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Any
+from typing import List, Any, Optional
 
 from app.services.rag_service import process_pdf_and_create_store, get_conversational_chain
 from app.routes.api_keys import get_api_keys
 
 router = APIRouter()
+
+# Simple in-memory store for conversation chains (per paper_id)
+# This maintains context within a conversation but not across server restarts
+conversation_chains = {}
 
 class ChatUploadResponse(BaseModel):
     paper_id: str
@@ -13,10 +17,10 @@ class ChatUploadResponse(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
-    chat_history: List[Any]
 
 class AskResponse(BaseModel):
     answer: str
+    context: Optional[List[str]] = None
 
 @router.post("/upload", response_model=ChatUploadResponse)
 async def upload_for_chat(
@@ -47,16 +51,32 @@ async def ask_question(
     Endpoint to ask a question to the conversational RAG chain.
     """
     try:
-        chain = get_conversational_chain(paper_id, api_keys["gemini_key"])
-        if not chain:
-            raise HTTPException(status_code=404, detail="Chat session not found for this paper.")
+        # Get or create conversational chain for this paper_id
+        if paper_id not in conversation_chains:
+            chain = get_conversational_chain(paper_id, api_keys["gemini_key"])
+            if not chain:
+                raise HTTPException(status_code=404, detail="Chat session not found for this paper.")
+            conversation_chains[paper_id] = chain
+        else:
+            chain = conversation_chains[paper_id]
 
+        # Use the chain's built-in memory for conversation context
+        # The chain will automatically maintain conversation history
         result = chain.invoke({
-            "question": request.question, 
-            "chat_history": request.chat_history
+            "question": request.question
         })
-        
-        return AskResponse(answer=result["answer"])
+        # Gather retrieved context snippets (if available)
+        context_snippets: List[str] = []
+        source_docs = result.get("source_documents", []) if isinstance(result, dict) else []
+        for doc in source_docs[:5]:  # limit to top 5 chunks
+            text = getattr(doc, 'page_content', None)
+            if text:
+                snippet = text.strip()
+                if len(snippet) > 800:
+                    snippet = snippet[:800] + "…"
+                context_snippets.append(snippet)
+
+        return AskResponse(answer=result["answer"], context=context_snippets or None)
     except HTTPException:
         raise
     except Exception as e:
