@@ -1,4 +1,4 @@
-# main.py (updated)
+# app/main.py (updated)
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,18 +12,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload
+from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, chat
 from app.auth.google_auth import get_current_user, get_current_user_optional
-## Removed: from app.database import create_tables (no longer needed)
-
-# Create database tables on startup
-## Removed: create_tables() (no longer needed)
 
 # Create temp directories
 temp_dirs = [
     "temp/arxiv_sources", "temp/images", "temp/title_slides",
     "temp/videos", "temp/audio", "temp/latex_template",
-    "temp/slides", "temp/scripts"
+    "temp/slides", "temp/scripts", "temp/vector_stores"
 ]
 
 for dir_path in temp_dirs:
@@ -105,6 +101,8 @@ app.include_router(media.router, prefix="/api/media", tags=["Media"])
 app.include_router(images.router, prefix="/api/images", tags=["Images"])
 app.include_router(papertovideo.router, prefix="/api/papertovideo", tags=["pdftovideo"])
 app.include_router(youtube_upload.router, prefix="/api/youtube_upload", tags=["youtube_upload"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+
 
 # Public endpoints
 @app.get("/")

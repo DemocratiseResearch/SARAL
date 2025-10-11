@@ -1,4 +1,4 @@
-// services/api.js
+// src/services/api.js (updated)
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -555,6 +555,27 @@ class YoutubeService {
   }
 }
 
+class ChatService {
+  constructor(httpClient) {
+    this.http = httpClient;
+  }
+
+  uploadPdfForChat(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post('/chat/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+
+  askQuestion(paperId, question, chatHistory) {
+    return this.http.post(`/chat/${paperId}/ask`, {
+      question: question,
+      chat_history: chatHistory,
+    });
+  }
+}
+
 /**
  * Main API Service Factory
  */
@@ -571,6 +592,7 @@ class ApiService {
     this.slides = new SlidesService(this.httpClient);
     this.media = new MediaService(this.httpClient);
     this.youtube = new YoutubeService(this.httpClient);
+    this.chat = new ChatService(this.httpClient);
   }
 
   get interceptors() {
@@ -643,6 +665,8 @@ class ApiService {
   getVideoStreamUrl = (paperId) => this.media.getVideoStreamUrl(paperId);
   getPresentationVideoStreamUrl = (paperId) => this.media.getPresentationVideoStreamUrl(paperId);
   googleUpload = (code, paper_id) => this.youtube.googleUpload(code, paper_id)
+  uploadPdfForChat = (file) => this.chat.uploadPdfForChat(file);
+  askQuestion = (paperId, question, chatHistory) => this.chat.askQuestion(paperId, question, chatHistory);
 }
 
 // Create and export singleton instance
@@ -656,7 +680,8 @@ export const {
   images,
   slides,
   media,
-  youtube
+  youtube,
+  chat
 } = apiService;
 
 // Export HTTP client for custom requests

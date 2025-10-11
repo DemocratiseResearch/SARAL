@@ -1,3 +1,4 @@
+// src/App.js (updated)
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -23,7 +24,8 @@ import Testimonials from './pages/Testimonials';
 import YouTubeLogin from './pages/YouTubeLogin';
 import OAuthCallback from './pages/OAuthCallback';
 import VideoPreview from './pages/VideoPreview';
-import VideoDisplay from './pages/VideoDisplay'
+import VideoDisplay from './pages/VideoDisplay';
+import ChatPage from './pages/ChatPage'; // ⭐️ Import the new page
 
 
 function App() {
@@ -84,6 +86,13 @@ function App() {
       <Route path="/video-preview" element={ <VideoPreview/>
     }/>
     <Route path="/video-display" element={ <VideoDisplay/>
+    }/>
+    
+    {/* ⭐️ ADD THIS NEW ROUTE ⭐️ */}
+    <Route path="/chat/:paperId" element={
+        <ProtectedRoute>
+            <ChatPage />
+        </ProtectedRoute>
     }/>
 
     <Route path="*" element={<Navigate to="/" replace />} />
