@@ -17,7 +17,7 @@ security = HTTPBearer(auto_error=False)
 
 class GoogleAuthConfig:
     def __init__(self):
-        self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        self.google_client_id = os.getenv("GOOGLE_CLIENT_ID") or "793861815991-khcse6r5elsbi44kkb9i8ib6akem58bg.apps.googleusercontent.com"
         self.jwt_secret = os.getenv("JWT_SECRET", "your-default-secret-key-change-in-production")
         self.jwt_algorithm = "HS256"
         
