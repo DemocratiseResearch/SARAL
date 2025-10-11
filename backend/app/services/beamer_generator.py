@@ -66,10 +66,24 @@ def generate_beamer_latex(metadata: dict, sections: dict, title_intro: str, imag
 
 """
 
-    # Add section slides - FIXED: Removed overlay specifications that create multiple slides
-    section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+    # Add section slides - Use actual sections from the script (supports all complexity modes)
+    # Get section names from the actual data, preserving their order
+    section_names = list(sections.keys())
     
-    for section_name in section_order:
+    # Try to maintain a logical order if sections are not ordered
+    # Define preferred order for known sections
+    preferred_order = ["Introduction", "Background", "Key Findings", "Methodology", "Results", "Analysis", "Discussion", "Conclusion"]
+    
+    # Sort sections based on preferred order
+    def get_order_index(section_name):
+        try:
+            return preferred_order.index(section_name)
+        except ValueError:
+            return len(preferred_order)  # Put unknown sections at the end
+    
+    section_names_sorted = sorted(section_names, key=get_order_index)
+    
+    for section_name in section_names_sorted:
         if section_name in sections:
             section_data = sections[section_name]
             

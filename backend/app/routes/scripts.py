@@ -83,14 +83,12 @@ def get_or_load_scripts(paper_id: str) -> Dict:
 @router.post("/{paper_id}/generate", response_model=ScriptResponse)
 async def generate_script(
     paper_id: str, 
-    request: ScriptGenerationRequest = None,
-    api_keys: dict = Depends(get_api_keys)
+    api_keys: dict = Depends(get_api_keys),
+    request: ScriptGenerationRequest = ScriptGenerationRequest()
 ):
     """Generate presentation script from paper with bullet points and complexity mode support."""
-    # Get complexity mode from request or use default
-    complexity_mode = "normal"
-    if request and hasattr(request, 'complexity_mode'):
-        complexity_mode = request.complexity_mode.value
+    # Get complexity mode from request
+    complexity_mode = request.complexity_mode.value if request.complexity_mode else "normal"
     
     logger.info(f"Generating script for paper {paper_id} with complexity mode: {complexity_mode}")
     
@@ -144,8 +142,8 @@ async def generate_script(
             complexity_mode=complexity_mode
         )
         
-        # Split into sections
-        sections_scripts = split_script_into_sections(full_script)
+        # Split into sections based on complexity mode
+        sections_scripts = split_script_into_sections(full_script, complexity_mode=complexity_mode)
         
         # Clean each section for TTS
         cleaned_sections = {}

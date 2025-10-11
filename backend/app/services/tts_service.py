@@ -84,10 +84,23 @@ def ensure_audio_is_generated(
                     successful_generations += 1
                     print(f"✓ Title audio: {title_audio_path}")
 
-        # Generate section audios
-        section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+        # Generate section audios - Use actual sections from scripts (supports all complexity modes)
+        # Define preferred order for known sections
+        preferred_order = ["Introduction", "Background", "Key Findings", "Methodology", "Results", "Analysis", "Discussion", "Conclusion"]
         
-        for i, section_name in enumerate(section_order, start=1):
+        # Get actual section names from the scripts
+        section_names = list(sections_scripts.keys())
+        
+        # Sort sections based on preferred order
+        def get_order_index(section_name):
+            try:
+                return preferred_order.index(section_name)
+            except ValueError:
+                return len(preferred_order)  # Put unknown sections at the end
+        
+        section_names_sorted = sorted(section_names, key=get_order_index)
+        
+        for i, section_name in enumerate(section_names_sorted, start=1):
             if section_name in sections_scripts:
                 script_text = sections_scripts[section_name]
                 
@@ -295,10 +308,23 @@ def ensure_hindi_audio_is_generated(
                             successful_generations += 1
                             print(f"⚠ Title Hindi audio (fallback): {title_audio_path}")
 
-        # Generate section audios
-        section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+        # Generate section audios - Use actual sections from scripts (supports all complexity modes)
+        # Define preferred order for known sections
+        preferred_order = ["Introduction", "Background", "Key Findings", "Methodology", "Results", "Analysis", "Discussion", "Conclusion"]
         
-        for i, section_name in enumerate(section_order, start=1):
+        # Get actual section names from the scripts
+        section_names = list(sections_scripts.keys())
+        
+        # Sort sections based on preferred order
+        def get_order_index(section_name):
+            try:
+                return preferred_order.index(section_name)
+            except ValueError:
+                return len(preferred_order)  # Put unknown sections at the end
+        
+        section_names_sorted = sorted(section_names, key=get_order_index)
+        
+        for i, section_name in enumerate(section_names_sorted, start=1):
             if section_name in sections_scripts:
                 script_text = sections_scripts[section_name]
                 
@@ -631,10 +657,23 @@ def ensure_language_audio_is_generated(
                 if generate_audio_from_chunks(chunks, language_code, "00_title_introduction"):
                     successful_generations += 1
 
-        # Generate section audios
-        section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+        # Generate section audios - Use actual sections from scripts (supports all complexity modes)
+        # Define preferred order for known sections
+        preferred_order = ["Introduction", "Background", "Key Findings", "Methodology", "Results", "Analysis", "Discussion", "Conclusion"]
         
-        for i, section_name in enumerate(section_order, start=1):
+        # Get actual section names from the scripts
+        section_names = list(sections_scripts.keys())
+        
+        # Sort sections based on preferred order
+        def get_order_index(section_name):
+            try:
+                return preferred_order.index(section_name)
+            except ValueError:
+                return len(preferred_order)  # Put unknown sections at the end
+        
+        section_names_sorted = sorted(section_names, key=get_order_index)
+        
+        for i, section_name in enumerate(section_names_sorted, start=1):
             if section_name in sections_scripts:
                 script_text = sections_scripts[section_name]
                 

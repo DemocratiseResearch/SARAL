@@ -3,11 +3,12 @@ import { motion } from 'framer-motion';
 import Layout from '../components/common/Layout';
 import PaperUpload from '../components/forms/PaperUpload';
 import MetadataEditor from '../components/forms/MetadataEditor';
+import ComplexityModeSelector from '../components/workflow/ComplexityModeSelector';
 import { useWorkflow } from '../contexts/WorkflowContext';
-import { FiUpload, FiEdit3 } from 'react-icons/fi';
+import { FiUpload, FiEdit3, FiSettings } from 'react-icons/fi';
 
 const PaperProcessing = () => {
-  const { paperId, metadata } = useWorkflow();
+  const { paperId, metadata, complexityMode, setComplexityMode } = useWorkflow();
   
   const breadcrumbs = [
     { label: 'Paper Processing', href: '/paper-processing' }
@@ -39,9 +40,32 @@ const PaperProcessing = () => {
             <PaperUpload />
           </div>
         ) : (
-          <div className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-md p-6">
-            <MetadataEditor />
-          </div>
+          <>
+            <div className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-md p-6">
+              <MetadataEditor />
+            </div>
+
+            {/* Complexity Mode Selector */}
+            <div className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-md p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-md flex items-center justify-center">
+                  <FiSettings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    Presentation Settings
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Configure how your content will be generated
+                  </p>
+                </div>
+              </div>
+              <ComplexityModeSelector
+                selectedMode={complexityMode}
+                onModeChange={setComplexityMode}
+              />
+            </div>
+          </>
         )}
 
         {/* Processing Status */}

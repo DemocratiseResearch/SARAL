@@ -252,6 +252,8 @@ const ScriptGeneration = () => {
     bulletPoints,
     images,
     selectedImages,
+    complexityMode,  // Get complexity mode from context
+    setComplexityMode,  // Get setter from context
     setScripts,
     setEditedScripts,
     setBulletPoints,
@@ -268,7 +270,7 @@ const ScriptGeneration = () => {
   const [activeTab, setActiveTab] = useState(null);
   const [imageSelectorSection, setImageSelectorSection] = useState(null);
   const [localChanges, setLocalChanges] = useState({});
-  const [complexityMode, setComplexityMode] = useState('normal'); // Add complexity mode state
+  // const [complexityMode, setComplexityMode] = useState('normal'); // REMOVED - now using context
   
   // Use refs to track initialization to prevent multiple loads
   const initializationRef = useRef(false);
@@ -552,6 +554,9 @@ const ScriptGeneration = () => {
           <div className="space-y-3">
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Content Complexity Mode
+              <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
+                (Set in Paper Processing)
+              </span>
             </label>
             <div className="grid grid-cols-3 gap-3">
               {[
@@ -576,7 +581,7 @@ const ScriptGeneration = () => {
               ].map((mode) => (
                 <button
                   key={mode.value}
-                  onClick={() => setComplexityMode(mode.value)}
+                  onClick={() => !generating && setComplexityMode(mode.value)}
                   disabled={generating}
                   className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
                     complexityMode === mode.value
@@ -601,6 +606,9 @@ const ScriptGeneration = () => {
                 </button>
               ))}
             </div>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              💡 Tip: You can change the complexity mode and regenerate scripts if needed
+            </p>
           </div>
 
           {/* Progress indicator */}

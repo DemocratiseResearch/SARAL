@@ -13,6 +13,7 @@ const initialState = {
   paperId          : null,
   sessionId        : null,
   metadata         : { title:'', authors:'', date:'' },
+  complexityMode   : 'normal',  // Add complexity mode to state
   scripts          : {},
   editedScripts    : {},
   bulletPoints     : {},
@@ -61,6 +62,7 @@ case 'MARK_STEP_COMPLETED' : return { ...state, completedSteps:[...new Set([...s
 case 'SET_PAPER_ID'        : return { ...state, paperId:      action.payload };
 case 'SET_SESSION_ID'      : return { ...state, sessionId:    action.payload };
 case 'SET_METADATA'        : return { ...state, metadata:     { ...state.metadata, ...action.payload }};
+case 'SET_COMPLEXITY_MODE' : return { ...state, complexityMode: action.payload };  // Add complexity mode action
 
 case 'SET_SCRIPTS'         : return { ...state, scripts: action.payload||{}, editedScripts: action.payload||{} };
 case 'SET_EDITED_SCRIPTS'  : return { ...state, editedScripts: action.payload||{} };
@@ -182,6 +184,7 @@ export const WorkflowProvider = ({ children }) => {
     setPaperId        : v => dispatch({ type:'SET_PAPER_ID',      payload:v }),
     setSessionId      : v => dispatch({ type:'SET_SESSION_ID',    payload:v }),
     setMetadata       : v => dispatch({ type:'SET_METADATA',      payload:v }),
+    setComplexityMode : v => dispatch({ type:'SET_COMPLEXITY_MODE', payload:v }),  // Add complexity mode setter
     setScripts        : v => dispatch({ type:'SET_SCRIPTS',       payload:v }),
     setEditedScripts  : v => dispatch({ type:'SET_EDITED_SCRIPTS',payload:v }),
     setBulletPoints   : v => dispatch({ type:'SET_BULLET_POINTS', payload:v }),

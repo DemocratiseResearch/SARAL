@@ -485,15 +485,14 @@ Process all sections in the input and generate exactly {num_bullets} bullet poin
         print("Used fallback bullet generation for all sections")
         return sections_bullets
 
-def split_script_into_sections(full_script):
-    """Split the generated script into sections."""
-    sections = {
-        "Introduction": "",
-        "Methodology": "", 
-        "Results": "",
-        "Discussion": "",
-        "Conclusion": ""
-    }
+def split_script_into_sections(full_script, complexity_mode="normal"):
+    """Split the generated script into sections based on complexity mode."""
+    # Get the expected sections for this complexity mode
+    config = COMPLEXITY_CONFIGS.get(complexity_mode, COMPLEXITY_CONFIGS["normal"])
+    expected_sections = config["sections"]
+    
+    # Initialize sections dictionary with expected sections
+    sections = {section: "" for section in expected_sections}
     
     current_section = None
     lines = full_script.split('\n')
