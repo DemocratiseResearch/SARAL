@@ -20,7 +20,20 @@ def clean_script_for_tts_and_video(script_text):
     script_text = re.sub(r'\*\*([^*]+)\*\*', r'\1', script_text)
     script_text = re.sub(r'\*([^*]+)\*', r'\1', script_text)
     script_text = re.sub(r'#+\s*', '', script_text)
-    script_text = re.sub(r'[^\w\s.,!?;:\-()"\u0900-\u097F\']', ' ', script_text)
+    script_text = re.sub(
+        r'[^\w\s.,!?;:\-()"\''        # Keep standard characters
+        r'\u0900-\u097F'              # Devanagari (Hindi, Marathi)
+        r'\u0980-\u09FF'              # Bengali
+        r'\u0A80-\u0AFF'              # Gujarati
+        r'\u0B00-\u0B7F'              # Odia
+        r'\u0B80-\u0BFF'              # Tamil
+        r'\u0C00-\u0C7F'              # Telugu
+        r'\u0C80-\u0CFF'              # Kannada
+        r'\u0D00-\u0D7F'              # Malayalam
+        r']', 
+        ' ', 
+        script_text
+    )
     script_text = re.sub(r'\s+', ' ', script_text)
 
     return script_text.strip()
