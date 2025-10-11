@@ -20,7 +20,7 @@ def clean_script_for_tts_and_video(script_text):
     script_text = re.sub(r'\*\*([^*]+)\*\*', r'\1', script_text)
     script_text = re.sub(r'\*([^*]+)\*', r'\1', script_text)
     script_text = re.sub(r'#+\s*', '', script_text)
-    script_text = re.sub(r'[^\w\s.,!?;:\-()"\']', ' ', script_text)
+    script_text = re.sub(r'[^\w\s.,!?;:\-()"\u0900-\u097F\']', ' ', script_text)
     script_text = re.sub(r'\s+', ' ', script_text)
 
     return script_text.strip()
@@ -1032,4 +1032,101 @@ async def ensure_audio_is_generated_bhashini_parallel_limited(
         "successful_count": len(successful_files),
         "failed_count": len(failed_generations),
         "generation_time": end_time - start_time
+    }
+
+# -------------------------------------------
+# Reels audio generation using Bhashini TTS
+# -------------------------------------------
+
+async def generate_dialogue_audio_bhashini(
+    language: str,
+    paper_id: str,
+    dialogue_script: List[Dict[str, str]]   # expects a list of {"character": "...", "dialogue": "..."}
+):
+    """
+    Generates audio files for a dialogue script in parallel using Bhashini TTS.
+    
+    Args:
+        language (str): The target language (e.g., 'Hindi', 'English').
+        paper_id (str): The unique ID for the paper to create a dedicated folder.
+        dialogue_script (List[Dict[str, str]]): The structured dialogue script.
+    
+    Returns:
+        Dict: A dictionary containing the list of generated audio file names.
+    """
+    print("Starting dialogue audio generation for reel...")
+    output_dir = f"temp/audio/{paper_id}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(BASE_DIR, "models.json")
+    api_url_from_config = None
+    access_token = None
+
+    try:
+        with open(MODEL_PATH, "r", encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Find the correct TTS model configuration from models.json
+        for item in data:
+            if item.get("model_type") == "tts" and item.get("source_language") == language:
+                api_url_from_config = item.get("api_url")
+                access_token = item.get("access_token")
+                break # Stop once we find the matching model
+    except Exception as e:
+        raise ValueError(f"Could not load or parse models.json: {e}")
+
+    if not api_url_from_config or not access_token:
+        raise ValueError(f"No valid TTS model found for language '{language}' in models.json")
+
+    headers = {"access-token": access_token}
+    
+    tasks = []
+    for index, turn in enumerate(dialogue_script):
+        character = turn.get("character")
+        dialogue = turn.get("dialogue")
+
+        if not character or not dialogue or not dialogue.strip():
+            print(f"Skipping turn {index} due to missing character or dialogue.")
+            continue
+        
+        # fixing the gender of the characters
+        gender = "male" if character.upper() == "K" else "female"
+        
+        # Create a sequential, zero-padded filename for easy sorting
+        audio_filename = f"{index:02d}_{character}.wav"
+        output_path = os.path.join(output_dir, audio_filename)
+        
+        tasks.append(
+            generate_single_audio(
+                section_name=f"Turn {index} ({character})",
+                script_text=dialogue,
+                output_path=output_path,
+                headers=headers,
+                api_url=api_url_from_config,
+                gender=gender
+            )
+        )
+
+    if not tasks:
+        raise ValueError("Dialogue script empty/invalid. No audio to generate.")
+
+    print(f"Starting parallel generation of {len(tasks)} dialogue audio files...")
+    
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    successful_files = []
+    for result in results:
+        if isinstance(result, Exception):
+            print(f"A task failed with an exception: {result}")
+        elif result is not None:
+            successful_files.append(result)
+
+    if not successful_files:
+        raise ValueError("No audio files were generated successfully for the dialogue.")
+
+    print(f"Generated {len(successful_files)} audio files for the dialogue.")
+    
+    return {
+        "audio_files": [Path(f).name for f in successful_files]
     }

@@ -76,3 +76,9 @@ class GoogleTokenRequest(BaseModel):
     scope: str
     token_type: str
     expiry_date: str | None = None  # optional (frontend may send expiry)
+
+# reel audio generation
+class ReelAudioRequest(BaseModel):
+    paper_id: str
+    language: str
+    dialogue_script: List[Dict[str, str]]
