@@ -305,7 +305,8 @@ class PapersService {
     formData.append('file', file);
     
     return this.http.post('/papers/upload-pdf', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000, // 10 minutes
     });
   }
 

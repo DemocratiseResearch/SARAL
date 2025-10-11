@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 import os
-from pathlib import Path
+import uuid
 import json
 import traceback
+from pathlib import Path
+
 from app.auth.dependencies import get_current_user
 from app.models.request_models import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
 from app.routes.papers import papers_storage
@@ -15,11 +17,13 @@ from app.services.tts_service import ensure_audio_is_generated_bhashini, bhashin
 from app.services.video_service import create_video_with_audio
 from app.services.hindi_service import generate_hindi_script_with_google
 from app.services.language_service import translate_to_language
+from app.services.podcast_service import generate_podcast_flow
 
 router = APIRouter()
 
-# In-memory storage for media
+# In-memory storage for media and tasks
 media_storage = {}
+tasks = {}
 
 @router.post("/{paper_id}/generate-audio", response_model=MediaResponse)
 async def generate_audio(
@@ -279,7 +283,6 @@ async def stream_video(paper_id: str, request: Request):
     if paper_id not in media_storage:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    # Get the actual stored video path instead of constructing it
     video_path = media_storage[paper_id].get("video_path")
     if not video_path or not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail="Video file not found")
@@ -288,12 +291,10 @@ async def stream_video(paper_id: str, request: Request):
     range_header = request.headers.get("range")
     
     if range_header:
-        # Parse range header
         range_match = range_header.replace("bytes=", "").split("-")
         start = int(range_match[0]) if range_match[0] else 0
         end = int(range_match[1]) if range_match[1] else file_size - 1
         
-        # Ensure end doesn't exceed file size
         end = min(end, file_size - 1)
         chunk_size = end - start + 1
 
@@ -302,7 +303,7 @@ async def stream_video(paper_id: str, request: Request):
                 f.seek(start)
                 remaining = chunk_size
                 while remaining:
-                    chunk = f.read(min(8192, remaining))  # Read in 8KB chunks
+                    chunk = f.read(min(8192, remaining))
                     if not chunk:
                         break
                     remaining -= len(chunk)
@@ -320,7 +321,6 @@ async def stream_video(paper_id: str, request: Request):
             },
         )
     else:
-        # Return entire file
         return StreamingResponse(
             open(video_path, "rb"),
             media_type="video/mp4",
@@ -360,7 +360,6 @@ async def generate_audio_bhashini(
         audio_dir = f"temp/audio/{paper_id}"
         Path(audio_dir).mkdir(parents=True, exist_ok=True)
 
-         # Load model details for MT and TTS
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         print("BASE_DIR", BASE_DIR)
         MODEL_PATH = os.path.join(BASE_DIR, "..", "services", "models.json")
@@ -379,14 +378,12 @@ async def generate_audio_bhashini(
                 sections_scripts[section_name] = str(section_data)
 
         
-        # translate to required lang if required
         if lang == "English":
             print(f"Generating {lang} script")
             title_intro_script = scripts_info.get("title_intro_script", "")
             language = "English"
         else:
             print(f"Generating {lang} script")
-            # print(f"Title intro script: {scripts_info.get('title_intro_script', '')}")
 
             if isinstance(data, list):
                 for item in data:
@@ -413,10 +410,6 @@ async def generate_audio_bhashini(
                 print("nonEngish_sections_scripts", nonEngish_sections_scripts)
                 title_intro_script = title_intro
                 sections_scripts = nonEngish_sections_scripts
-        
-
-
-        # generate audio
         
         for item in data:
             if (
@@ -458,3 +451,60 @@ async def generate_audio_bhashini(
         print(f"Error generating audio: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
+
+# --- Podcast Generation Endpoints ---
+
+def run_podcast_generation(paper_id: str, task_id: str):
+    """
+    A wrapper function for the background task that calls the real service.
+    """
+    try:
+        tasks[task_id] = {"status": "processing", "stage": "starting"}
+        
+        generate_podcast_flow(paper_id, task_id)
+        
+        final_podcast_path = f"/api/media/download/{paper_id}/podcast.mp3"
+        tasks[task_id] = {"status": "complete", "url": final_podcast_path}
+
+    except Exception as e:
+        import traceback
+        print(f"Task {task_id} failed: {str(e)}")
+        print(traceback.format_exc())
+        tasks[task_id] = {"status": "failed", "error": str(e)}
+
+
+@router.post("/papers/{paper_id}/podcast", status_code=202)
+async def create_podcast(paper_id: str, background_tasks: BackgroundTasks):
+    """
+    Initiates the AI podcast generation as a background task.
+    """
+    task_id = str(uuid.uuid4())
+    tasks[task_id] = {"status": "queued"}
+    
+    background_tasks.add_task(run_podcast_generation, paper_id, task_id)
+    
+    return {"task_id": task_id, "message": "Podcast generation started."}
+
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    """
+    Polls for the status of a background task.
+    """
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return JSONResponse(content=task)
+
+
+@router.get("/download/{paper_id}/podcast.mp3")
+async def download_podcast(paper_id: str):
+    """
+    Serves the final generated podcast audio file for a given paper.
+    """
+    file_path = os.path.join("temp", paper_id, "podcast", f"podcast_{paper_id}.mp3")
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Podcast file not found.")
+        
+    return FileResponse(path=file_path, media_type='audio/mpeg', filename=f"{paper_id}_podcast.mp3")

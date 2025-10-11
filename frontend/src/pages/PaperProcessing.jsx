@@ -1,7 +1,7 @@
 // src/pages/PaperProcessing.jsx (updated)
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiUpload, FiMessageSquare, FiVideo } from 'react-icons/fi';
+import { FiUpload, FiMessageSquare, FiVideo, FiMic } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -34,6 +34,13 @@ const PaperProcessing = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatFile, setChatFile] = useState(null);
 
+  // Podcast state
+  const [podcastFile, setPodcastFile] = useState(null);
+  const [podcastLoading, setPodcastLoading] = useState(false);
+  const [podcastLoadingMessage, setPodcastLoadingMessage] = useState('');
+  const [podcastUrl, setPodcastUrl] = useState('');
+  const [podcastError, setPodcastError] = useState('');
+
   const handleChatFileUpload = async (file) => {
     if (!file) {
       toast.error('Please select a PDF file for chat.');
@@ -53,6 +60,85 @@ const PaperProcessing = () => {
     } finally {
       setChatLoading(false);
       setChatFile(null);
+    }
+  };
+
+  const handlePodcastUpload = async () => {
+    if (!podcastFile) return;
+
+    setPodcastError('');
+    setPodcastUrl('');
+    setPodcastLoading(true);
+    setPodcastLoadingMessage('Uploading PDF...');
+
+    try {
+      // 1) Upload PDF, get paper_id
+      const uploadResp = await apiService.uploadPdf(podcastFile);
+      const paper_id = uploadResp?.data?.paper_id;
+      if (!paper_id) throw new Error('No paper_id returned from upload');
+
+      // 2) Start podcast generation
+      setPodcastLoadingMessage('Starting podcast generation...');
+      const startResp = await apiService.post(
+        `/media/papers/${paper_id}/podcast`,
+        {}, // No request body
+        { timeout: 600000 } // 10-minute timeout
+      );
+      const task_id = startResp?.data?.task_id;
+      if (!task_id) throw new Error('No task_id returned from podcast start');
+
+      // 3) Poll for status
+      setPodcastLoadingMessage('Generating podcast (this may take a minute)...');
+
+      await new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+          try {
+            const statusResp = await apiService.get(`/media/tasks/${task_id}`);
+            const { status, stage, url, error } = statusResp?.data || {};
+
+            if (status === 'processing') {
+              if (stage) setPodcastLoadingMessage(`Processing: ${stage}...`);
+              return; // keep polling
+            }
+
+            if (status === 'complete') {
+              clearInterval(interval);
+              if (url) {
+                const backendBase = process.env.NODE_ENV === 'production'
+                  ? process.env.REACT_APP_API_URL
+                  : 'http://localhost:8000';
+                setPodcastUrl(`${backendBase}${url}`);
+              }
+              setPodcastLoading(false);
+              setPodcastLoadingMessage('');
+              resolve();
+              return;
+            }
+
+            if (status === 'failed') {
+              clearInterval(interval);
+              setPodcastLoading(false);
+              setPodcastLoadingMessage('');
+              setPodcastError(error || 'Podcast generation failed');
+              reject(new Error(error || 'Podcast generation failed'));
+              return;
+            }
+          } catch (pollErr) {
+            clearInterval(interval);
+            setPodcastLoading(false);
+            setPodcastLoadingMessage('');
+            setPodcastError('Failed to poll task status');
+            reject(pollErr);
+          }
+        }, 2500);
+      });
+    } catch (err) {
+      console.error('Podcast generation error:', err);
+      setPodcastError(
+        err?.response?.data?.detail || err?.message || 'Failed to generate podcast.'
+      );
+      setPodcastLoading(false);
+      setPodcastLoadingMessage('');
     }
   };
   
@@ -76,6 +162,53 @@ const PaperProcessing = () => {
                 {chatLoading && <div className="flex items-center gap-2"><LoadingSpinner /> <span>Processing...</span></div>}
              </div>
         );
+      case 'podcast':
+        return (
+          <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 space-y-6">
+            <h2 className="text-xl font-semibold">Upload PDF for Podcast</h2>
+
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => setPodcastFile(e.target.files?.[0] || null)}
+                className="file-input file-input-bordered w-full max-w-xs"
+              />
+
+              <button
+                className="btn btn-primary"
+                onClick={handlePodcastUpload}
+                disabled={!podcastFile || podcastLoading}
+              >
+                {podcastLoading ? 'Please wait...' : 'Generate'}
+              </button>
+            </div>
+
+            {podcastLoading && (
+              <div className="flex items-center gap-2 text-sm">
+                <LoadingSpinner />
+                <span>{podcastLoadingMessage || 'Processing...'}</span>
+              </div>
+            )}
+
+            {!!podcastError && (
+              <div className="text-red-600 text-sm">{podcastError}</div>
+            )}
+
+            {!!podcastUrl && (
+              <div className="space-y-3">
+                <audio controls src={podcastUrl} className="w-full" />
+                <a
+                  href={podcastUrl}
+                  download
+                  className="text-blue-600 hover:underline"
+                >
+                  Download Podcast MP3
+                </a>
+              </div>
+            )}
+          </div>
+        );
       case 'choice':
       default:
         return (
@@ -94,6 +227,12 @@ const PaperProcessing = () => {
                     title="Start Interactive Chat"
                     description="Upload a PDF to start an interactive chat session and ask questions about the paper's content."
                     onClick={() => setView('chat')}
+                />
+                <ChoiceCard
+                  icon={FiMic}
+                  title="Generate Podcast"
+                  description="Upload a PDF to automatically generate a podcast episode discussing the paper."
+                  onClick={() => setView('podcast')}
                 />
             </div>
         );
