@@ -4,7 +4,7 @@ import os
 import json
 import traceback
 import logging
-from app.models.request_models import ScriptUpdateRequest, ScriptResponse, SectionScript
+from app.models.request_models import ScriptUpdateRequest, ScriptResponse, SectionScript, ScriptGenerationRequest
 from app.services.script_generator import (
     generate_full_script_with_gemini,
     split_script_into_sections,
@@ -19,7 +19,7 @@ from app.services.script_generator import (
 from app.routes.papers import papers_storage
 from app.routes.api_keys import get_api_keys
 from app.services.storage_manager import storage_manager
-from app.auth.dependencies import get_current_user
+# from app.auth.dependencies import get_current_user  # Commented out for local use
 
 router = APIRouter()
 
@@ -81,8 +81,19 @@ def get_or_load_scripts(paper_id: str) -> Dict:
     return scripts_storage[paper_id]
 
 @router.post("/{paper_id}/generate", response_model=ScriptResponse)
-async def generate_script(paper_id: str, api_keys: dict = Depends(get_api_keys)):
-    """Generate presentation script from paper with bullet points."""
+async def generate_script(
+    paper_id: str, 
+    request: ScriptGenerationRequest = None,
+    api_keys: dict = Depends(get_api_keys)
+):
+    """Generate presentation script from paper with bullet points and complexity mode support."""
+    # Get complexity mode from request or use default
+    complexity_mode = "normal"
+    if request and hasattr(request, 'complexity_mode'):
+        complexity_mode = request.complexity_mode.value
+    
+    logger.info(f"Generating script for paper {paper_id} with complexity mode: {complexity_mode}")
+    
     paper_id_str = str(paper_id)  # Ensure we're using a string for comparison
     
     # Try to get from storage manager first
@@ -126,8 +137,12 @@ async def generate_script(paper_id: str, api_keys: dict = Depends(get_api_keys))
         input_text = extract_text_from_file(file_path)
         input_text = clean_text(input_text)
         
-        # Generate full script using Gemini with improved prompts
-        full_script = generate_full_script_with_gemini(api_keys["gemini_key"], input_text)
+        # Generate full script using Gemini with improved prompts and complexity mode
+        full_script = generate_full_script_with_gemini(
+            api_keys["gemini_key"], 
+            input_text,
+            complexity_mode=complexity_mode
+        )
         
         # Split into sections
         sections_scripts = split_script_into_sections(full_script)
@@ -137,11 +152,12 @@ async def generate_script(paper_id: str, api_keys: dict = Depends(get_api_keys))
         for section_name, script_text in sections_scripts.items():
             cleaned_sections[section_name] = clean_script_for_tts_and_video(script_text)
         
-        # Generate bullet points for all sections with a single prompt
-        logger.info(f"Generating bullet points for all sections using single prompt")
+        # Generate bullet points for all sections with a single prompt and complexity mode
+        logger.info(f"Generating bullet points for all sections using single prompt (complexity: {complexity_mode})")
         all_bullet_points = generate_all_bullet_points_with_gemini(
             api_keys["gemini_key"],
-            cleaned_sections
+            cleaned_sections,
+            complexity_mode=complexity_mode
         )
         logger.info(f"Generated bullet points for {len(all_bullet_points)} sections")
         

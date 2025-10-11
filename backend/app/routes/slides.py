@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import os
 import shutil
-from app.auth.dependencies import get_current_user
+# from app.auth.dependencies import get_current_user  # Commented out for local use
 from app.models.request_models import SlideResponse
 from app.routes.papers import papers_storage
 from app.routes.scripts import scripts_storage

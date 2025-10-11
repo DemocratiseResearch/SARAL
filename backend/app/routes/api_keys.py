@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from dotenv import load_dotenv
 import os
-from app.auth.dependencies import get_current_user
+# from app.auth.dependencies import get_current_user  # Commented out for local use
 from app.models.request_models import APIKeysRequest
 
 router = APIRouter()

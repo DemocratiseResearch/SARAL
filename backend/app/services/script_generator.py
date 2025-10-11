@@ -4,6 +4,40 @@ import unicodedata
 from typing import Dict, List
 import os
 
+# Complexity mode configurations
+COMPLEXITY_CONFIGS = {
+    "broad": {
+        "num_sections": 3,
+        "sections": ["Introduction", "Key Findings", "Conclusion"],
+        "paragraphs_per_section": "1-2",
+        "bullet_points": 4,  # Changed from "3-4" to integer (use max of range)
+        "bullet_points_range": "3-4",
+        "video_duration": "2-3 minutes",
+        "detail_level": "high-level overview",
+        "focus": "main concepts and takeaways"
+    },
+    "normal": {
+        "num_sections": 5,
+        "sections": ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"],
+        "paragraphs_per_section": "2-3",
+        "bullet_points": 5,  # Changed from "4-5" to integer (use max of range)
+        "bullet_points_range": "4-5",
+        "video_duration": "3-5 minutes",
+        "detail_level": "balanced explanation",
+        "focus": "key methods and findings"
+    },
+    "in_depth": {
+        "num_sections": 7,
+        "sections": ["Introduction", "Background", "Methodology", "Results", "Analysis", "Discussion", "Conclusion"],
+        "paragraphs_per_section": "3-4",
+        "bullet_points": 6,  # Changed from "5-6" to integer (use max of range)
+        "bullet_points_range": "5-6",
+        "video_duration": "5-8 minutes",
+        "detail_level": "comprehensive analysis",
+        "focus": "detailed methods, results, and implications"
+    }
+}
+
 def extract_paper_metadata(file_path):
     """Extract paper metadata from LaTeX or PDF text file."""
     metadata = {
@@ -109,30 +143,45 @@ def clean_text(text):
     
     return text
 
-def generate_full_script_with_gemini(api_key, input_text):
-    """Generate presentation script using Gemini API with improved prompts from app_1.py"""
+def generate_full_script_with_gemini(api_key, input_text, complexity_mode="normal"):
+    """Generate presentation script using Gemini API with complexity-based prompts"""
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
     
-    # Enhanced prompt based on app_1.py
+    # Get complexity configuration
+    config = COMPLEXITY_CONFIGS.get(complexity_mode, COMPLEXITY_CONFIGS["normal"])
+    
+    # Build section list
+    sections_list = "\n".join([f"**{section}**" for section in config["sections"]])
+    
+    # Enhanced prompt based on complexity mode
     prompt = f"""
-Create a script for a 3-5 minute educational video based on this research paper.
+Create a script for a {config['video_duration']} educational video based on this research paper.
+
+COMPLEXITY LEVEL: {complexity_mode.upper()} - {config['detail_level']}
+
 STRUCTURE:
-Create scripts for exactly these 5 sections:
-**Introduction**
-**Methodology**
-**Results**
-**Discussion**
-**Conclusion**
+Create scripts for exactly these {config['num_sections']} sections:
+{sections_list}
+
 Important rules:
 1. Each section MUST start with its exact heading as shown above
-2. Keep content clear and focused - about 2-3 paragraphs per section
-3. Focus on explaining the research in simple terms
-4. Avoid technical jargon where possible
-5. Make it engaging for a general audience
-6. DO NOT include any video/animation directions or [Narrator:] tags
-7. Make sure that you do not use contracted words, for example: we'll, we're.
-Here’s the paper text to base the script on:
+2. Each section should contain approximately {config['paragraphs_per_section']} paragraphs
+3. Focus on {config['focus']}
+4. Keep content clear and focused for a {config['detail_level']}
+5. {"Provide a high-level overview, avoiding technical details" if complexity_mode == "broad" else 
+   "Balance technical accuracy with accessibility" if complexity_mode == "normal" else
+   "Include comprehensive technical details, methodological specifics, and thorough analysis"}
+6. Make it engaging for {"a general audience with minimal background" if complexity_mode == "broad" else
+   "an audience with some research background" if complexity_mode == "normal" else
+   "an academic or expert audience"}
+7. DO NOT include any video/animation directions or [Narrator:] tags
+8. Make sure that you do not use contracted words, for example: we'll, we're
+9. {"Keep explanations simple and avoid jargon" if complexity_mode == "broad" else
+   "Use appropriate technical terminology with brief explanations" if complexity_mode == "normal" else
+   "Use precise technical terminology and detailed explanations"}
+
+Here's the paper text to base the script on:
 Research Paper Content:
 {input_text}
 
@@ -146,36 +195,62 @@ Please generate the complete presentation script with clear section headers:
         print(f"Error generating script with Gemini: {e}")
         raise
 
-def generate_bullet_points_with_gemini(api_key, section_text):
-    """Generate bullet points for a section using improved prompts."""
+def generate_bullet_points_with_gemini(api_key, section_text, complexity_mode="normal"):
+    """Generate bullet points for a section using Gemini API with complexity-based prompts"""
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
     
+    # Get complexity configuration
+    config = COMPLEXITY_CONFIGS.get(complexity_mode, COMPLEXITY_CONFIGS["normal"])
+    num_bullets = config['bullet_points']
+    
+    # Complexity-aware prompt
+    detail_instruction = {
+        "broad": "Focus on high-level key points only, avoiding technical details",
+        "normal": "Balance detail with clarity, including important technical information",
+        "in_depth": "Include detailed, technical key points with specific findings and data"
+    }
+    
+    language_instruction = {
+        "broad": "Use simple, accessible language without jargon",
+        "normal": "Use appropriate technical terminology with clarity",
+        "in_depth": "Use precise technical terminology and detailed explanations"
+    }
+    
     prompt = f"""
-Convert this presentation script into 3-5 clear, concise bullet points for a slide.
+Convert this presentation script into exactly {num_bullets} clear, concise bullet points for a slide.
+
+COMPLEXITY LEVEL: {complexity_mode.upper()}
+{detail_instruction[complexity_mode]}
 
 REQUIREMENTS:
+- Generate exactly {num_bullets} bullet points (no more, no less)
 - Each bullet point should be one clear, complete thought
+- {language_instruction[complexity_mode]}
 - Use action-oriented language when possible
 - Make bullet points parallel in structure
 - Avoid sub-bullets or nested items
-- Keep each bullet to 1-2 lines maximum
+- Keep each bullet to {'1 line' if complexity_mode == 'broad' else '1-2 lines' if complexity_mode == 'normal' else '2-3 lines'} maximum
 - Use specific, concrete language rather than vague terms
 
 GOOD EXAMPLES:
-• "Machine learning models achieved 95% accuracy on test data"
-• "New algorithm reduces processing time by 40% compared to existing methods"
-• "Results show significant improvement in patient outcomes"
+{"• 'Research explores key themes in the field'" if complexity_mode == "broad" else
+ "• 'Machine learning models achieved 95% accuracy on test data'" if complexity_mode == "normal" else
+ "• 'Convolutional neural network with ResNet-50 architecture achieved 95.3% (±0.7%) accuracy on ImageNet validation set'"}
+{"• 'New method shows better results'" if complexity_mode == "broad" else
+ "• 'New algorithm reduces processing time by 40% compared to existing methods'" if complexity_mode == "normal" else
+ "• 'Novel optimization algorithm reduces computational complexity from O(n²) to O(n log n), achieving 40% faster processing on benchmark datasets'"}
 
 Script text to convert:
 {section_text}
 
-Generate exactly 3-5 bullet points in this format:
+Generate exactly {num_bullets} bullet points in this format:
 • Point 1
-• Point 2  
-• Point 3
-• Point 4 (if needed)
-• Point 5 (if needed)
+• Point 2
+{"• Point 3" if num_bullets >= 3 else ""}
+{"• Point 4" if num_bullets >= 4 else ""}
+{"• Point 5" if num_bullets >= 5 else ""}
+{"• Point 6" if num_bullets >= 6 else ""}
 """
 
     try:
@@ -194,24 +269,28 @@ Generate exactly 3-5 bullet points in this format:
         # Fallback: split by sentences if no bullets found
         if not bullets and section_text:
             sentences = [s.strip() for s in section_text.split('.') if s.strip()]
-            bullets = sentences[:4]  # Take first 4 sentences as bullets
+            bullets = sentences[:num_bullets]  # Take configured number of sentences as bullets
         
         # Ensure we have at least one bullet
         if not bullets:
             bullets = ["Key information from this section"]
         
-        return bullets[:5]  # Limit to 5 bullets maximum
+        return bullets[:num_bullets]  # Limit to configured number of bullets
         
     except Exception as e:
         print(f"Error generating bullet points: {e}")
         return ["Key information from this section"]
 
-def generate_all_bullet_points_with_gemini(api_key, sections_scripts):
-    """Generate bullet points for all sections using a single prompt."""
+def generate_all_bullet_points_with_gemini(api_key, sections_scripts, complexity_mode="normal"):
+    """Generate bullet points for all sections using a single prompt with complexity-based settings"""
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
     
-    print(f"Generating bullet points for {len(sections_scripts)} sections using single prompt")
+    # Get complexity configuration
+    config = COMPLEXITY_CONFIGS.get(complexity_mode, COMPLEXITY_CONFIGS["normal"])
+    num_bullets = config['bullet_points']
+    
+    print(f"Generating bullet points for {len(sections_scripts)} sections using single prompt (complexity: {complexity_mode})")
     
     # Prepare sections text for the prompt
     sections_text = ""
@@ -223,16 +302,34 @@ def generate_all_bullet_points_with_gemini(api_key, sections_scripts):
     
     print(f"Sections to process: {section_names}")
     
+    # Complexity-aware instructions
+    detail_instruction = {
+        "broad": "Focus on high-level key points only, avoiding technical details",
+        "normal": "Balance detail with clarity, including important technical information",
+        "in_depth": "Include detailed, technical key points with specific findings and data"
+    }
+    
+    language_instruction = {
+        "broad": "Use simple, accessible language without jargon",
+        "normal": "Use appropriate technical terminology with clarity",
+        "in_depth": "Use precise technical terminology and detailed explanations"
+    }
+    
     prompt = f"""You are a research summarization assistant helping to create presentation-ready slide bullet points from academic paper sections.
 
-TASK: For each section provided, generate 3–5 concise, informative bullet points summarizing its key content.
+COMPLEXITY LEVEL: {complexity_mode.upper()}
+{detail_instruction[complexity_mode]}
+
+TASK: For each section provided, generate exactly {num_bullets} concise, informative bullet points summarizing its key content.
 
 BULLET POINT GUIDELINES:
+• Generate exactly {num_bullets} bullet points per section (no more, no less)
 • Each bullet must express one clear, complete idea
+• {language_instruction[complexity_mode]}
 • Use action-oriented and parallel sentence structures within each section
 • Avoid vague terms, sub-bullets, or complex phrasing
-• Limit each bullet to 1–2 lines max
-• Focus on the most important findings, methods, or conclusions
+• Limit each bullet to {'1 line' if complexity_mode == 'broad' else '1–2 lines' if complexity_mode == 'normal' else '2–3 lines'} max
+• Focus on the most important {'high-level concepts' if complexity_mode == 'broad' else 'findings, methods, or conclusions' if complexity_mode == 'normal' else 'detailed findings, methodological specifics, and comprehensive results'}
 • Use specific, concrete language over generalities
 
 INPUT: {sections_text}
@@ -242,18 +339,20 @@ OUTPUT FORMAT (strictly follow this layout):
 [SECTION_NAME]
 • Bullet point 1  
 • Bullet point 2  
-• Bullet point 3  
-• Bullet point 4 (if applicable)  
-• Bullet point 5 (if applicable)
+{"• Bullet point 3" if num_bullets >= 3 else ""}
+{"• Bullet point 4" if num_bullets >= 4 else ""}
+{"• Bullet point 5" if num_bullets >= 5 else ""}
+{"• Bullet point 6" if num_bullets >= 6 else ""}
 
 [NEXT_SECTION_NAME]
 • Bullet point 1  
 • Bullet point 2  
-• Bullet point 3  
-• Bullet point 4 (if applicable)  
-• Bullet point 5 (if applicable)
+{"• Bullet point 3" if num_bullets >= 3 else ""}
+{"• Bullet point 4" if num_bullets >= 4 else ""}
+{"• Bullet point 5" if num_bullets >= 5 else ""}
+{"• Bullet point 6" if num_bullets >= 6 else ""}
 
-Process all sections in the input and generate bullet points accordingly."""
+Process all sections in the input and generate exactly {num_bullets} bullet points for each section."""
 
     try:
         print("Sending request to Gemini API for bullet point generation...")

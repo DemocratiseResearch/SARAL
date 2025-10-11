@@ -268,6 +268,7 @@ const ScriptGeneration = () => {
   const [activeTab, setActiveTab] = useState(null);
   const [imageSelectorSection, setImageSelectorSection] = useState(null);
   const [localChanges, setLocalChanges] = useState({});
+  const [complexityMode, setComplexityMode] = useState('normal'); // Add complexity mode state
   
   // Use refs to track initialization to prevent multiple loads
   const initializationRef = useRef(false);
@@ -339,10 +340,10 @@ const ScriptGeneration = () => {
     setGenerating(true);
     
     try {
-      console.log('Generating scripts for paperId:', paperId);
+      console.log('Generating scripts for paperId:', paperId, 'with complexity:', complexityMode);
       
-      // Generate scripts
-      await apiService.generateScript(paperId);
+      // Generate scripts with complexity mode
+      await apiService.generateScript(paperId, complexityMode);
       
       // Wait a moment for the backend to save the data
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -546,6 +547,62 @@ const ScriptGeneration = () => {
               Create and customize scripts with bullet points for your academic presentation
             </p>
           </div>
+
+          {/* Complexity Mode Selector */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Content Complexity Mode
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                {
+                  value: 'broad',
+                  label: 'Broad',
+                  description: 'High-level overview (3 sections, 3-4 bullets, 2-3 min)',
+                  icon: '📌'
+                },
+                {
+                  value: 'normal',
+                  label: 'Normal',
+                  description: 'Balanced explanation (5 sections, 4-5 bullets, 3-5 min)',
+                  icon: '📊'
+                },
+                {
+                  value: 'in_depth',
+                  label: 'In-Depth',
+                  description: 'Comprehensive analysis (7 sections, 5-6 bullets, 5-8 min)',
+                  icon: '📚'
+                }
+              ].map((mode) => (
+                <button
+                  key={mode.value}
+                  onClick={() => setComplexityMode(mode.value)}
+                  disabled={generating}
+                  className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                    complexityMode === mode.value
+                      ? 'border-neutral-700 dark:border-neutral-300 bg-neutral-50 dark:bg-neutral-700'
+                      : 'border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500'
+                  } ${generating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-2xl">{mode.icon}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold text-neutral-900 dark:text-white">
+                        {mode.label}
+                      </div>
+                      <div className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                        {mode.description}
+                      </div>
+                    </div>
+                    {complexityMode === mode.value && (
+                      <FiCheck className="w-5 h-5 text-neutral-700 dark:text-neutral-300 flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Progress indicator */}
           {(generating || savingScripts) && (
             <div className="h-1 rounded bg-neutral-200 dark:bg-neutral-700 overflow-hidden">

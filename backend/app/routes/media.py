@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 import os
 from pathlib import Path
 import traceback
-from app.auth.dependencies import get_current_user
+# from app.auth.dependencies import get_current_user  # Commented out for local use
 from app.models.request_models import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
 from app.routes.papers import papers_storage
 from app.routes.scripts import scripts_storage

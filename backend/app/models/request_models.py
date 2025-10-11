@@ -1,5 +1,11 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Union
+from enum import Enum
+
+class ComplexityMode(str, Enum):
+    BROAD = "broad"
+    NORMAL = "normal"
+    IN_DEPTH = "in_depth"
 
 class APIKeysRequest(BaseModel):
     gemini_key: Optional[str] = None
@@ -8,6 +14,9 @@ class APIKeysRequest(BaseModel):
 
 class ArxivRequest(BaseModel):
     arxiv_url: str
+
+class ScriptGenerationRequest(BaseModel):
+    complexity_mode: ComplexityMode = ComplexityMode.NORMAL
 
 class PaperMetadata(BaseModel):
     title: str
@@ -42,10 +51,12 @@ class AudioGenerationRequest(BaseModel):
     hinglish_iterations: int = 3
     show_hindi_debug: bool = False
     selected_language: str
+    complexity_mode: ComplexityMode = ComplexityMode.NORMAL
 
 class VideoGenerationRequest(BaseModel):
     background_music_file: Optional[str] = None
     selected_language: str
+    complexity_mode: ComplexityMode = ComplexityMode.NORMAL
 
 
 class PaperResponse(BaseModel):

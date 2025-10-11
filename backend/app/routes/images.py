@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 import os
 import mimetypes
 from typing import List
-from app.auth.dependencies import get_current_user
+# from app.auth.dependencies import get_current_user  # Commented out for local use
 from app.routes.papers import papers_storage
 from app.routes.slides import slides_storage
 

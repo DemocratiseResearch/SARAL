@@ -13,7 +13,7 @@ from app.services.script_generator import extract_paper_metadata
 from app.services.latex_processor import find_tex_file, find_image_references, find_image_files
 from app.services.pdf_processor import process_pdf_file
 from app.services.storage_manager import storage_manager
-from app.auth.dependencies import get_current_user
+# from app.auth.dependencies import get_current_user  # Commented out for local use
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def save_paper_info(paper_id: str, info: dict):
     storage_manager.save_paper(paper_id, info)
 
 @router.post("/upload-zip", response_model=PaperResponse)
-async def upload_zip_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+async def upload_zip_file(file: UploadFile = File(...)):  # Removed auth for local use
     """Upload and extract a ZIP file containing LaTeX source."""
     if not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Only ZIP files are allowed")

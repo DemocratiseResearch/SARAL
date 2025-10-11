@@ -12,8 +12,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth
-from app.auth.google_auth import get_current_user, get_current_user_optional
+from app.routes import api_keys, papers, scripts, slides, media, images  # , auth  # Commented out for local use
+# from app.auth.google_auth import get_current_user, get_current_user_optional  # Commented out for local use
 
 # Create temp directories
 temp_dirs = [
@@ -91,7 +91,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.mount("/static", StaticFiles(directory="temp"), name="static")
 
 # Include routers
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+# app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])  # Commented out for local use
 app.include_router(api_keys.router, prefix="/api/keys", tags=["API Keys"])
 app.include_router(papers.router, prefix="/api/papers", tags=["Papers"])
 app.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
@@ -115,11 +115,11 @@ async def health_check():
     """Public health check endpoint"""
     return {"status": "healthy", "api_version": "1.0.0"}
 
-# Protected endpoints example
-@app.get("/api/user/profile")
-async def get_user_profile(current_user: dict = Depends(get_current_user)):
-    """Protected endpoint requiring authentication"""
-    return {"user": current_user}
+# Protected endpoints example - Commented out for local use
+# @app.get("/api/user/profile")
+# async def get_user_profile(current_user: dict = Depends(get_current_user)):
+#     """Protected endpoint requiring authentication"""
+#     return {"user": current_user}
 
 if __name__ == "__main__":
     import uvicorn

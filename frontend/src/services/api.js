@@ -92,13 +92,14 @@ class HttpClient {
   }
 
   setupInterceptors() {
-    // Request interceptor - Add auth token
+    // Request interceptor - Add auth token (disabled for local use)
     this.client.interceptors.request.use(
       (config) => {
-        const token = AuthManager.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
+        // Authentication disabled for local use
+        // const token = AuthManager.getToken();
+        // if (token) {
+        //   config.headers.Authorization = `Bearer ${token}`;
+        // }
         
         console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
         return config;
@@ -109,18 +110,18 @@ class HttpClient {
       }
       );
 
-    // Response interceptor - Handle auth errors
+    // Response interceptor - Handle errors (auth handling disabled)
     this.client.interceptors.response.use(
       (response) => {
         console.log(`✅ API Response: ${response.config.url} (${response.status})`);
         return response;
       },
       (error) => {
-        // Handle authentication errors
-        if (error.response?.status === 401) {
-          this.handleAuthError();
-          return Promise.reject(error);
-        }
+        // Authentication error handling disabled for local use
+        // if (error.response?.status === 401) {
+        //   this.handleAuthError();
+        //   return Promise.reject(error);
+        // }
 
         // Handle other errors - but suppress expected 404s
         if (!this.shouldSuppressError(error)) {
@@ -137,13 +138,14 @@ class HttpClient {
   }
 
   handleAuthError() {
-    console.warn('🔒 Authentication error - clearing auth data');
-    AuthManager.clearAuth();
+    // Authentication error handling disabled for local use
+    console.warn('🔒 Authentication error - auth disabled for local use');
+    // AuthManager.clearAuth();
     
     // Only redirect if not already on login page
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login';
-    }
+    // if (window.location.pathname !== '/login') {
+    //   window.location.href = '/login';
+    // }
   }
 
   extractErrorMessage(error) {
@@ -339,9 +341,9 @@ class ScriptsService {
     this.http = httpClient;
   }
 
-  async generate(paperId) {
+  async generate(paperId, complexityMode = 'normal') {
     return this.http.withRetry(() => 
-      this.http.post(`/scripts/${paperId}/generate`)
+      this.http.post(`/scripts/${paperId}/generate`, { complexity_mode: complexityMode })
       );
   }
 
@@ -545,7 +547,7 @@ class ApiService {
   downloadPaperPdf = (paperId) => this.papers.downloadPdf(paperId);
   downloadPaperSource = (paperId) => this.papers.downloadSource(paperId);
   
-  generateScript = (paperId) => this.scripts.generate(paperId);
+  generateScript = (paperId, complexityMode = 'normal') => this.scripts.generate(paperId, complexityMode);
   getScriptsWithBullets = (paperId) => this.scripts.getSections(paperId);
   updateScriptsWithBullets = (paperId, data) => this.scripts.updateSections(paperId, data);
   refreshScriptsData = (paperId) => this.scripts.refreshSections(paperId);

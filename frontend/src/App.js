@@ -34,7 +34,8 @@ function App() {
     <Route path="/" element={<LandingPage />} />
     <Route path="/about" element={<About />} />
     <Route path="/sample" element={<VideosPage/>} />
-    <Route path="/api-setup" element={
+
+    {/* <Route path="/api-setup" element={
       <ProtectedRoute>
       <ApiSetup />
       </ProtectedRoute>
@@ -43,7 +44,9 @@ function App() {
       <ProtectedRoute>
       <PaperProcessing />
       </ProtectedRoute>
-    } />
+    } /> */}
+    <Route path="/api-setup" element={<ApiSetup />} />
+    <Route path="/paper-processing" element={<PaperProcessing />} />
     <Route path="/script-generation" element={
       <ProtectedRoute>
       <ScriptGeneration />
