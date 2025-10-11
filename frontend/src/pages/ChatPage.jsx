@@ -7,8 +7,14 @@ import toast from 'react-hot-toast';
 import Layout from '../components/common/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
+// Markdown and LaTeX rendering imports
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
+// KaTeX CSS for styling
+import 'katex/dist/katex.min.css';
 
 const ChatMessage = ({ message, isUser }) => (
   <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -23,7 +29,8 @@ const ChatMessage = ({ message, isUser }) => (
         <p className="whitespace-pre-wrap">{message}</p>
       ) : (
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
           components={{
             h1: ({node, children, ...props}) => <h1 className="text-xl font-bold mb-2" {...props}>{children}</h1>,
             h2: ({node, children, ...props}) => <h2 className="text-lg font-semibold mb-2" {...props}>{children}</h2>,
@@ -31,14 +38,19 @@ const ChatMessage = ({ message, isUser }) => (
             ol: ({node, ...props}) => <ol className="list-decimal list-inside" {...props} />,
             ul: ({node, ...props}) => <ul className="list-disc list-inside" {...props} />,
             li: ({node, ...props}) => <li className="mb-1" {...props} />,
-            code: ({node, inline, ...props}) => 
-              inline ? (
-                <code className="bg-gray-300 dark:bg-gray-600 px-1 rounded text-sm" {...props} />
-              ) : (
-                <pre className="bg-gray-100 dark:bg-gray-900 p-2 rounded my-2 overflow-x-auto">
-                  <code className="text-sm" {...props} />
-                </pre>
-              )
+            code: ({node, inline, className, children, ...props}) => {
+                return !inline ? (
+                    <pre className="bg-gray-100 dark:bg-gray-900 p-2 rounded my-2 overflow-x-auto">
+                        <code className="text-sm" {...props}>
+                            {String(children).replace(/\n$/, '')}
+                        </code>
+                    </pre>
+                ) : (
+                    <code className="bg-gray-300 dark:bg-gray-600 px-1 rounded text-sm" {...props}>
+                        {children}
+                    </code>
+                );
+            },
           }}
         >
           {String(message)}
@@ -105,7 +117,6 @@ const ChatPage = () => {
           {messages.map((msg, index) => (
             <ChatMessage key={index} message={msg.content} isUser={msg.role === 'user'} />
           ))}
-          {/* ⭐️ FIX: Handle loading state separately to avoid object rendering ⭐️ */}
           {loading && (
             <div className="flex justify-start mb-4">
               <div className="max-w-lg px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700">
@@ -152,4 +163,3 @@ const ChatPage = () => {
 };
 
 export default ChatPage;
-
