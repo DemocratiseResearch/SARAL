@@ -5,6 +5,9 @@ backend/app/__pycache__/
 backend/app/*/__pycache__/
 backend/firebase_service_account.json
 
+frontend/bun.lock
+frontend/firebase_service_account.json
+
 *.py[cod]
 *$py.class
 backend/**/*.pyc
