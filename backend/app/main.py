@@ -12,7 +12,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images  # , auth  # Commented out for local use
+from app.routes import api_keys, papers, scripts, slides, media, images, flashcards  # , auth  # Commented out for local use
 # from app.auth.google_auth import get_current_user, get_current_user_optional  # Commented out for local use
 
 # Create temp directories
@@ -98,6 +98,7 @@ app.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
 app.include_router(slides.router, prefix="/api/slides", tags=["Slides"])
 app.include_router(media.router, prefix="/api/media", tags=["Media"])
 app.include_router(images.router, prefix="/api/images", tags=["Images"])
+app.include_router(flashcards.router, prefix="/api", tags=["Flashcards"])
 
 # Public endpoints
 @app.get("/")

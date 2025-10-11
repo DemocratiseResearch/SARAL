@@ -75,6 +75,21 @@ class SlideResponse(BaseModel):
     image_paths: List[str]
     paper_id: str
 
+
+# Flashcard models
+class Flashcard(BaseModel):
+    id: int
+    key_point: str
+    question: str
+    image_url: Optional[str] = None
+
+class FlashcardGenerationRequest(BaseModel):
+    num_flashcards: Optional[int] = 10
+
+class FlashcardResponse(BaseModel):
+    flashcards: List[Flashcard]
+    paper_id: str
+
 class MediaResponse(BaseModel):
     audio_files: List[str]
     video_path: Optional[str] = None

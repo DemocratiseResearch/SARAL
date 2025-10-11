@@ -12,6 +12,8 @@ import {
   FiMinus,
   FiX,
 } from 'react-icons/fi';
+import { generateFlashcards } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 import Layout from '../components/common/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -264,14 +266,15 @@ const ScriptGeneration = () => {
   } = useWorkflow();
 
   const { loading: apiLoading, execute } = useApi();
+  const navigate = useNavigate();
 
   const [generating, setGenerating] = useState(false);
   const [savingScripts, setSavingScripts] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
   const [imageSelectorSection, setImageSelectorSection] = useState(null);
   const [localChanges, setLocalChanges] = useState({});
-  // const [complexityMode, setComplexityMode] = useState('normal'); // REMOVED - now using context
-  
+  //const [complexityMode, setComplexityMode] = useState('normal'); // Add complexity mode state
+    const [generatingFlashcards, setGeneratingFlashcards] = useState(false);
   // Use refs to track initialization to prevent multiple loads
   const initializationRef = useRef(false);
   const loadingRef = useRef(false);
@@ -480,6 +483,22 @@ const ScriptGeneration = () => {
   };
 
   /* ------------------------------------------------------------------ */
+  /*  Generate flashcards                                              */
+  /* ------------------------------------------------------------------ */
+  const handleGenerateFlashcards = async () => {
+    setGeneratingFlashcards(true);
+    try {
+      await generateFlashcards(paperId);
+      setGeneratingFlashcards(false);
+      toast.success('Flashcards generated successfully!');
+      navigate(`/flashcard-generation/${paperId}`);
+    } catch (err) {
+      setGeneratingFlashcards(false);
+      toast.error('Failed to generate flashcards');
+    }
+  };
+
+  /* ------------------------------------------------------------------ */
   /*  Derived values                                                    */
   /* ------------------------------------------------------------------ */
   const sectionKeys = Object.keys(editedScripts);
@@ -642,30 +661,24 @@ const ScriptGeneration = () => {
               <>
                 <button
                   onClick={handleSaveScripts}
-                  disabled={savingScripts}
-                  className="flex items-center gap-2 px-4 py-2 
-                             bg-gray-900 hover:bg-gray-700 disabled:bg-gray-400 
-                             text-white font-medium rounded-md transition-colors duration-150"
+                  disabled={hasChanges || savingScripts}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white font-medium rounded-md transition-colors duration-150"
                 >
-                  {savingScripts ? (
-                    <>
-                      <LoadingSpinner size="sm" /> Saving
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="w-4 h-4" /> Save Scripts
-                    </>
-                  )}
+                  <FiSave className="w-4 h-4" /> Save Scripts
+                </button>
+
+                <button
+                  onClick={handleGenerateFlashcards}
+                  disabled={generatingFlashcards || hasChanges || savingScripts}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-600 text-white font-medium rounded-md transition-colors duration-150"
+                >
+                  {generatingFlashcards ? <LoadingSpinner size="sm" /> : <FiList className="w-4 h-4" />} Generate Flashcards
                 </button>
 
                 <button
                   onClick={handleContinueToSlides}
                   disabled={hasChanges || savingScripts}
-                  className="flex items-center gap-2 px-4 py-2 
-                             bg-gray-900 hover:bg-gray-700 disabled:bg-gray-400 
-                             text-white font-medium rounded-md transition-colors duration-150 
-                             disabled:bg-gray-100 dark:disabled:bg-gray-700 
-                             disabled:text-gray-400 dark:disabled:text-gray-500"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors duration-150 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500"
                 >
                   <FiCheck className="w-4 h-4" /> Continue to Slides
                 </button>

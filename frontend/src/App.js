@@ -18,7 +18,8 @@ import SlideCreation from './pages/SlideCreation';
 import MediaGeneration from './pages/MediaGeneration';
 import Results from './pages/Results';
 import About from './pages/About';
-import VideosPage from './pages/VideosPage'
+import VideosPage from './pages/VideosPage';
+import FlashcardGeneration from './pages/FlashcardGeneration';
 
 function App() {
   return (
@@ -65,6 +66,11 @@ function App() {
     <Route path="/results" element={
       <ProtectedRoute>
       <Results />
+      </ProtectedRoute>
+    } />
+    <Route path="/flashcard-generation/:paperId" element={
+      <ProtectedRoute>
+      <FlashcardGeneration />
       </ProtectedRoute>
     } />
     

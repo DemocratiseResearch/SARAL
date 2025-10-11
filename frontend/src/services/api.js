@@ -573,6 +573,39 @@ class ApiService {
   getVideoStreamUrl = (paperId) => this.media.getVideoStreamUrl(paperId);
 }
 
+/**
+ * Get flashcards for a paper
+ * @param {string} paperId
+ * @returns {Promise<{flashcards: Array}>}
+ */
+export async function getFlashcards(paperId) {
+  try {
+    const response = await axios.get(`${API_CONFIG.baseURL}/api/papers/${paperId}/flashcards`);
+    return response.data;
+  } catch (error) {
+    toast.error('Failed to fetch flashcards');
+    throw error;
+  }
+}
+
+/**
+ * Generate flashcards for a paper
+ * @param {string} paperId
+ * @returns {Promise<{flashcards: Array}>}
+ */
+export async function generateFlashcards(paperId, num_flashcards = 5) {
+  try {
+    const response = await axios.post(
+      `${API_CONFIG.baseURL}/api/papers/${paperId}/flashcards`,
+      { num_flashcards }
+    );
+    return response.data;
+  } catch (error) {
+    toast.error('Failed to generate flashcards');
+    throw error;
+  }
+}
+
 // Create and export singleton instance
 export const apiService = new ApiService();
 
