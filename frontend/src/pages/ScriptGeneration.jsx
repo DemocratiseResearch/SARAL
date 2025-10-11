@@ -22,6 +22,7 @@ import { apiService } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { useWorkflow } from '../contexts/WorkflowContext';
 import toast from 'react-hot-toast';
+import PosterGenerator from '../components/workflow/PosterGenerator';
 
 const ScriptTextarea = ({ value, onChange, disabled = false }) => (
   <textarea
@@ -642,7 +643,9 @@ const ScriptGeneration = () => {
               hasLocalChanges={localChanges[activeTab]}
               />
               )}
-
+          {hasScripts && (
+            <PosterGenerator paperId={paperId} />
+        )}
         {/* Empty state */}
           {!hasScripts && !apiLoading && !generating && (
             <motion.div

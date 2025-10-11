@@ -1,7 +1,7 @@
 // src/pages/PaperProcessing.jsx (updated)
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FiUpload, FiMessageSquare, FiVideo, FiMic } from 'react-icons/fi';
+import { FiUpload, FiMessageSquare, FiVideo, FiMic, FiImage, FiFile } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -11,6 +11,8 @@ import MetadataEditor from '../components/forms/MetadataEditor';
 import { useWorkflow } from '../contexts/WorkflowContext';
 import { apiService } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import PosterGenerator from '../components/workflow/PosterGenerator';
+import { useDropzone } from 'react-dropzone';
 
 const ChoiceCard = ({ icon: Icon, title, description, onClick, disabled }) => (
   <motion.button
@@ -28,9 +30,9 @@ const ChoiceCard = ({ icon: Icon, title, description, onClick, disabled }) => (
 
 
 const PaperProcessing = () => {
-  const { paperId, isProcessed, setPaperId } = useWorkflow();
+  const { paperId, isProcessed, setPaperId, setMetadata, setImages } = useWorkflow();
   const navigate = useNavigate();
-  const [view, setView] = useState('choice'); // 'choice', 'video', 'chat'
+  const [view, setView] = useState('choice'); // 'choice', 'video', 'chat', 'podcast', 'poster'
   const [chatLoading, setChatLoading] = useState(false);
   const [chatFile, setChatFile] = useState(null);
 
@@ -40,6 +42,41 @@ const PaperProcessing = () => {
   const [podcastLoadingMessage, setPodcastLoadingMessage] = useState('');
   const [podcastUrl, setPodcastUrl] = useState('');
   const [podcastError, setPodcastError] = useState('');
+
+  // For poster upload
+  const [posterFile, setPosterFile] = useState(null);
+  const [posterLoading, setPosterLoading] = useState(false);
+
+  const onPosterDrop = useCallback((acceptedFiles) => {
+      setPosterFile(acceptedFiles[0]);
+  }, []);
+
+  const { getRootProps: getPosterRootProps, getInputProps: getPosterInputProps, isDragActive: isPosterDragActive } = useDropzone({
+      onDrop: onPosterDrop,
+      accept: { 'application/pdf': ['.pdf'] },
+      multiple: false,
+  });
+
+  const handlePosterUpload = async () => {
+      if (!posterFile) {
+          toast.error("Please select a PDF file.");
+          return;
+      }
+      setPosterLoading(true);
+      try {
+          const response = await apiService.uploadPdf(posterFile);
+          const { paper_id, metadata, image_files } = response.data;
+          setPaperId(paper_id);
+          setMetadata(metadata);
+          setImages(image_files);
+          toast.success("Paper uploaded successfully. You can now generate the poster.");
+      } catch (error) {
+          toast.error("Failed to upload paper for poster generation.");
+      } finally {
+          setPosterLoading(false);
+      }
+  };
+
 
   const handleChatFileUpload = async (file) => {
     if (!file) {
@@ -147,7 +184,7 @@ const PaperProcessing = () => {
   ];
 
   const renderContent = () => {
-    if (paperId && isProcessed) {
+    if (paperId && isProcessed && view !== 'poster') {
       return <MetadataEditor />;
     }
 
@@ -209,6 +246,23 @@ const PaperProcessing = () => {
             )}
           </div>
         );
+      case 'poster':
+          if (paperId) {
+              return <PosterGenerator paperId={paperId} />;
+          }
+          return (
+              <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 space-y-6">
+                  <h2 className="text-xl font-semibold">Upload PDF for Poster Generation</h2>
+                  <div {...getPosterRootProps()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer ${isPosterDragActive ? 'border-gray-700' : 'border-gray-300'}`}>
+                      <input {...getPosterInputProps()} />
+                      <FiUpload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      {posterFile ? <p>{posterFile.name}</p> : <p>Drag 'n' drop a PDF here, or click to select a file</p>}
+                  </div>
+                  <button onClick={handlePosterUpload} disabled={!posterFile || posterLoading} className="btn-primary w-full">
+                      {posterLoading ? <LoadingSpinner /> : 'Upload and Continue'}
+                  </button>
+              </div>
+          );
       case 'choice':
       default:
         return (
@@ -218,7 +272,7 @@ const PaperProcessing = () => {
                     title="One Click to Video"
                     description="The existing pipeline to automatically generate a video presentation from your paper."
                     onClick={() => {
-                        setPaperId(null); // Reset paperId to ensure a fresh start for video flow
+                        setPaperId(null);
                         setView('video');
                     }}
                 />
@@ -233,6 +287,15 @@ const PaperProcessing = () => {
                   title="Generate Podcast"
                   description="Upload a PDF to automatically generate a podcast episode discussing the paper."
                   onClick={() => setView('podcast')}
+                />
+                <ChoiceCard
+                    icon={FiImage}
+                    title="Generate Poster"
+                    description="Create a scientific poster from a PDF of your paper."
+                    onClick={() => {
+                        setPaperId(null);
+                        setView('poster');
+                    }}
                 />
             </div>
         );

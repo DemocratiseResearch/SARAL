@@ -1,4 +1,3 @@
-// src/services/api.js (updated)
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -305,8 +304,7 @@ class PapersService {
     formData.append('file', file);
     
     return this.http.post('/papers/upload-pdf', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 600000, // 10 minutes
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
   }
 
@@ -360,6 +358,10 @@ class PapersService {
     return this.http.get(`/papers/${paperId}/download-source`, {
       responseType: 'blob'
     });
+  }
+
+  async generatePoster(paperId, language) {
+    return this.http.post(`/papers/${paperId}/poster?language=${language}`);
   }
 }
 
@@ -668,6 +670,7 @@ class ApiService {
   googleUpload = (code, paper_id) => this.youtube.googleUpload(code, paper_id)
   uploadPdfForChat = (file) => this.chat.uploadPdfForChat(file);
   askQuestion = (paperId, question, chatHistory) => this.chat.askQuestion(paperId, question, chatHistory);
+  generatePoster = (paperId, language) => this.papers.generatePoster(paperId, language);
 }
 
 // Create and export singleton instance
