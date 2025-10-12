@@ -23,6 +23,21 @@ class SectionScript(BaseModel):
 class ScriptUpdateRequest(BaseModel):
     sections: Optional[Dict[str, Union[SectionScript, Dict[str, Any]]]] = None
 
+class RagQueryRequest(BaseModel):
+    query: str
+
+class RagTutorState(BaseModel):
+    current_step_index: int
+    current_step_type: str
+    completed_prerequisites: bool
+    is_complete: bool
+    total_steps: int
+    current_step: int
+    retry_count: int
+
+class RagTutorRequest(BaseModel):
+    user_answer: str
+    state: RagTutorState
 # REMOVED: BulletPointRequest
 
 class AudioGenerationRequest(BaseModel):

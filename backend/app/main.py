@@ -12,7 +12,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, chat, poster
+from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, chat, poster, tutor
 from app.auth.google_auth import get_current_user, get_current_user_optional
 
 # Create temp directories
@@ -103,7 +103,7 @@ app.include_router(papertovideo.router, prefix="/api/papertovideo", tags=["pdfto
 app.include_router(youtube_upload.router, prefix="/api/youtube_upload", tags=["youtube_upload"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(poster.router, prefix="/api", tags=["Posters"])
-
+app.include_router(tutor.router, prefix="/api/tutor", tags=["Tutor"])
 
 # Public endpoints
 @app.get("/")

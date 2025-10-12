@@ -1,3 +1,4 @@
+// src/services/api.js (updated)
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -583,6 +584,20 @@ class ChatService {
   }
 }
 
+class TutorService {
+    constructor(httpClient) {
+      this.http = httpClient;
+    }
+  
+    analyzePaper(paperId) {
+      return this.http.post(`/tutor/analyze/${paperId}`);
+    }
+  
+    tutorChat(paperId, payload) {
+      return this.http.post(`/tutor/tutor/${paperId}`, payload);
+    }
+}
+
 /**
  * Main API Service Factory
  */
@@ -600,6 +615,7 @@ class ApiService {
     this.media = new MediaService(this.httpClient);
     this.youtube = new YoutubeService(this.httpClient);
     this.chat = new ChatService(this.httpClient);
+    this.tutor = new TutorService(this.httpClient);
   }
 
   get interceptors() {
@@ -677,6 +693,9 @@ class ApiService {
   askQuestion = (paperId, question, chatHistory) => this.chat.askQuestion(paperId, question, chatHistory);
   
   generatePoster = (paperId, language, template) => this.papers.generatePoster(paperId, language, template);
+
+  analyzePaper = (paperId) => this.tutor.analyzePaper(paperId);
+  tutorChat = (paperId, payload) => this.tutor.tutorChat(paperId, payload);
 }
 
 // Create and export singleton instance
@@ -691,7 +710,8 @@ export const {
   slides,
   media,
   youtube,
-  chat
+  chat,
+  tutor
 } = apiService;
 
 // Export HTTP client for custom requests
