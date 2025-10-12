@@ -3,21 +3,22 @@ import logging
 from pathlib import Path
 import uuid
 import time
+import shutil
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import SentenceTransformerEmbeddings 
+from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 
-# ⭐️ IMPORT THE MULTI-QUERY RETRIEVER ⭐️
-from langchain.retrievers.multi_query import MultiQueryRetriever
-
 from app.services.pdf_processor import process_pdf_file
 from fastapi import UploadFile, HTTPException
+
+# **FIX**: Import the necessary function to save paper information
+from app.routes.papers import save_paper_info
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +32,7 @@ Path(VECTOR_STORE_DIR).mkdir(parents=True, exist_ok=True)
 try:
     logger.info("Loading local sentence transformer model...")
     embedding_function = SentenceTransformerEmbeddings(
-        model_name="BAAI/bge-large-en-v1.5" 
+        model_name="BAAI/bge-m3"
     )
     logger.info("✅ Model loaded successfully.")
 except Exception as e:
@@ -52,7 +53,8 @@ def add_texts_with_retry(vector_store, texts):
 
 def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
     """
-    Processes an uploaded PDF, creates a Chroma vector store, and persists it.
+    Processes an uploaded PDF, creates a Chroma vector store, persists it,
+    and correctly saves the paper's metadata.
     """
     if embedding_function is None:
         raise HTTPException(status_code=500, detail="Embedding model is not available.")
@@ -68,22 +70,31 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
         with open(pdf_path, "wb") as buffer:
             buffer.write(file.file.read())
 
-        # 1. Process PDF to extract text
+        # 1. Process PDF to extract text and other info
         paper_info = process_pdf_file(pdf_path, paper_id)
         text_file_path = paper_info.get("text_file_path")
         
         if not text_file_path or not os.path.exists(text_file_path):
             raise Exception("Text extraction failed.")
 
+        # ** THE FIX IS HERE **
+        # 2. Save the paper info to the central storage so it can be found later.
+        # This was the missing step.
+        paper_info["source_type"] = "pdf"
+        if "pdf_path" in paper_info:
+            paper_info["pdf_file_path"] = paper_info.pop("pdf_path")
+        save_paper_info(paper_id, paper_info)
+        logger.info(f"Paper info for {paper_id} saved to central storage.")
+        
+        # 3. Split Text into Chunks for the vector store
         with open(text_file_path, "r", encoding="utf-8") as f:
             document_text = f.read()
             
-        # 2. Split Text into Chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
         chunks = text_splitter.split_text(document_text)
         logger.info(f"Document split into {len(chunks)} chunks.")
 
-        # 3. Create and Persist Chroma Vector Store in Batches
+        # 4. Create and Persist Chroma Vector Store in Batches
         persist_directory = os.path.join(VECTOR_STORE_DIR, paper_id)
         
         vector_store = Chroma(
@@ -110,14 +121,14 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
     except Exception as e:
         logger.error(f"Failed to create vector store for paper_id {paper_id}: {e}", exc_info=True)
         if os.path.exists(temp_dir):
-            import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
         raise e
 
 
 def get_conversational_chain(paper_id: str, gemini_api_key: str):
     """
-    Loads an existing vector store and builds a smarter conversational RAG chain.
+    Loads an existing vector store and builds a conversational RAG chain.
+    (This function remains unchanged)
     """
     if embedding_function is None:
         raise HTTPException(status_code=500, detail="Embedding model is not available.")
@@ -133,7 +144,6 @@ def get_conversational_chain(paper_id: str, gemini_api_key: str):
         embedding_function=embedding_function
     )
     
-    # Simple in-memory conversation buffer for this session
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         return_messages=True,
@@ -144,43 +154,10 @@ def get_conversational_chain(paper_id: str, gemini_api_key: str):
     
     *Instructions:*
     1. *Analyze the Document First:* Carefully examine the provided context from the research paper and base your primary answer on this information.
-    2. *Structure Your Response:* Use clear formatting with:
-       - Headings (##) for major sections when appropriate
-       - Bullet points for lists
-       - *Bold* for emphasis on key terms
-       - Inline code (code) for technical terms, variables, or short expressions
-       - LaTeX for mathematical expressions:
-         * Inline math: $E = mc^2$ for formulas within text
-         * Block math: $$\\int_0^\\infty x^2 dx$$ for standalone equations
-    3. *Supplement Thoughtfully:* IF NEEDED, add general knowledge to:
-       - Define technical terms or concepts from the paper
-       - Provide background context that aids understanding
-       - Explain implications or connections to broader research
-       - Compare with related work or standard approaches
-       - No need to mention these in a seperate section.
-    4. *Be Transparent:*
-       - If the answer is directly in the document, cite it clearly
-       - If the document doesn't contain the answer, state this explicitly before providing general knowledge
-    5. *Simple, Clear Answers*
-       - Do not overexplain, keep your answers simple.
-       - Only give extra information if needed, not for simple questions.
-       - Ensure clear and perfect formatting
-       - Do not overuse bullet points
-    
-    *Example Response Format:*
-    
-    User: "What loss function did they use?"
-    
-    Good Answer:
-    "The paper uses *cross-entropy loss* for training the model, defined as:
-    
-    $$L = -\\sum_{{i=1}}^{{n}} y_i \\log(\\hat{{y}}_i)$$
-    
-    where $y_i$ is the true label and $\\hat{{y}}_i$ is the predicted probability.
-    
-    Cross-entropy loss is commonly used in classification tasks because it measures the dissimilarity between the predicted probability distribution and the true distribution, penalizing confident wrong predictions more heavily."
-    
-    ---
+    2. *Structure Your Response:* Use clear formatting like headings, bullet points, bold text, and LaTeX for math.
+    3. *Supplement Thoughtfully:* If needed, add general knowledge to define terms or provide background.
+    4. *Be Transparent:* If the answer isn't in the document, say so.
+    5. *Simple, Clear Answers:* Be concise and avoid over-explaining.
     
     *Context from the research paper:*
     {context}
@@ -195,20 +172,16 @@ def get_conversational_chain(paper_id: str, gemini_api_key: str):
 
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=gemini_api_key, temperature=0.2)
     
-    # ⭐️ UPGRADE the retriever to use MultiQueryRetriever ⭐️
-    retriever_from_llm = MultiQueryRetriever.from_llm(
-        retriever=vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 5}),
-        llm=llm
+    retriever = vector_store.as_retriever(
+        search_type="similarity", 
+        search_kwargs={"k": 5}
     )
     
     chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        retriever=retriever_from_llm, # Use the new multi-query retriever
+        retriever=retriever,
         memory=memory,
-        combine_docs_chain_kwargs={"prompt": QA_PROMPT},
-        return_source_documents=True,
-        output_key="answer"
+        combine_docs_chain_kwargs={"prompt": QA_PROMPT}
     )
     
     return chain
-

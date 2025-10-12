@@ -1,7 +1,9 @@
+// src/pages/ChatPage.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FiSend, FiArrowLeft } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiSend, FiArrowLeft, FiEye, FiEyeOff, FiFile } from 'react-icons/fi';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 import Layout from '../components/common/Layout';
@@ -42,7 +44,7 @@ const ChatMessage = ({ message, isUser }) => (
                 return !inline ? (
                     <pre className="bg-gray-100 dark:bg-gray-900 p-2 rounded my-2 overflow-x-auto">
                         <code className="text-sm" {...props}>
-                            {String(children).replace(/\n$/, '')}
+                            {String(children).replace(/\$/, '')}
                         </code>
                     </pre>
                 ) : (
@@ -66,7 +68,16 @@ const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [showPdf, setShowPdf] = useState(true);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (paperId) {
+      const url = apiService.getPaperPdfUrl(paperId);
+      setPdfUrl(url);
+    }
+  }, [paperId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -108,56 +119,84 @@ const ChatPage = () => {
 
   return (
     <Layout title="Interactive Chat" breadcrumbs={breadcrumbs}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 flex flex-col h-[70vh]"
-      >
-        <div className="flex-1 overflow-y-auto mb-4 pr-4 custom-scrollbar">
-          {messages.map((msg, index) => (
-            <ChatMessage key={index} message={msg.content} isUser={msg.role === 'user'} />
-          ))}
-          {loading && (
-            <div className="flex justify-start mb-4">
-              <div className="max-w-lg px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700">
-                <LoadingSpinner />
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question about the paper..."
-            className="input-primary flex-1"
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="btn-primary p-3"
-          >
-            <FiSend className="w-5 h-5" />
-          </button>
-        </form>
-      </motion.div>
-       <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.15, delay: 0.1 }}
-          className="mt-6 text-center"
+      <div className="relative">
+        {/* Toggle PDF Button - Fixed to left edge */}
+        <button
+          onClick={() => setShowPdf(!showPdf)}
+          className="hidden md:flex fixed left-0 top-1/2 -translate-y-1/2 z-10 items-center justify-center p-3 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white border-r border-t border-b border-neutral-200 dark:border-neutral-700 rounded-r-lg shadow-lg transition-all duration-150 hover:shadow-xl"
         >
-          <button
-            onClick={() => navigate('/paper-processing')}
-            className="inline-flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-150"
-          >
-            <FiArrowLeft className="w-4 h-4" />
-            Back to Upload
-          </button>
+          <FiFile className="w-5 h-5" />
+        </button>
+
+      <div className="flex flex-col md:flex-row h-[80vh] gap-4 max-w-full overflow-hidden">
+        {/* PDF Viewer - Now on the left */}
+        <AnimatePresence mode="wait">
+          {showPdf && (
+            <motion.div
+              key="pdf-viewer"
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: '65%' }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="hidden md:block bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden"
+            >
+              {pdfUrl && (
+                <iframe
+                  src={`${pdfUrl}#view=fitH`}
+                  title="PDF Preview"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 'none' }}
+                />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Chat Panel - Now on the right */}
+        <motion.div
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ 
+            opacity: 1,
+            width: showPdf ? '35%' : '100%'
+          }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 flex flex-col w-full md:w-auto"
+        >
+          <div className="flex-1 overflow-y-auto mb-4 pr-4 custom-scrollbar">
+            {messages.map((msg, index) => (
+              <ChatMessage key={index} message={msg.content} isUser={msg.role === 'user'} />
+            ))}
+            {loading && (
+              <div className="flex justify-start mb-4">
+                <div className="max-w-lg px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700">
+                  <LoadingSpinner />
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask a question about the paper..."
+              className="input-primary flex-1"
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              className="btn-primary p-3"
+            >
+              <FiSend className="w-5 h-5" />
+            </button>
+          </form>
         </motion.div>
+      </div>
+      </div>
     </Layout>
   );
 };

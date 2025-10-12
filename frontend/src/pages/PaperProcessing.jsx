@@ -269,8 +269,8 @@ const PaperProcessing = () => {
             <div className="grid md:grid-cols-2 gap-6">
                 <ChoiceCard
                     icon={FiVideo}
-                    title="One Click to Video"
-                    description="The existing pipeline to automatically generate a video presentation from your paper."
+                    title="Paper to Video"
+                    description="Automatically generate a video presentation from your research paper."
                     onClick={() => {
                         setPaperId(null);
                         setView('video');

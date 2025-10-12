@@ -360,6 +360,10 @@ class PapersService {
     });
   }
 
+  getPaperPdfUrl(paperId) {
+    return `${API_CONFIG.baseURL}/api/papers/${paperId}/download-pdf`;
+  }
+
   async generatePoster(paperId, language) {
     return this.http.post(`/papers/${paperId}/poster?language=${language}`);
   }
@@ -637,6 +641,7 @@ class ApiService {
   updatePaperMetadata = (paperId, metadata) => this.papers.updateMetadata(paperId, metadata);
   downloadPaperPdf = (paperId) => this.papers.downloadPdf(paperId);
   downloadPaperSource = (paperId) => this.papers.downloadSource(paperId);
+  getPaperPdfUrl = (paperId) => this.papers.getPaperPdfUrl(paperId);
   
   generateScript = (paperId) => this.scripts.generate(paperId);
   getScriptsWithBullets = (paperId) => this.scripts.getSections(paperId);
