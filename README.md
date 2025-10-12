@@ -2,6 +2,12 @@
 
 SARAL AI is a full-stack application that automates the process of converting research papers (LaTeX or arXiv) into engaging educational videos. The system leverages AI for script generation, slide creation, audio narration, and video synthesis, providing a seamless workflow from paper upload to downloadable media.
 
+## Team Number : 125, Team Name : Baguette
+The additional features that are added to this project are:
+- Interactive Chat Mode: Enables user to upload a pdf to start an interactive chat session, and asks questions about the papers. Users RAG on the uploaded document and supports TTS as of now.
+- Guided Learning: Teaches the user the contents of the paper using questions and answers. The questions increase in difficulty if answered right, and smartly assess the knowledge level of the user, until he/she is ready to read and understand the paper.
+- Podcast : Generates a conversation between two agents about the research paper, with multilingual support. By default, it uses a male and a female voice to differentiate easily.
+- Poster Generation: Generates an informative poster that breifly covers the contents of the paper in a structured advertisable format. 
 ---
 
 ## Table of Contents
@@ -229,19 +235,22 @@ yarn install
 
 ## Configuration
 
-### API Keys
+### API Keys & Firebase
 
 Create a `.env` file in the `backend/` directory:
 
 ```
 GOOGLE_API_KEY=your_gemini_api_key
 SARVAM_API_KEY=your_sarvam_api_key
+FIREBASE_SERVICE_ACCOUNT=./firebase_service_account.json
 ```
 
 - **Google Gemini API Key:** [Google AI Studio](https://makersuite.google.com/)
 - **Sarvam TTS API Key (optional):** [Sarvam AI](https://sarvam.ai/)
+- **Firebase Service Account:** [Firebase Console](https://console.firebase.google.com/) → Project Settings → Service Accounts
 
 You can also provide these keys via the web interface at runtime.
+
 
 ---
 
