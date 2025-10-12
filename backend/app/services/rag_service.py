@@ -126,7 +126,6 @@ def process_pdf_and_create_store(file: UploadFile, GOOGLE_API_KEY: str) -> str:
 def get_conversational_chain(paper_id: str, GOOGLE_API_KEY: str):
     """
     Loads an existing vector store and builds a conversational RAG chain.
-    (This function remains unchanged)
     """
     if embedding_function is None:
         raise HTTPException(status_code=500, detail="Embedding model is not available.")
@@ -152,10 +151,44 @@ def get_conversational_chain(paper_id: str, GOOGLE_API_KEY: str):
     
     *Instructions:*
     1. *Analyze the Document First:* Carefully examine the provided context from the research paper and base your primary answer on this information.
-    2. *Structure Your Response:* Use clear formatting like headings, bullet points, bold text, and LaTeX for math.
-    3. *Supplement Thoughtfully:* If needed, add general knowledge to define terms or provide background.
-    4. *Be Transparent:* If the answer isn't in the document, say so.
-    5. *Simple, Clear Answers:* Be concise and avoid over-explaining.
+    2. *Structure Your Response:* Use clear formatting with:
+       - Headings (##) for major sections when appropriate
+       - Bullet points for lists
+       - *Bold* for emphasis on key terms
+       - Inline code (code) for technical terms, variables, or short expressions
+       - LaTeX for mathematical expressions:
+         * Inline math: $E = mc^2$ for formulas within text
+         * Block math: $$\\int_0^\\infty x^2 dx$$ for standalone equations
+    3. *Supplement Thoughtfully:* IF NEEDED, add general knowledge to:
+       - Define technical terms or concepts from the paper
+       - Provide background context that aids understanding
+       - Explain implications or connections to broader research
+       - Compare with related work or standard approaches
+       - No need to mention these in a seperate section.
+    4. *Be Transparent:*
+       - If the answer is directly in the document, cite it clearly
+       - If the document doesn't contain the answer, state this explicitly before providing general knowledge
+    5. *Simple, Clear Answers*
+       - Do not overexplain, keep your answers simple.
+       - Only give extra information if needed, not for simple questions.
+       - Ensure clear and perfect formatting
+       - Do not overuse bullet points
+       - Aim for a response under 500 characters unless necessary
+    
+    *Example Response Format:*
+    
+    User: "What loss function did they use?"
+    
+    Good Answer:
+    "The paper uses *cross-entropy loss* for training the model, defined as:
+    
+    $$L = -\\sum_{{i=1}}^{{n}} y_i \\log(\\hat{{y}}_i)$$
+    
+    where $y_i$ is the true label and $\\hat{{y}}_i$ is the predicted probability.
+    
+    Cross-entropy loss is commonly used in classification tasks because it measures the dissimilarity between the predicted probability distribution and the true distribution, penalizing confident wrong predictions more heavily."
+    
+    ---
     
     *Context from the research paper:*
     {context}
@@ -168,18 +201,25 @@ def get_conversational_chain(paper_id: str, GOOGLE_API_KEY: str):
         template=custom_prompt_template, input_variables=["context", "question"]
     )
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GOOGLE_API_KEY, temperature=0.2)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash", 
+        google_api_key=GOOGLE_API_KEY, 
+        temperature=0.2
+    )
     
     retriever = vector_store.as_retriever(
         search_type="similarity", 
-        search_kwargs={"k": 5}
+        search_kwargs={"k": 12}
     )
     
+    # FIX: Set return_source_documents=True to get proper dict output
     chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=retriever,
         memory=memory,
-        combine_docs_chain_kwargs={"prompt": QA_PROMPT}
+        combine_docs_chain_kwargs={"prompt": QA_PROMPT},
+        return_source_documents=True,  # This ensures dict return format
+        verbose=False
     )
     
     return chain
