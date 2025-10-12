@@ -363,9 +363,9 @@ class PapersService {
   getPaperPdfUrl(paperId) {
     return `${API_CONFIG.baseURL}/api/papers/${paperId}/download-pdf`;
   }
-
-  async generatePoster(paperId, language) {
-    return this.http.post(`/papers/${paperId}/poster?language=${language}`);
+  
+  async generatePoster(paperId, language, template = 'modern_blue') {
+    return this.http.post(`/papers/${paperId}/poster?language=${language}&template=${template}`);
   }
 }
 
@@ -675,7 +675,8 @@ class ApiService {
   googleUpload = (code, paper_id) => this.youtube.googleUpload(code, paper_id)
   uploadPdfForChat = (file) => this.chat.uploadPdfForChat(file);
   askQuestion = (paperId, question, chatHistory) => this.chat.askQuestion(paperId, question, chatHistory);
-  generatePoster = (paperId, language) => this.papers.generatePoster(paperId, language);
+  
+  generatePoster = (paperId, language, template) => this.papers.generatePoster(paperId, language, template);
 }
 
 // Create and export singleton instance

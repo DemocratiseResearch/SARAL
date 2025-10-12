@@ -4,8 +4,10 @@ import json
 import re
 import asyncio
 from fastapi import HTTPException
-from typing import Dict, Optional, Any, List, Union
+from typing import Dict, Optional, Any, List
 import fitz  # PyMuPDF
+from abc import ABC, abstractmethod
+from app.services.storage_manager import storage_manager
 
 # --- Configuration ---
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -15,255 +17,250 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 
 def extract_and_clean_json(raw_text: str) -> Dict[str, Any]:
-    """Finds and cleans a JSON object from a raw string."""
-    print("--- Raw AI Response ---")
-    print(raw_text)
-    print("-----------------------")
-    json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+    # Regex to find JSON block, even with markdown ```json ... ```
+    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_text, re.DOTALL)
     if not json_match:
-        raise ValueError("Could not find a valid JSON object in the AI response.")
-    json_string = json_match.group(0)
+        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        if not json_match:
+            raise ValueError("Could not find a valid JSON object in the AI response.")
+    
+    json_string = json_match.group(1)
     try:
         return json.loads(json_string)
     except json.JSONDecodeError as e:
-        print(f"JSON parsing failed: {e}")
-        raise ValueError("Failed to parse structured content from AI model after cleaning.")
+        raise ValueError(f"Failed to parse structured content from AI model: {e}")
 
 
-# --- Main Service Function ---
-async def create_poster_pdf(paper_id: str, language: str) -> str:
-    """
-    Orchestrates a professional poster generation using a multimodal AI model
-    and a pure PyMuPDF layout engine with accurate text placement.
-    """
-    pdf_path = f"temp/papers/{paper_id}/source/paper.pdf"
-    if not os.path.exists(pdf_path):
-        raise HTTPException(status_code=404, detail=f"Source PDF not found for paper ID: {paper_id}")
-
-    try:
-        print("Uploading file to Google AI for multimodal analysis...")
-        paper_file = genai.upload_file(path=pdf_path, display_name=f"paper_{paper_id}")
-        print("File uploaded successfully.")
-
-        prompt = [
-            "You are an expert research assistant creating a conference poster. Analyze the provided PDF.",
-            "Your tasks are:",
-            "1. **Summarize Sections with Word Limits:** Create concise summaries for each section. Adhere to these strict word counts: introduction (~120 words), methods (~150 words), results (~150 words), conclusion (~120 words).",
-            "2. **Explain Math in English:** DO NOT use LaTeX or math symbols. If you encounter an equation, describe its meaning in plain English. For example, instead of 'e(M) <= l(F/M)', write 'The multiplicity of the module M is less than or equal to the length of the quotient F/M.'",
-            "3. **Analyze Images:** Look for figures or charts. If any exist, select the most important one and write a brief caption for it.",
-            "4. **Format References:** List the key references as a simple bulleted list.",
-            "You MUST return a single, clean JSON object with the keys: "
-            "'title', 'authors' (list of strings), 'introduction', 'methods', 'results', 'conclusion', 'image_caption' (a string caption or null if no images), and 'references' (list of strings).",
-            "Do not include any text outside the JSON object.",
-            paper_file
-        ]
-
-        print("Generating content with gemini-1.5-flash...")
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = await model.generate_content_async(prompt)
-
-        try:
-            content = extract_and_clean_json(response.text)
-        except ValueError as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
-        output_dir = f"temp/posters/{paper_id}"
-        os.makedirs(output_dir, exist_ok=True)
-        pdf_output_path = os.path.join(output_dir, f"poster_{language}.pdf")
-        
-        poster = PosterGenerator(paper_id, pdf_path, content)
-        poster.create(pdf_output_path)
-
-        print(f"Professional PDF poster created successfully: {pdf_output_path}")
-        return pdf_output_path
-
-    except Exception as e:
-        print(f"An error occurred during poster generation: {e}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-class PosterGenerator:
-    """
-    Generates a professional poster PDF using PyMuPDF with a dynamic layout
-    that accurately calculates text height to prevent overlaps.
-    """
-    def __init__(self, paper_id: str, source_pdf_path: str, content: Dict[str, Any]):
+# --- Template Base Class ---
+class PosterTemplate(ABC):
+    def __init__(self, paper_id: str, content: Dict[str, Any], image_path: Optional[str] = None):
         self.paper_id = paper_id
-        self.source_pdf_path = source_pdf_path
         self.content = content
+        self.image_path = image_path
         self.A0_WIDTH, self.A0_HEIGHT = 2384, 3370
         self.margin = 120
-        self.font_regular = "Helvetica"
-        self.font_bold = "Helvetica-Bold"
-        self.font_italic = "Helvetica-Oblique"
-        self.header_bg_color = (0.12, 0.29, 0.49)
-        self.header_font_color = (1, 1, 1)
-        self.body_font_color = (0.1, 0.1, 0.1)
+        self.doc = fitz.open()
+        self.page = self.doc.new_page(width=self.A0_WIDTH, height=self.A0_HEIGHT)
+        self._set_styles()
+
+    @abstractmethod
+    def _set_styles(self): pass
+    @abstractmethod
+    def draw_header(self): pass
+    @abstractmethod
+    def draw_body(self): pass
 
     def create(self, output_path: str):
-        doc = fitz.open()
-        page = doc.new_page(width=self.A0_WIDTH, height=self.A0_HEIGHT)
-        self._draw_header(page)
-        self._draw_body(page)
-        doc.save(output_path, garbage=4, deflate=True, clean=True)
-        doc.close()
+        self.draw_header()
+        self.draw_body()
+        self.doc.save(output_path, garbage=4, deflate=True, clean=True)
+        self.doc.close()
 
-    def _draw_header(self, page: fitz.Page):
-        header_height = 400
-        page.draw_rect(fitz.Rect(0, 0, self.A0_WIDTH, header_height), 
-                      color=self.header_bg_color, fill=self.header_bg_color)
+    def _draw_text_block(self, page, title, text_content, x, y, width):
+        padding = 40
+        title_height = 80
+        title_content_gap = 35
+        fontsize = 32 
+        line_height = fontsize * 1.25
+        font = fitz.Font(self.font_regular)
         
-        title_rect = fitz.Rect(self.margin, 50, self.A0_WIDTH - self.margin, 280)
-        page.insert_textbox(title_rect, self.content.get('title', 'Poster Title'), fontsize=88,
-                            fontname=self.font_bold, color=self.header_font_color, align=fitz.TEXT_ALIGN_CENTER)
+        text_content_str = "\n".join(text_content) if isinstance(text_content, list) else str(text_content or "")
         
-        authors = self.content.get('authors', [])
-        authors_text = ", ".join(authors) if isinstance(authors, list) else authors
+        text_length = font.text_length(text_content_str, fontsize=fontsize)
         
-        authors_rect = fitz.Rect(self.margin, 280, self.A0_WIDTH - self.margin, 360)
-        page.insert_textbox(authors_rect, authors_text, fontsize=48,
-                            fontname=self.font_italic, color=self.header_font_color, align=fitz.TEXT_ALIGN_CENTER)
+        num_lines = (text_length / (width - 2 * padding)) + text_content_str.count('\n')
+        content_height = num_lines * line_height * 1.5
 
-    def _draw_body(self, page: fitz.Page):
-        image_path = self._extract_first_image()
-        has_image = image_path and self.content.get('image_caption')
+        total_height = title_height + title_content_gap + content_height + (2 * padding)
+        box_rect = fitz.Rect(x, y, x + width, y + total_height)
+        if box_rect.y1 > (self.A0_HEIGHT - self.margin):
+            box_rect.y1 = self.A0_HEIGHT - self.margin
 
-        if has_image:
-            self._draw_layout_with_image(page, image_path)
-        else:
-            self._draw_layout_no_image(page)
-
-    def _draw_layout_with_image(self, page: fitz.Page, image_path: str):
-        col_width = (self.A0_WIDTH - 3 * self.margin) / 2
-        col1_x = self.margin
-        col2_x = self.margin * 2 + col_width
-        y_positions = [480.0, 480.0]
-
-        # Column 1
-        for key in ["introduction", "methods"]:
-            height = self._draw_text_block(page, key.capitalize(), self.content.get(key, ""), col1_x, y_positions[0], col_width)
-            y_positions[0] += height + 80
+        page.draw_rect(box_rect, color=self.box_border_color, fill=self.box_bg_color, width=2)
         
-        # References in Column 1
-        height = self._draw_text_block(page, "References", self.content.get("references", []), col1_x, y_positions[0], col_width)
-        y_positions[0] += height + 80
-
-        # Column 2: Image
-        img_height = col_width * 0.75 # Adjusted aspect ratio for better visuals
-        img_rect = fitz.Rect(col2_x, y_positions[1], col2_x + col_width, y_positions[1] + img_height)
-        page.insert_image(img_rect, filename=image_path)
+        title_rect = fitz.Rect(x + padding, y + 15, x + width - padding, y + title_height)
+        page.insert_textbox(title_rect, title, fontsize=48, fontname=self.font_bold, color=self.title_font_color, align=1)
         
-        caption_rect = fitz.Rect(img_rect.x0, img_rect.y1 + 15, img_rect.x1, img_rect.y1 + 100)
-        page.insert_textbox(caption_rect, self.content.get('image_caption', ''), fontsize=28, 
-                            fontname=self.font_italic, align=fitz.TEXT_ALIGN_CENTER)
-        y_positions[1] += img_rect.height + 120
+        content_rect = fitz.Rect(x + padding, y + title_height + title_content_gap, x + width - padding, box_rect.y1 - padding)
+        page.insert_textbox(
+            content_rect,
+            text_content_str,
+            fontsize=fontsize, fontname=self.font_regular, color=self.body_font_color
+        )
+        return box_rect.height
 
-        # Column 2: Text below image
-        for key in ["results", "conclusion"]:
-            height = self._draw_text_block(page, key.capitalize(), self.content.get(key, ""), col2_x, y_positions[1], col_width)
-            y_positions[1] += height + 80
+    def _draw_image_block(self, page, x, y, width):
+        if not self.image_path or not os.path.exists(self.image_path):
+            return 0
+        padding = 35
+        try:
+            with fitz.open(self.image_path) as img:
+                img_rect = img[0].rect
+                aspect_ratio = img_rect.width / img_rect.height
+                img_width = width - (2 * padding)
+                img_height = img_width / aspect_ratio
+                if y + img_height > self.A0_HEIGHT - self.margin: return 0
+                img_x = x + (width - img_width) / 2
+                image_rect = fitz.Rect(img_x, y, img_x + img_width, y + img_height)
+                page.insert_image(image_rect, filename=self.image_path)
+                return img_height + 20 # Add padding
+        except Exception as e:
+            print(f"Error drawing image {self.image_path}: {e}")
+            return 0
 
-    def _draw_layout_no_image(self, page: fitz.Page):
+
+# --- Template Implementations ---
+class ModernBlueTemplate(PosterTemplate):
+    def _set_styles(self):
+        self.font_regular, self.font_bold, self.font_italic = "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
+        self.header_bg_color = (0.12, 0.29, 0.49); self.header_font_color = (1, 1, 1)
+        self.body_font_color = (0.1, 0.1, 0.1); self.title_font_color = self.header_bg_color
+        self.box_bg_color = (0.96, 0.97, 0.98); self.box_border_color = (0.85, 0.90, 0.95)
+    def draw_header(self):
+        header_rect = fitz.Rect(0, 0, self.A0_WIDTH, 400)
+        self.page.draw_rect(header_rect, color=self.header_bg_color, fill=self.header_bg_color)
+        title_rect = fitz.Rect(header_rect.x0 + 50, header_rect.y0 + 50, header_rect.x1 - 50, header_rect.y1 - 150)
+        authors_rect = fitz.Rect(header_rect.x0 + 50, header_rect.y0 + 150, header_rect.x1 - 50, header_rect.y1 - 50)
+        self.page.insert_textbox(title_rect, self.content.get('title', 'Poster Title'), fontsize=88, fontname=self.font_bold, color=self.header_font_color, align=1)
+        self.page.insert_textbox(authors_rect, ", ".join(self.content.get('authors', []) or []), fontsize=48, fontname=self.font_italic, color=self.header_font_color, align=1)
+    def draw_body(self):
         col_width = (self.A0_WIDTH - 4 * self.margin) / 3
         col_starts = [self.margin, self.margin * 2 + col_width, self.margin * 3 + 2 * col_width]
-        y_positions = [480.0, 480.0, 480.0]
+        y_pos = [480.0, 480.0, 480.0]; v_gap = 60
+        sections = [("introduction", 0), ("methods", 1), ("results", 2), ("conclusion", 0), ("references", 1)]
+        for key, col_idx in sections:
+            height = self._draw_text_block(self.page, key.capitalize(), self.content.get(key, ""), col_starts[col_idx], y_pos[col_idx], col_width)
+            y_pos[col_idx] += height + v_gap
+        image_height = self._draw_image_block(self.page, col_starts[2], y_pos[2], col_width)
+        if image_height > 0: y_pos[2] += image_height + v_gap
 
-        sections = [("introduction", 0), ("methods", 0), ("results", 1), 
-                    ("conclusion", 1), ("references", 2)]
+class ClassicIvoryTemplate(PosterTemplate):
+    def _set_styles(self):
+        self.font_regular, self.font_bold, self.font_italic = "Times-Roman", "Times-Bold", "Times-Italic"
+        self.bg_color = (0.98, 0.97, 0.94); self.header_font_color = (0.1, 0.1, 0.1)
+        self.body_font_color = (0.2, 0.2, 0.2); self.title_font_color = (0.5, 0.0, 0.13)
+        self.box_bg_color = (1, 1, 1); self.box_border_color = (0.9, 0.88, 0.85)
+    def draw_header(self):
+        self.page.draw_rect(self.page.rect, color=self.bg_color, fill=self.bg_color)
+        title_rect = self.page.rect + (80, 80, -80, -2820); authors_rect = self.page.rect + (80, 180, -80, -2920)
+        self.page.insert_textbox(title_rect, self.content.get('title', 'Poster Title'), fontsize=100, fontname=self.font_bold, color=self.header_font_color, align=1)
+        self.page.insert_textbox(authors_rect, ", ".join(self.content.get('authors', []) or []), fontsize=52, fontname=self.font_italic, color=self.body_font_color, align=1)
+        line_y = 350; self.page.draw_line(fitz.Point(self.margin, line_y), fitz.Point(self.A0_WIDTH - self.margin, line_y), color=self.title_font_color, width=5)
+    def draw_body(self):
+        col_width = (self.A0_WIDTH - 4 * self.margin) / 3
+        col_starts = [self.margin, self.margin * 2 + col_width, self.margin * 3 + 2 * col_width]
+        y_pos = [420.0, 420.0, 420.0]; v_gap = 60
+        sections = [("introduction", 0), ("methods", 1), ("results", 2), ("conclusion", 0), ("references", 1)]
+        for key, col_idx in sections:
+            height = self._draw_text_block(self.page, key.capitalize(), self.content.get(key, ""), col_starts[col_idx], y_pos[col_idx], col_width)
+            y_pos[col_idx] += height + v_gap
+        image_height = self._draw_image_block(self.page, col_starts[2], y_pos[2], col_width)
+        if image_height > 0: y_pos[2] += image_height + v_gap
+
+class SynthwaveTemplate(PosterTemplate):
+    def _set_styles(self):
+        self.font_regular, self.font_bold = "Courier", "Courier-Bold"
+        self.bg_color = (0.1, 0.05, 0.2); self.header_font_color = (1, 1, 1)
+        self.title_font_color = (0.9, 0.1, 0.5); self.body_font_color = (0.8, 0.9, 1.0)
+        self.box_bg_color = (0.15, 0.1, 0.25); self.box_border_color = self.title_font_color
+    def draw_header(self):
+        self.page.draw_rect(self.page.rect, color=self.bg_color, fill=self.bg_color)
+        title_rect = self.page.rect + (80, 80, -80, -2820); authors_rect = self.page.rect + (80, 180, -80, -2920)
+        self.page.insert_textbox(title_rect, self.content.get('title', 'Poster Title'), fontsize=90, fontname=self.font_bold, color=self.header_font_color, align=1)
+        self.page.insert_textbox(authors_rect, ", ".join(self.content.get('authors', []) or []), fontsize=50, fontname=self.font_regular, color=self.body_font_color, align=1)
+    def draw_body(self):
+        col_width = (self.A0_WIDTH - 4 * self.margin) / 3
+        col_starts = [self.margin, self.margin * 2 + col_width, self.margin * 3 + 2 * col_width]
+        y_pos = [400.0, 400.0, 400.0]; v_gap = 60
+        sections = [("introduction", 0), ("methods", 1), ("results", 2), ("conclusion", 0), ("references", 1)]
+        for key, col_idx in sections:
+            height = self._draw_text_block(self.page, f"// {key.upper()}", self.content.get(key, ""), col_starts[col_idx], y_pos[col_idx], col_width)
+            y_pos[col_idx] += height + v_gap
+        image_height = self._draw_image_block(self.page, col_starts[2], y_pos[2], col_width)
+        if image_height > 0: y_pos[2] += image_height + v_gap
+
+class ForestTemplate(PosterTemplate):
+    def _set_styles(self):
+        self.font_regular, self.font_bold = "Helvetica", "Helvetica-Bold"
+        self.bg_color = (0.95, 0.98, 0.95); self.header_bg_color = (0.1, 0.2, 0.15)
+        self.header_font_color = (0.9, 0.95, 0.9); self.title_font_color = self.header_bg_color
+        self.body_font_color = (0.2, 0.2, 0.2); self.box_bg_color = (1, 1, 1)
+        self.box_border_color = (0.8, 0.85, 0.8)
+    def draw_header(self):
+        self.page.draw_rect(self.page.rect, color=self.bg_color, fill=self.bg_color)
+        header_rect = fitz.Rect(0, 0, self.A0_WIDTH, 380)
+        self.page.draw_rect(header_rect, color=self.header_bg_color, fill=self.header_bg_color)
+        title_rect = header_rect + (50, 50, -50, -150); authors_rect = header_rect + (50, 150, -50, -50)
+        self.page.insert_textbox(title_rect, self.content.get('title', 'Poster Title'), fontsize=90, fontname=self.font_bold, color=self.header_font_color, align=1)
+        self.page.insert_textbox(authors_rect, ", ".join(self.content.get('authors', []) or []), fontsize=50, fontname=self.font_regular, color=self.header_font_color, align=1)
+    def draw_body(self):
+        col_width = (self.A0_WIDTH - 3 * self.margin) / 2
+        col_starts = [self.margin, self.margin * 2 + col_width]
+        y_pos = [450.0, 450.0]; v_gap = 60
+        sections = [("introduction", 0), ("methods", 0), ("results", 1), ("conclusion", 1), ("references", 1)]
+        for key, col_idx in sections:
+            height = self._draw_text_block(self.page, key.capitalize(), self.content.get(key, ""), col_starts[col_idx], y_pos[col_idx], col_width)
+            y_pos[col_idx] += height + v_gap
+        image_height = self._draw_image_block(self.page, col_starts[1], y_pos[1], col_width)
+        if image_height > 0: y_pos[1] += image_height + v_gap
+
+# --- Main Service Function (Factory) ---
+async def create_poster_pdf(paper_id: str, language: str, template: str) -> str:
+    pdf_path = f"temp/papers/{paper_id}/source/paper.pdf"
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="Source PDF not found")
         
-        for section_key, col_index in sections:
-            content = self.content.get(section_key, "")
-            height_used = self._draw_text_block(page, section_key.capitalize(), content, col_starts[col_index], y_positions[col_index], col_width)
-            y_positions[col_index] += height_used + 80
-
-    def _draw_text_block(self, page: fitz.Page, title: str, text_content: Union[str, List[str]], x: float, y: float, width: float) -> float:
-        """
-        Draws a text block, handling both strings and lists of strings (like references),
-        and returns the precise vertical space used.
-        """
-        title_height = 80
-        padding = 20
+    try:
+        paper_file = genai.upload_file(path=pdf_path)
         
-        title_rect = fitz.Rect(x, y, x + width, y + title_height)
-        page.insert_textbox(title_rect, title, fontsize=52, fontname=self.font_bold, color=self.header_bg_color)
+        prompt = [
+            "You are a scientific communication expert. Your task is to extract and summarize content from the provided research paper to create a conference poster.",
+            "You MUST return a single, clean JSON object. Do not include any text or formatting outside of the JSON object.",
+            "The JSON object must contain the following keys, and none of them are optional:",
+            "- `title`: The full title of the paper.",
+            "- `authors`: A list of strings, with each string being an author's name.",
+            "- `introduction`: A concise summary of the paper's introduction (around 100 words).",
+            "- `methods`: A concise summary of the methodology (around 120 words). If you cannot find a methods section, return an empty string.",
+            "- `results`: A concise summary of the key results and findings (around 120 words).",
+            "- `conclusion`: A brief summary of the conclusion (around 100 words).",
+            "- `references`: A list of strings for 3-5 key references from the paper. If you cannot find any references, return an empty list.",
+            "IMPORTANT: Do not use LaTeX or mathematical symbols. Explain any equations in plain English.",
+            paper_file
+        ]
         
-        line_y = y + title_height
-        page.draw_line(fitz.Point(x, line_y), fitz.Point(x + width, line_y), color=self.header_bg_color, width=4)
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = await model.generate_content_async(prompt)
+        content = extract_and_clean_json(response.text)
 
-        font = fitz.Font(self.font_regular)
-        fontsize = 34
-        line_height = fontsize * 1.2
-        current_y = line_y + padding
+        # ---- NEW AND IMPROVED IMAGE HANDLING LOGIC ----
+        # This logic directly scans the images directory, just like the old working version.
+        first_image_path = None
+        image_dir = f"temp/papers/{paper_id}/images"
+        if os.path.exists(image_dir):
+            # List all files in the directory and filter for common image formats
+            image_files = [f for f in os.listdir(image_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+            if image_files:
+                # Sort the files to ensure a consistent choice and get the full path of the first image
+                image_files.sort()
+                first_image_path = os.path.join(image_dir, image_files[0])
+        # ---- END OF NEW LOGIC ----
 
-        # --- DEFINITIVE FIX FOR REFERENCES ---
-        # This block now correctly handles lists by processing each item separately.
-        if isinstance(text_content, list):
-            for i, item in enumerate(text_content):
-                # Add a bullet point to each reference item
-                text_to_draw = f"• {item}"
-                
-                words = text_to_draw.split(' ')
-                current_line = ""
-                while words:
-                    word = words.pop(0)
-                    # Check if the line is too long
-                    if font.text_length(current_line + " " + word, fontsize=fontsize) < width:
-                        current_line += " " + word
-                    else:
-                        current_y += line_height
-                        page.insert_text((x, current_y), current_line.strip(), fontsize=fontsize, fontname=self.font_regular, color=self.body_font_color)
-                        current_line = word
-                
-                # Draw the last line of the item
-                current_y += line_height
-                page.insert_text((x, current_y), current_line.strip(), fontsize=fontsize, fontname=self.font_regular, color=self.body_font_color)
-                
-                # Add extra padding between reference items, but not after the last one
-                if i < len(text_content) - 1:
-                    current_y += line_height * 0.5 
+        output_path = f"temp/posters/{paper_id}/poster_{template}_{language}.pdf"
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-        # This is the original logic for single string content
-        else:
-            text = text_content or ""
-            words = text.split(' ')
-            current_line = ""
-            while words:
-                word = words.pop(0)
-                if font.text_length(current_line + " " + word, fontsize=fontsize) < width:
-                    current_line += " " + word
-                else:
-                    current_y += line_height
-                    page.insert_text((x, current_y), current_line.strip(), fontsize=fontsize, fontname=self.font_regular, color=self.body_font_color)
-                    current_line = word
-            
-            # Draw the final line
-            current_y += line_height
-            page.insert_text((x, current_y), current_line.strip(), fontsize=fontsize, fontname=self.font_regular, color=self.body_font_color)
-
-        # Calculate the total height used by the content
-        content_height = (current_y - (line_y + padding))
+        template_map = {
+            'modern_blue': ModernBlueTemplate,
+            'classic_ivory': ClassicIvoryTemplate,
+            'synthwave': SynthwaveTemplate,
+            'forest': ForestTemplate
+        }
         
-        return title_height + padding + content_height + (line_height if text_content else 0)
-
-    def _extract_first_image(self) -> Optional[str]:
-        """Extracts the first large image from the source PDF."""
-        try:
-            doc = fitz.open(self.source_pdf_path)
-            for page_num in range(len(doc)):
-                for img in doc.get_page_images(page_num):
-                    xref = img[0]
-                    base_image = doc.extract_image(xref)
-                    image_bytes = base_image["image"]
-                    
-                    # A simple heuristic to find a reasonably sized image
-                    if len(image_bytes) > 100 * 1024: # Greater than 100 KB
-                        image_path = f"temp/posters/{self.paper_id}/extracted_image.png"
-                        with open(image_path, "wb") as f:
-                            f.write(image_bytes)
-                        return image_path
-            return None
-        except Exception as e:
-            print(f"Could not extract image from PDF: {e}")
-            return None
+        generator_class = template_map.get(template, ModernBlueTemplate)
+        generator = generator_class(paper_id, content, first_image_path)
+        generator.create(output_path)
+        
+        return output_path
+        
+    except Exception as e:
+        print(f"Error in create_poster_pdf: {type(e).__name__} - {e}")
+        raise HTTPException(status_code=500, detail=str(e))
