@@ -82,3 +82,7 @@ class ReelAudioRequest(BaseModel):
     paper_id: str
     language: str
     dialogue_script: List[Dict[str, str]]
+
+class ReelVideoRequest(BaseModel):
+    paper_id: str
+    audio_count: int
