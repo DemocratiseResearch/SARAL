@@ -1,0 +1,296 @@
+// src/pages/PaperProcessing.jsx
+
+import React, { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+// Icons from both versions are merged to support all features.
+import { FiUpload, FiMessageSquare, FiVideo, FiMic, FiImage, FiFile, FiBookOpen, FiGlobe, FiFileText, FiX } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useDropzone } from 'react-dropzone';
+
+import Layout from '../components/common/Layout';
+import MetadataEditor from '../components/forms/MetadataEditor';
+import { useWorkflow } from '../contexts/WorkflowContext';
+import { apiService } from '../services/api';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import PosterGenerator from '../components/workflow/PosterGenerator';
+
+// No changes needed for ChoiceCard, it's used for the second step.
+const ChoiceCard = ({ icon: Icon, title, description, onClick, disabled }) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    disabled={disabled}
+    className="w-full p-6 rounded-xl border transition-all duration-150 text-left bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 disabled:opacity-50"
+  >
+    <Icon className="w-8 h-8 mb-4 text-gray-700 dark:text-gray-300" />
+    <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-2">{title}</h3>
+    <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
+  </motion.button>
+);
+
+// This component is from the .bkp file, used to select between PDF, ZIP, and arXiv.
+const UploadTypeCard = ({ type, onSelect, icon: Icon, title, description, isActive }) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={() => onSelect(type)}
+    className={`w-full p-6 rounded-xl border transition-all duration-150 text-left ${
+      isActive
+        ? 'border-gray-700 bg-gray-50 dark:bg-gray-900/50'
+        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+    }`}
+  >
+    <Icon className={`w-6 h-6 mb-3 ${isActive ? 'text-gray-800 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`} />
+    <div>
+      <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
+      <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
+    </div>
+  </motion.button>
+);
+
+// The UnifiedUploader from the .bkp file is restored to handle the initial upload.
+const UnifiedUploader = ({ onUploadSuccess, isUploading, setIsLoading }) => {
+  const [uploadType, setUploadType] = useState('zip'); 
+  const [file, setFile] = useState(null);
+  const [arxivUrl, setArxivUrl] = useState('');
+
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      setFile(acceptedFiles[0]);
+      toast.success('File selected successfully');
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
+    onDrop,
+    accept: uploadType === 'zip' ? { 'application/zip': ['.zip'] } : { 'application/pdf': ['.pdf'] },
+    multiple: false,
+    maxSize: 50 * 1024 * 1024, // 50MB
+  });
+
+  const handleFileRemove = (e) => {
+    e.stopPropagation();
+    setFile(null);
+  };
+  
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    try {
+        let response;
+        if (uploadType === 'pdf' && file) {
+            response = await apiService.uploadPdf(file);
+        } else if (uploadType === 'zip' && file) {
+            response = await apiService.uploadZip(file); 
+        } else if (uploadType === 'arxiv' && arxivUrl) {
+            // Assuming scrapeArxiv is the correct method for this based on api.js structure
+            response = await apiService.scrapeArxiv(arxivUrl);
+        } else {
+            toast.error("Invalid selection.");
+            setIsLoading(false);
+            return;
+        }
+        toast.success("Paper uploaded successfully!");
+        onUploadSuccess(response.data);
+    } catch(error) {
+        toast.error(error.response?.data?.detail || "Failed to upload paper.");
+        setIsLoading(false);
+    }
+  };
+
+  const uploadTypes = [
+    { type: 'zip', icon: FiFile, title: 'LaTeX Source', description: 'Upload ZIP of LaTeX source and figures' },
+    { type: 'pdf', icon: FiFileText, title: 'PDF Document', description: 'Upload a research paper as a PDF' },
+    { type: 'arxiv', icon: FiGlobe, title: 'arXiv Import', description: 'Import paper directly from an arXiv URL' },
+  ];
+
+  return (
+    <div className="bg-white dark:bg-neutral-800 rounded-xl p-8 border border-neutral-200 dark:border-neutral-700">
+      <h2 className="text-2xl font-semibold mb-6 text-center">Upload Your Research Paper</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {uploadTypes.map(ut => (
+          <UploadTypeCard 
+            key={ut.type}
+            {...ut}
+            onSelect={(type) => { setUploadType(type); setFile(null); setArxivUrl(''); }}
+            isActive={uploadType === ut.type} 
+          />
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {(uploadType === 'pdf' || uploadType === 'zip') && (
+          <motion.div key={`${uploadType}-upload`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>
+            <div {...getRootProps()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-150 ${ isDragActive && !isDragReject ? 'border-gray-700' : 'border-gray-300' }`}>
+              <input {...getInputProps()} />
+              <FiUpload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p>Drag 'n' drop your {uploadType.toUpperCase()} file here, or click to select</p>
+            </div>
+            {file && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between mt-4 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg"><p>{file.name}</p><button onClick={handleFileRemove}><FiX /></button></motion.div>}
+          </motion.div>
+        )}
+        
+        {uploadType === 'arxiv' && (
+          <motion.div key="arxiv-upload" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>
+             <input type="url" value={arxivUrl} onChange={(e) => setArxivUrl(e.target.value)} placeholder="https://arxiv.org/abs/..." className="w-full p-2 border rounded"/>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex gap-4 mt-6">
+          <button onClick={handleSubmit} disabled={isUploading || (uploadType !== 'arxiv' && !file) || (uploadType === 'arxiv' && !arxivUrl.trim())} className="btn-primary w-full">
+              {isUploading ? <LoadingSpinner /> : "Upload and Proceed"}
+          </button>
+      </div>
+    </div>
+  );
+};
+
+
+const PaperProcessing = () => {
+  const { paperId, setPaperId, setMetadata, setImages } = useWorkflow();
+  const navigate = useNavigate();
+  const [view, setView] = useState('choice'); 
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [podcastLoading, setPodcastLoading] = useState(false);
+  const [podcastLoadingMessage, setPodcastLoadingMessage] = useState('');
+  const [podcastUrl, setPodcastUrl] = useState('');
+  const [podcastError, setPodcastError] = useState('');
+
+  const handleUploadSuccess = (data) => {
+    const { paper_id, metadata, image_files } = data;
+    setPaperId(paper_id);
+    if (metadata) setMetadata(metadata);
+    if (image_files) setImages(image_files);
+    setIsLoading(false);
+    setView('choice');
+  };
+
+  const handlePodcastGeneration = async () => {
+    if (!paperId) return toast.error("No paper has been uploaded.");
+    setPodcastError('');
+    setPodcastUrl('');
+    setPodcastLoading(true);
+    setPodcastLoadingMessage('Starting podcast generation...');
+    try {
+      const startResp = await apiService.post(`/media/papers/${paperId}/podcast`, {});
+      const { task_id } = startResp.data;
+      if (!task_id) throw new Error('No task_id returned');
+      setPodcastLoadingMessage('Generating podcast (this may take a minute)...');
+      const interval = setInterval(async () => {
+        const statusResp = await apiService.get(`/media/tasks/${task_id}`);
+        const { status, stage, url, error } = statusResp.data;
+        if (status === 'complete') {
+          clearInterval(interval);
+          const backendBase = process.env.NODE_ENV === 'production' ? process.env.REACT_APP_API_URL : 'http://localhost:8000';
+          setPodcastUrl(`${backendBase}${url}`);
+          setPodcastLoading(false);
+        } else if (status === 'failed') {
+          clearInterval(interval);
+          setPodcastError(error || 'Podcast generation failed');
+          setPodcastLoading(false);
+        } else if (stage) {
+          setPodcastLoadingMessage(`Processing: ${stage}...`);
+        }
+      }, 2500);
+    } catch (err) {
+      setPodcastError(err.response?.data?.detail || 'Failed to start podcast generation.');
+      setPodcastLoading(false);
+    }
+  };
+
+  // ** THE FIX IS HERE **
+  // This function now takes the specific API service method as an argument,
+  // making it reusable and ensuring the correct endpoint is always called.
+  const handlePrepareAndNavigate = async (featureName, apiMethod, navigationUrl) => {
+    if (!paperId) return toast.error("No paper ID found.");
+    setIsLoading(true);
+    toast.loading(`Preparing paper for ${featureName}...`);
+    try {
+      // Call the specific API method passed into the function
+      await apiMethod(paperId);
+      toast.dismiss();
+      toast.success(`${featureName} session is ready!`);
+      navigate(navigationUrl);
+    } catch (error) {
+      toast.dismiss();
+      toast.error(error.response?.data?.detail || `Failed to create ${featureName} session.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const breadcrumbs = [{ label: 'Paper Processing', href: '/paper-processing' }];
+
+  const renderContent = () => {
+    if (!paperId) {
+      return <UnifiedUploader onUploadSuccess={handleUploadSuccess} isUploading={isLoading} setIsLoading={setIsLoading} />;
+    }
+
+    switch (view) {
+      case 'video':
+        return <MetadataEditor />; 
+      case 'poster':
+        return <PosterGenerator paperId={paperId} />;
+      case 'podcast':
+        return (
+          <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 border">
+            <h2 className="text-xl font-semibold mb-4">Generate Podcast</h2>
+            <button className="btn btn-primary" onClick={handlePodcastGeneration} disabled={podcastLoading || podcastUrl}>
+              {podcastLoading ? 'Generating...' : 'Start Generation'}
+            </button>
+            {podcastLoading && <div className="flex items-center gap-2 mt-4"><LoadingSpinner /><span>{podcastLoadingMessage}</span></div>}
+            {podcastError && <div className="text-red-600 mt-4">{podcastError}</div>}
+            {podcastUrl && <div className="mt-4"><audio controls src={podcastUrl} className="w-full"/></div>}
+          </div>
+        );
+      case 'choice':
+      default:
+        return (
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-semibold">Upload Complete!</h2>
+                    <p className="text-gray-600 dark:text-gray-400">Your paper (ID: {paperId}) is ready. Choose an option below to proceed.</p>
+                </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <ChoiceCard icon={FiVideo} title="Paper to Video" description="Automatically generate a video presentation." onClick={() => setView('video')} disabled={isLoading} />
+                    <ChoiceCard 
+                      icon={FiMessageSquare} 
+                      title="Start Interactive Chat" 
+                      description="Ask questions about the paper's content." 
+                      onClick={() => handlePrepareAndNavigate('Chat', apiService.chat.prepareSession, `/chat/${paperId}`)} 
+                      disabled={isLoading} 
+                    />
+                    <ChoiceCard 
+                      icon={FiBookOpen} 
+                      title="Start Guided Learning" 
+                      description="Begin a step-by-step session to understand the paper." 
+                      onClick={() => handlePrepareAndNavigate('Guided Learning', apiService.tutor.prepareSession, `/rag-tutor/${paperId}`)} 
+                      disabled={isLoading} 
+                    />
+                    <ChoiceCard icon={FiMic} title="Generate Podcast" description="Create a podcast episode discussing the paper." onClick={() => setView('podcast')} disabled={isLoading} />
+                    <ChoiceCard icon={FiImage} title="Generate Poster" description="Create a scientific poster from your paper." onClick={() => setView('poster')} disabled={isLoading} />
+                </div>
+            </div>
+        );
+    }
+  };
+
+  return (
+    <Layout title="Paper Processing" breadcrumbs={breadcrumbs}>
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="max-w-4xl mx-auto space-y-6">
+        {paperId && view !== 'choice' && (
+             <button onClick={() => setView('choice')} className="text-sm text-gray-600 dark:text-gray-400 hover:underline mb-4">
+                &larr; Back to choices
+             </button>
+        )}
+        {renderContent()}
+      </motion.div>
+    </Layout>
+  );
+};
+
+export default PaperProcessing;
+
