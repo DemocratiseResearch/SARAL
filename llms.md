@@ -1,0 +1,13 @@
+https://g.co/gemini/share/655b145a67b8
+https://g.co/gemini/share/7b3d65fd9006
+https://g.co/gemini/share/42e440c08c1f
+https://g.co/gemini/share/391a9578bfc8
+https://g.co/gemini/share/4a6b21a795dd
+https://g.co/gemini/share/4a6b21a795dd
+https://chatgpt.com/share/68eb38ac-29b4-8005-8eda-c5adc4b1c89b
+https://g.co/gemini/share/de5b5e3caa8e
+https://g.co/gemini/share/6b782e6472a1
+https://g.co/gemini/share/7ae14f251764
+https://g.co/gemini/share/13209e50fb45
+https://g.co/gemini/share/bb1a92996298
+https://g.co/gemini/share/b30e486fa7fa
