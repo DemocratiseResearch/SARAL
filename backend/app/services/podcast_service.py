@@ -47,7 +47,7 @@ def generate_structured_summary(paper_text: str) -> str:
         raise ValueError("Google API Key not found. Please set it in your .env file.")
         
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     prompt_template = f"""
     You are an expert research analyst. Your task is to distill the provided research paper into a structured summary suitable for generating a podcast script. The output MUST be in the following format, with clear headings:
@@ -93,7 +93,7 @@ def generate_dialogue_script(summary: str) -> list:
     genai.configure(api_key=API_KEY)
     
     model = genai.GenerativeModel(
-        'gemini-1.5-flash',
+        'gemini-2.5-flash',
         generation_config={"response_mime_type": "application/json"}
     )
 

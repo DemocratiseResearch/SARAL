@@ -77,9 +77,7 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
         if not text_file_path or not os.path.exists(text_file_path):
             raise Exception("Text extraction failed.")
 
-        # ** THE FIX IS HERE **
         # 2. Save the paper info to the central storage so it can be found later.
-        # This was the missing step.
         paper_info["source_type"] = "pdf"
         if "pdf_path" in paper_info:
             paper_info["pdf_file_path"] = paper_info.pop("pdf_path")

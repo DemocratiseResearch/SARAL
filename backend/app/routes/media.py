@@ -454,14 +454,15 @@ async def generate_audio_bhashini(
 
 # --- Podcast Generation Endpoints ---
 
-def run_podcast_generation(paper_id: str, task_id: str):
+def run_podcast_generation(paper_id: str, task_id: str, language: str):
     """
     A wrapper function for the background task that calls the real service.
+    Now accepts a language parameter.
     """
     try:
         tasks[task_id] = {"status": "processing", "stage": "starting"}
         
-        generate_podcast_flow(paper_id, task_id)
+        generate_podcast_flow(paper_id, task_id, language)
         
         final_podcast_path = f"/api/media/download/{paper_id}/podcast.mp3"
         tasks[task_id] = {"status": "complete", "url": final_podcast_path}
@@ -474,14 +475,14 @@ def run_podcast_generation(paper_id: str, task_id: str):
 
 
 @router.post("/papers/{paper_id}/podcast", status_code=202)
-async def create_podcast(paper_id: str, background_tasks: BackgroundTasks):
+async def create_podcast(paper_id: str, language: str, background_tasks: BackgroundTasks):
     """
-    Initiates the AI podcast generation as a background task.
+    Initiates the AI podcast generation as a background task for a specific language.
     """
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "queued"}
     
-    background_tasks.add_task(run_podcast_generation, paper_id, task_id)
+    background_tasks.add_task(run_podcast_generation, paper_id, task_id, language)
     
     return {"task_id": task_id, "message": "Podcast generation started."}
 
