@@ -7,7 +7,6 @@ import {
 } from 'react-icons/fi';
 import Layout from '../components/common/Layout';
 import { useWorkflow } from '../contexts/WorkflowContext';
-import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 
 const ProjectCard = ({ project, onDelete, delay = 0 }) => {

@@ -636,13 +636,31 @@ class ApiService {
   downloadVideo = (paperId) => this.media.downloadVideo(paperId);
   downloadPresentationVideo = (paperId) => this.media.downloadPresentationVideo(paperId);
   downloadPresentationSlides = (paperId) => this.media.downloadPresentationSlides(paperId);
-  getPresentationMetaInfo = paperId => this.media.getPresentationMetaInfo(paperId)
+  getPresentationMetaInfo = paperId => this.media.getPresentationMetaInfo(paperId);
   downloadAudio = (paperId, filename) => this.media.downloadAudio(paperId, filename);
   getMediaStatus = (paperId) => this.media.getStatus(paperId);
   getAudioStreamUrl = (paperId, filename) => this.media.getAudioStreamUrl(paperId, filename);
   getVideoStreamUrl = (paperId) => this.media.getVideoStreamUrl(paperId);
   getPresentationVideoStreamUrl = (paperId) => this.media.getPresentationVideoStreamUrl(paperId);
-  googleUpload = (code, paper_id) => this.youtube.googleUpload(code, paper_id)
+  googleUpload = (code, paper_id) => this.youtube.googleUpload(code, paper_id);
+  
+  // Podcast API methods
+  generatePodcast = (file, language = 'english') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('language', language);
+    return this.httpClient.post('/podcast/get_podcast', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  };
+  
+  downloadPodcastAudio = (filename) => {
+    return `${API_CONFIG.baseURL}/api/podcast/download_audio/${filename}`;
+  };
+  
+  streamPodcastAudio = (filename) => {
+    return `${API_CONFIG.baseURL}/api/podcast/stream_audio/${filename}`;
+  };
 }
 
 // Create and export singleton instance

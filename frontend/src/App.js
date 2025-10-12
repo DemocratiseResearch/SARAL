@@ -23,7 +23,8 @@ import Testimonials from './pages/Testimonials';
 import YouTubeLogin from './pages/YouTubeLogin';
 import OAuthCallback from './pages/OAuthCallback';
 import VideoPreview from './pages/VideoPreview';
-import VideoDisplay from './pages/VideoDisplay'
+import VideoDisplay from './pages/VideoDisplay';
+import PodcastListener from './components/podcast/PodcastListener';
 
 
 function App() {
@@ -84,6 +85,11 @@ function App() {
       <Route path="/video-preview" element={ <VideoPreview/>
     }/>
     <Route path="/video-display" element={ <VideoDisplay/>
+    }/>
+    <Route path="/podcast-listener" element={ 
+      <ProtectedRoute>
+        <PodcastListener/>
+      </ProtectedRoute>
     }/>
 
     <Route path="*" element={<Navigate to="/" replace />} />

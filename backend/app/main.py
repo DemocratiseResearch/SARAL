@@ -12,7 +12,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, reels
+from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, reels, get_podcast
 from app.auth.google_auth import get_current_user, get_current_user_optional
 ## Removed: from app.database import create_tables (no longer needed)
 
@@ -106,6 +106,7 @@ app.include_router(images.router, prefix="/api/images", tags=["Images"])
 app.include_router(papertovideo.router, prefix="/api/papertovideo", tags=["pdftovideo"])
 app.include_router(youtube_upload.router, prefix="/api/youtube_upload", tags=["youtube_upload"])
 app.include_router(reels.router, prefix="/api/reels", tags=["Reels"])
+app.include_router(get_podcast.router, prefix="/api/podcast", tags=["Podcast"])
 
 # Public endpoints
 @app.get("/")

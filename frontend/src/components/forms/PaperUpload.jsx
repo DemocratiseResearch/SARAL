@@ -65,12 +65,14 @@ const PaperUpload = () => {
   const [uploadType, setUploadType] = useState('file');
   const [arxivUrl, setArxivUrl] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [selectedLanguage, setSelectedLanguage] = useState('english');
 
   // separate loading states for each action
   const [isProcessingUpload, setIsProcessingUpload] = useState(false);
   const [isConvertingVideo, setIsConvertingVideo] = useState(false);
   const [isImportingArxiv, setIsImportingArxiv] = useState(false);
    const [isImportingArxivToVideo, setIsImportingArxivToVideo] = useState(false);
+  const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
 
   // video url from convert to video response
   const [videoUrl, setVideoUrl] = useState(null);
@@ -322,6 +324,44 @@ const PaperUpload = () => {
     }
   };
 
+  const handleGeneratePodcast = async () => {
+    if (!uploadedFile) {
+      toast.error(`Please select a ${uploadType === 'file' ? 'ZIP' : 'PDF'} file`);
+      return;
+    }
+
+    // Only allow PDF files for podcast generation
+    if (uploadType !== 'pdf') {
+      toast.error('Podcast generation is only available for PDF files');
+      return;
+    }
+
+    setIsGeneratingPodcast(true);
+    setLoading(true);
+
+    try {
+      const response = await apiService.generatePodcast(uploadedFile, selectedLanguage);
+      
+      console.log('Podcast generated:', response.data);
+      toast.success(`Podcast generated successfully in ${selectedLanguage}!`);
+      
+      // Navigate to podcast listener with the podcast data
+      navigate('/podcast-listener', {
+        state: {
+          podcastData: response.data
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error generating podcast:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to generate podcast';
+      toast.error(errorMessage);
+    } finally {
+      setIsGeneratingPodcast(false);
+      setLoading(false);
+    }
+  };
+
   const uploadTypes = [
     {
       type: 'file',
@@ -351,7 +391,7 @@ const PaperUpload = () => {
         className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 space-y-6"
       >
         {/* loading bar */}
-        {(isProcessingUpload || isConvertingVideo || isImportingArxiv) && (
+        {(isProcessingUpload || isConvertingVideo || isImportingArxiv || isImportingArxivToVideo || isGeneratingPodcast) && (
           <div className="h-1 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden mb-4">
             <div className="h-full w-full animate-pulse bg-gray-700 dark:bg-gray-400" />
           </div>
@@ -419,35 +459,63 @@ const PaperUpload = () => {
                 {uploadedFile && <FileDisplay file={uploadedFile} onRemove={() => setUploadedFile(null)} />}
               </AnimatePresence>
 
-              <div className="flex gap-3">
+              {/* Language Selection for Podcast */}
+              {uploadedFile && uploadType === 'pdf' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
+                >
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Podcast Language
+                  </label>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="english">English</option>
+                    <option value="hindi">Hindi</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Select the language for your AI-generated podcast
+                  </p>
+                </motion.div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   onClick={handleFileUpload}
                   disabled={!uploadedFile || isProcessingUpload}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md ${
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md ${
                     !uploadedFile || isProcessingUpload ? 'bg-gray-400 text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'
-                  } font-medium transition-colors duration-150`}
+                  } font-medium transition-colors duration-150 text-sm`}
                 >
-                  {isProcessingUpload ? <LoadingSpinner size="sm" /> : <FiCheck className="w-5 h-5" />}
+                  {isProcessingUpload ? <LoadingSpinner size="sm" /> : <FiCheck className="w-4 h-4" />}
                   {isProcessingUpload
-                    ? `Processing ${uploadType === 'file' ? 'LaTeX' : 'PDF'}...`
-                    : (
-                        <>
-                          Process {uploadType === 'file' ? 'LaTeX' : 'PDF'} File
-                          <br />
-                          (custom video generation)
-                        </>
-                      )
+                    ? `Processing...`
+                    : `Process ${uploadType === 'file' ? 'LaTeX' : 'PDF'}`
                   }
                 </button>
                 <button
                   onClick={handleConvertVideo}
                   disabled={!uploadedFile || isConvertingVideo}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md ${
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md ${
                     !uploadedFile || isConvertingVideo ? 'bg-gray-400 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                  } font-medium transition-colors duration-150`}
+                  } font-medium transition-colors duration-150 text-sm`}
                 >
-                  {isConvertingVideo ? <LoadingSpinner size="sm" /> : <FiCheck className="w-5 h-5" />}
-                  {isConvertingVideo ? 'Converting to video...' : 'One click to Video'}
+                  {isConvertingVideo ? <LoadingSpinner size="sm" /> : <FiCheck className="w-4 h-4" />}
+                  {isConvertingVideo ? 'Converting...' : 'To Video'}
+                </button>
+                <button
+                  onClick={handleGeneratePodcast}
+                  disabled={!uploadedFile || isGeneratingPodcast || uploadType !== 'pdf'}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md ${
+                    !uploadedFile || isGeneratingPodcast || uploadType !== 'pdf' ? 'bg-gray-400 text-white' : 'bg-green-600 hover:bg-green-500 text-white'
+                  } font-medium transition-colors duration-150 text-sm`}
+                >
+                  {isGeneratingPodcast ? <LoadingSpinner size="sm" /> : <FiCheck className="w-4 h-4" />}
+                  {isGeneratingPodcast ? 'Generating...' : (uploadType === 'pdf' ? 'To Podcast' : 'PDF Only')}
                 </button>
               </div>
 

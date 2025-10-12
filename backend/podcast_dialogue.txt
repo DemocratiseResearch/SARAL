@@ -1,0 +1,11 @@
+ Aisha: Hey Rohan! Today’s topic sounds like something straight outta sci-fi—what exactly *is* this whole “P vs NPC” thing?  
+
+Rohan: Great pick! It’s one those famous unsolved puzzles where even geniuses hit walls! So imagine you’re trying solve Sudoku puzzle—that’s like verifying if numbers fit correctly once you’ve filled them—quick right? But figuring out *how* those numbers go there from scratch? That’s tougher!  
+
+Aisha: Ohh I get it! So “verifying” solutions fast vs solving them fast? But why’s this such big deal?  
+
+Rohan: Because if solving things takes same effort as checking them (*if* p equals np), math/tech/computing would flip upside down! Think cryptography—banks safe because breaking codes takes ages (*unless p=np*). AI optimizing routes instantly… even drugs designed perfectly first try!  
+
+Aisha: Whoa—so people *believe* solving’s harder verification then why isn’t proven yet?  
+
+Rohan Exactly because
