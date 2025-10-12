@@ -82,48 +82,8 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
             </div>
           </div>
 
-          {/* Progress indicator */}
-          {currentStep > 1 && (
-            <div className="hidden lg:flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                {steps.map((step) => (
-                  <div
-                    key={step.id}
-                    className={`w-2 h-2 rounded-full transition-colors duration-150 ${
-                      step.id < currentStep
-                      ? 'bg-green-500'
-                      : step.id === currentStep
-                      ? 'bg-gray-700'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                    />
-                    ))}
-              </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-                {currentStep - 1} of {steps.length}
-              </span>
-            </div>
-            )}
-
           {/* Right section */}
           <div className="flex items-center gap-3">
-            {currentStep > 1 && (
-              <div className="lg:hidden flex gap-1">
-                {steps.map((step) => (
-                  <div
-                    key={step.id}
-                    className={`w-1.5 h-1.5 rounded-full transition-colors duration-150 ${
-                      step.id < currentStep
-                      ? 'bg-green-500'
-                      : step.id === currentStep
-                      ? 'bg-gray-700'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                    />
-                    ))}
-              </div>
-              )}
-
             {!isMobile && <ThemeToggle />}
 
             {/* User Menu */}
