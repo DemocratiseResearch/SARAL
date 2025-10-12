@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from typing import List, Dict
 import tempfile
 import os
+from pathlib import Path
 
 from ..services.tts_service import generate_dialogue_audio_bhashini
 
@@ -152,10 +153,10 @@ async def generate_reel_from_pdf(file: UploadFile = File(...), language: str = F
         print("Generating reel video...")
         print(f"Current working directory: {os.getcwd()}")
         
-        # Ensure gen directory exists (same as podcasts)
-        backend_root = "/home/th4kur/Documents/SARAL-notvibing/backend"
-        gen_dir = os.path.join(backend_root, "gen")
-        os.makedirs(gen_dir, exist_ok=True)
+        # Get the backend root directory dynamically
+        backend_root = Path(__file__).resolve().parent.parent.parent
+        gen_dir = backend_root / "gen"
+        gen_dir.mkdir(exist_ok=True)
         
         video_path = generate_dialogue_video(
             paper_id=paper_id, 
@@ -165,9 +166,9 @@ async def generate_reel_from_pdf(file: UploadFile = File(...), language: str = F
         print(f"Video generation returned path: {video_path}")
         
         # Video should be created at backend/gen/reel_output.mp4 (same pattern as podcasts)
-        expected_video_path = os.path.join(backend_root, "gen", "reel_output.mp4")
+        expected_video_path = gen_dir / "reel_output.mp4"
         
-        if os.path.exists(expected_video_path):
+        if expected_video_path.exists():
             video_filename = "reel_output.mp4"
             print(f"Video file found at expected location: {expected_video_path}")
         else:
@@ -414,14 +415,15 @@ async def stream_reel_video(filename: str):
         if ".." in filename or "/" in filename or "\\" in filename:
             raise HTTPException(status_code=400, detail="Invalid filename")
         
-        # Look for video in gen directory (same pattern as podcast audio)
-        file_path = os.path.join("gen", filename)
+        # Get the backend root directory and look for video in gen directory
+        backend_root = Path(__file__).resolve().parent.parent.parent
+        file_path = backend_root / "gen" / filename
         
-        if not os.path.exists(file_path):
+        if not file_path.exists():
             raise HTTPException(status_code=404, detail="Video file not found")
         
         return FileResponse(
-            path=file_path,
+            path=str(file_path),
             media_type="video/mp4",
             headers={"Accept-Ranges": "bytes"}
         )
@@ -439,14 +441,15 @@ async def download_reel_video(filename: str):
         if ".." in filename or "/" in filename or "\\" in filename:
             raise HTTPException(status_code=400, detail="Invalid filename")
         
-        # Look for video in gen directory (same pattern as podcast audio)
-        file_path = os.path.join("gen", filename)
+        # Get the backend root directory and look for video in gen directory
+        backend_root = Path(__file__).resolve().parent.parent.parent
+        file_path = backend_root / "gen" / filename
         
-        if not os.path.exists(file_path):
+        if not file_path.exists():
             raise HTTPException(status_code=404, detail="Video file not found")
         
         return FileResponse(
-            path=file_path,
+            path=str(file_path),
             media_type="video/mp4",
             filename=filename
         )

@@ -19,15 +19,16 @@ from app.auth.google_auth import get_current_user, get_current_user_optional
 # Create database tables on startup
 ## Removed: create_tables() (no longer needed)
 
-# Create temp directories
+# Create temp directories relative to the backend root
+backend_root = Path(__file__).resolve().parent.parent
 temp_dirs = [
     "temp/arxiv_sources", "temp/images", "temp/title_slides",
     "temp/videos", "temp/audio", "temp/latex_template",
-    "temp/slides", "temp/scripts"
+    "temp/slides", "temp/scripts", "gen"  # Also create gen directory
 ]
 
 for dir_path in temp_dirs:
-    Path(dir_path).mkdir(parents=True, exist_ok=True)
+    (backend_root / dir_path).mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="Saral AI - Academic Paper to Video API",
