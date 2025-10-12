@@ -2,6 +2,8 @@
 
 SARAL AI is a full-stack application that automates the process of converting research papers (LaTeX or arXiv) into engaging educational videos. The system leverages AI for script generation, slide creation, audio narration, and video synthesis, providing a seamless workflow from paper upload to downloadable media.
 
+As our Megathon project, we've made the user interface far more accessible for people in the modern day, with the addition of features such as generating engaging short-form video content, and a long-form podcast with two hosts.
+
 ---
 
 ## Table of Contents
@@ -39,7 +41,18 @@ SARAL AI transforms research papers into professional educational videos through
 
 ---
 
-## Features
+## New Features
+
+- Generation of short form content, like Reels or YT Shorts, from a provided research paper.
+- The shorts are in the form of a conversation between our favorite professor and a student, where the prof is explaining the contents of the research paper in an engaging, humorous and succinct manner.
+
+- Generation of a long form podcast, between two hosts, explaining the paper in greater depth, yet still very accessible to the layman.
+
+- Multilingual text and audio generation, through the use of Sarvam and Bhashini, making knowledge accessible to a much wider audience.
+
+- Mind-map generation, by focussing on the important topics on a research paper.
+
+## Existing Features
 
 - **Multiple Input Methods:** Upload LaTeX ZIPs or import from arXiv.
 - **AI-Generated Scripts:** Uses Google Gemini API for educational narration.
@@ -232,12 +245,15 @@ yarn install
 
 ### API Keys
 
-Create a `.env` file in the `backend/` directory:
-Add your Firebase service account JSON to backend/firebase_service_account.json
+Create a `.env` file in the `backend/` and `frontend/` directories:
+Add your Firebase service account JSON to firebase_service_account.json, and put the file in `backend/` and `frontend/`
 
+The .env file must contain:
 ```
 GOOGLE_API_KEY=your_gemini_api_key
+GEMINI_API_KEY=your_gemini_api_key
 SARVAM_API_KEY=your_sarvam_api_key
+REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
 FIREBASE_SERVICE_ACCOUNT=./firebase_service_account.json
 GOOGLE_CLIENTID=your_google_api&services_ID
 GOOGLE_CLIENT_ID=your_google_client_id
