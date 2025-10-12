@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 
 from ..models.request_models import ReelScriptRequest
-from ..services.paper_loader import load_paper_snippet
+from ..services.paper_loader import load_paper_snippet, load_latex_snippet, load_arxiv_snippet
 from ..services.shortform_script import generate_script
 from pathlib import Path
 
@@ -21,17 +21,53 @@ router = APIRouter(
 async def create_reel_script(request: ReelScriptRequest):
     question = "Summarize the key ideas from the provided material"
     snippets = []
-    if request.args == "paper":
-        try:
+    source_type = request.args.lower()
+    
+    try:
+        snippet = None
+        if source_type == "paper":
             paper_path = Path(request.path).resolve()
             print(f"Reading paper: {paper_path}")
-            paper_snippet = load_paper_snippet(paper_path)
-            if paper_snippet:
-                snippets.append(paper_snippet)
+            snippet = load_paper_snippet(paper_path)
+            if snippet:
                 print("Added paper to context")
-        except Exception as exc:
-            print(f"Warning: could not process paper ({exc})")
 
+        elif source_type == "latex":
+            latex_path = Path(request.path).resolve()
+            print(f"Reading LaTeX source: {latex_path}")
+            snippet = load_latex_snippet(latex_path)
+            if snippet:
+                print("Added LaTeX summary to context.")
+
+        elif source_type == "arxiv":
+            print(f"Fetching arXiv entry: {request.path}")
+            snippet = load_arxiv_snippet(request.arxiv_id)
+            if snippet:
+                print("Added arXiv abstract to context.")
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported source type '{request.args}'. Use 'paper', 'latex', or 'arxiv'."
+            )
+
+        if snippet:
+            snippets.append(snippet)
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Could not extract content from the provided {source_type} source."
+            )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"File not found at path: {request.path}")
+    except Exception as exc:
+        print(f"Error processing source '{request.path}' ({exc})")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An internal error occurred while processing the source: {exc}"
+        )
+    
     script = generate_script(question, snippets, language=request.language)
     return script
 
