@@ -1,0 +1,99 @@
+{
+  "English": {
+    "target_language_code": "en-IN",
+    "speakers": {
+      "female": "manisha",
+      "male": "karun"
+    },
+    "sample_rate": 22050
+  },
+  "Hindi": {
+    "target_language_code": "hi-IN",
+    "speakers": {
+      "female": "vidya",
+      "male": "hitesh"
+    },
+    "sample_rate": 22050
+  },
+  "Tamil": {
+    "target_language_code": "ta-IN",
+    "speakers": {
+      "female": "anushka",
+      "male": "abhilash"
+    },
+    "sample_rate": 22050
+  },
+  "Telugu": {
+    "target_language_code": "te-IN",
+    "speakers": {
+      "female": "manisha",
+      "male": "abhilash"
+    },
+    "sample_rate": 22050
+  },
+  "Kannada": {
+    "target_language_code": "kn-IN",
+    "speakers": {
+      "female": "arya",
+      "male": "karun"
+    },
+    "sample_rate": 22050
+  },
+  "Malayalam": {
+    "target_language_code": "ml-IN",
+    "speakers": {
+      "female": "manisha",
+      "male": "karun"
+    },
+    "sample_rate": 22050
+  },
+  "Bengali": {
+    "target_language_code": "bn-IN",
+    "speakers": {
+      "female": "meera",
+      "male": "karun"
+    },
+    "sample_rate": 22050
+  },
+  "Gujarati": {
+    "target_language_code": "gu-IN",
+    "speakers": {
+      "female": "vidya",
+      "male": "hitesh"
+    },
+    "sample_rate": 22050
+  },
+  "Assamese": {
+    "target_language_code": "as-IN",
+    "speakers": {
+      "female": "meera",
+      "male": "hitesh"
+    },
+    "sample_rate": 22050
+  },
+  "Odia": {
+    "target_language_code": "or-IN",
+    "speakers": {
+      "female": "anushka",
+      "male": "abhilash"
+    },
+    "sample_rate": 22050
+  },
+  "Punjabi": {
+    "target_language_code": "pa-IN",
+    "speakers": {
+      "female": "arya",
+      "male": "hitesh"
+    },
+    "sample_rate": 22050
+  },
+  "Rajasthani": {
+    "target_language_code": "hi-IN",
+    "speakers": {
+      "female": "vidya",
+      "male": "karun"
+    },
+    "sample_rate": 22050
+  }
+}
+
