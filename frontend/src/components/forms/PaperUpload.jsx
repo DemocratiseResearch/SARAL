@@ -73,12 +73,18 @@ const PaperUpload = () => {
   const [isImportingArxiv, setIsImportingArxiv] = useState(false);
    const [isImportingArxivToVideo, setIsImportingArxivToVideo] = useState(false);
   const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
+  const [isGeneratingReel, setIsGeneratingReel] = useState(false);
 
   // video url from convert to video response
   const [videoUrl, setVideoUrl] = useState(null);
 
   // streamUrl fetched from apiService.getVideoStreamUrl(paperId)
   const [streamUrl, setStreamUrl] = useState(null);
+  
+  // Generated content states
+  const [generatedPodcast, setGeneratedPodcast] = useState(null);
+  const [generatedReel, setGeneratedReel] = useState(null);
+  
   const navigate = useNavigate();
   //  Restore paperId from sessionStorage on mount
   
@@ -345,12 +351,8 @@ const PaperUpload = () => {
       console.log('Podcast generated:', response.data);
       toast.success(`Podcast generated successfully in ${selectedLanguage}!`);
       
-      // Navigate to podcast listener with the podcast data
-      navigate('/podcast-listener', {
-        state: {
-          podcastData: response.data
-        }
-      });
+      // Store podcast data for inline display
+      setGeneratedPodcast(response.data);
       
     } catch (error) {
       console.error('Error generating podcast:', error);
@@ -358,6 +360,40 @@ const PaperUpload = () => {
       toast.error(errorMessage);
     } finally {
       setIsGeneratingPodcast(false);
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateReel = async () => {
+    if (!uploadedFile) {
+      toast.error(`Please select a ${uploadType === 'file' ? 'ZIP' : 'PDF'} file`);
+      return;
+    }
+
+    // Only allow PDF files for reel generation
+    if (uploadType !== 'pdf') {
+      toast.error('Reel generation is only available for PDF files');
+      return;
+    }
+
+    setIsGeneratingReel(true);
+    setLoading(true);
+
+    try {
+      const response = await apiService.generateReel(uploadedFile, selectedLanguage);
+      
+      console.log('Reel generated:', response.data);
+      toast.success(`Reel generated successfully in ${selectedLanguage}!`);
+      
+      // Store reel data for inline display
+      setGeneratedReel(response.data);
+      
+    } catch (error) {
+      console.error('Error generating reel:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to generate reel';
+      toast.error(errorMessage);
+    } finally {
+      setIsGeneratingReel(false);
       setLoading(false);
     }
   };
@@ -391,7 +427,7 @@ const PaperUpload = () => {
         className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 space-y-6"
       >
         {/* loading bar */}
-        {(isProcessingUpload || isConvertingVideo || isImportingArxiv || isImportingArxivToVideo || isGeneratingPodcast) && (
+        {(isProcessingUpload || isConvertingVideo || isImportingArxiv || isImportingArxivToVideo || isGeneratingPodcast || isGeneratingReel) && (
           <div className="h-1 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden mb-4">
             <div className="h-full w-full animate-pulse bg-gray-700 dark:bg-gray-400" />
           </div>
@@ -476,6 +512,7 @@ const PaperUpload = () => {
                   >
                     <option value="english">English</option>
                     <option value="hindi">Hindi</option>
+                    <option value="tamil">Tamil</option>
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Select the language for your AI-generated podcast
@@ -483,7 +520,7 @@ const PaperUpload = () => {
                 </motion.div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <button
                   onClick={handleFileUpload}
                   disabled={!uploadedFile || isProcessingUpload}
@@ -517,6 +554,16 @@ const PaperUpload = () => {
                   {isGeneratingPodcast ? <LoadingSpinner size="sm" /> : <FiCheck className="w-4 h-4" />}
                   {isGeneratingPodcast ? 'Generating...' : (uploadType === 'pdf' ? 'To Podcast' : 'PDF Only')}
                 </button>
+                <button
+                  onClick={handleGenerateReel}
+                  disabled={!uploadedFile || isGeneratingReel || uploadType !== 'pdf'}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md ${
+                    !uploadedFile || isGeneratingReel || uploadType !== 'pdf' ? 'bg-gray-400 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white'
+                  } font-medium transition-colors duration-150 text-sm`}
+                >
+                  {isGeneratingReel ? <LoadingSpinner size="sm" /> : <FiCheck className="w-4 h-4" />}
+                  {isGeneratingReel ? 'Creating...' : (uploadType === 'pdf' ? 'To Reel' : 'PDF Only')}
+                </button>
               </div>
 
               {/* ✅ Video block */}
@@ -535,6 +582,124 @@ const PaperUpload = () => {
                   </div>
                   <div className="mt-2">
                     <YouTubeLogin />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Generated Podcast Display */}
+              {generatedPodcast && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
+                >
+                  <h3 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-3 flex items-center gap-2">
+                    🎧 Generated Podcast ({generatedPodcast.language})
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Audio Player */}
+                    {generatedPodcast.audio_filename && (
+                      <div className="bg-white dark:bg-gray-800 rounded-md p-3">
+                        <audio 
+                          controls 
+                          className="w-full"
+                          src={`${process.env.NODE_ENV === 'production' 
+                            ? process.env.REACT_APP_API_URL 
+                            : 'http://localhost:8000'}/api/podcast/stream_audio/${generatedPodcast.audio_filename}`}
+                        >
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
+                    
+                    {/* Podcast Info */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-green-700 dark:text-green-300">Duration:</span>
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">
+                          {generatedPodcast.audio_info?.duration_minutes?.toFixed(1)} minutes
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-700 dark:text-green-300">Segments:</span>
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">
+                          {generatedPodcast.total_audio_segments}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Download Button */}
+                    {generatedPodcast.audio_filename && (
+                      <a
+                        href={`${process.env.NODE_ENV === 'production' 
+                          ? process.env.REACT_APP_API_URL 
+                          : 'http://localhost:8000'}/api/podcast/download_audio/${generatedPodcast.audio_filename}`}
+                        download
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
+                      >
+                        <FiCheck className="w-4 h-4" />
+                        Download Podcast
+                      </a>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Generated Reel Display */}
+              {generatedReel && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4"
+                >
+                  <h3 className="text-lg font-semibold text-purple-800 dark:text-purple-200 mb-3 flex items-center gap-2">
+                    🎬 Generated Reel ({generatedReel.language})
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Video Player */}
+                    {(generatedReel.video_filename || generatedReel.success) && (
+                      <div className="bg-white dark:bg-gray-800 rounded-md p-3">
+                        <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
+                          <video 
+                            controls 
+                            className="w-full h-full object-cover"
+                            src={apiService.streamReelVideo('reel_output.mp4')}
+                          >
+                            Your browser does not support the video element.
+                          </video>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Reel Info */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-purple-700 dark:text-purple-300">Audio Files:</span>
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">
+                          {generatedReel.audio_files_count}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-purple-700 dark:text-purple-300">Dialogue Length:</span>
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">
+                          {generatedReel.dialogue_length} chars
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Download Button */}
+                    {(generatedReel.video_filename || generatedReel.success) && (
+                      <a
+                        href={apiService.downloadReelVideo('reel_output.mp4')}
+                        download="reel_output.mp4"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium transition-colors"
+                      >
+                        <FiCheck className="w-4 h-4" />
+                        Download Reel
+                      </a>
+                    )}
                   </div>
                 </motion.div>
               )}

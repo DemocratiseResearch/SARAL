@@ -1082,7 +1082,7 @@ async def generate_dialogue_audio_bhashini(
         
         # Find the correct TTS model configuration from models.json
         for item in data:
-            if item.get("model_type") == "tts" and item.get("source_language") == language:
+            if item.get("model_type") == "tts" and item.get("source_language").lower() == language.lower():
                 api_url_from_config = item.get("api_url")
                 access_token = item.get("access_token")
                 break # Stop once we find the matching model

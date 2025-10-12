@@ -661,6 +661,24 @@ class ApiService {
   streamPodcastAudio = (filename) => {
     return `${API_CONFIG.baseURL}/api/podcast/stream_audio/${filename}`;
   };
+
+  // Reel API methods
+  generateReel = (file, language = 'english') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('language', language);
+    return this.httpClient.post('/reels/generate_reel_from_pdf', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  };
+  
+  downloadReelVideo = (filename) => {
+    return `${API_CONFIG.baseURL}/api/reels/download_video/${filename}`;
+  };
+  
+  streamReelVideo = (filename) => {
+    return `${API_CONFIG.baseURL}/api/reels/stream_video/${filename}`;
+  };
 }
 
 // Create and export singleton instance

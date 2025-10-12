@@ -90,14 +90,14 @@ def generate_podcast_with_gemini(api_key: str, paper_text: str) -> str:
         prompt = f"""
 {system_prompt}
 
-Here is the research paper content to discuss:
+            Here is the research paper content to discuss:
 
-{paper_text[:8000]}  # Limit text to avoid token limits
+            {paper_text[:8000]}  # Limit text to avoid token limits
 
-Please generate an engaging podcast dialogue between Aisha and Rohan discussing this research paper. 
+            Please generate an engaging podcast dialogue between Aisha and Rohan discussing this research paper. 
 
-The dialogue should be substantial - aim for at least 25-35 exchanges between the speakers to create a comprehensive discussion of the paper. Each speaker turn should be meaningful and contribute to explaining the research thoroughly.
-"""
+            The dialogue should be substantial - aim for at least 25-35 exchanges between the speakers to create a comprehensive discussion of the paper. Each speaker turn should be meaningful and contribute to explaining the research thoroughly.
+            """
 
         # Generate response
         response = model.generate_content(
@@ -137,46 +137,46 @@ The dialogue should be substantial - aim for at least 25-35 exchanges between th
                 # Extract system prompt from above for reuse
                 system_prompt_clean = """You are a skilled podcast scriptwriter and science communicator, writing for a conversational audio format.
 
-Your task is to generate a lively, natural, and engaging podcast dialogue between two speakers — 
-Aisha and Rohan — as they discuss and explain a given research paper to a general audience.
+                Your task is to generate a lively, natural, and engaging podcast dialogue between two speakers — 
+                Aisha and Rohan — as they discuss and explain a given research paper to a general audience.
 
-Dialogue Requirements:
-- Generate a substantial dialogue with at least 25-35 exchanges between speakers
-- No individual dialogue line should exceed 50 words
-- Use alternating lines with clear speaker tags (Aisha:, Rohan:)
-- Keep the flow conversational and human-like, not robotic or overly formal
-- Make the tone warm, curious, and enthusiastic
-- Use **strategic punctuation** to shape voice and rhythm:
-- Use commas and ellipses (…) for natural pauses and hesitations
-- Use dashes (—) to indicate shifts in thought or excitement
-- Use exclamation marks sparingly, for genuine enthusiasm
-- Vary sentence length to create a natural tempo
-- Use question marks often to keep it interactive
-- Avoid long, complex sentences; prefer short, spoken-style phrasing
+                Dialogue Requirements:
+                - Generate a substantial dialogue with at least 25-35 exchanges between speakers
+                - No individual dialogue line should exceed 50 words
+                - Use alternating lines with clear speaker tags (Aisha:, Rohan:)
+                - Keep the flow conversational and human-like, not robotic or overly formal
+                - Make the tone warm, curious, and enthusiastic
+                - Use **strategic punctuation** to shape voice and rhythm:
+                - Use commas and ellipses (…) for natural pauses and hesitations
+                - Use dashes (—) to indicate shifts in thought or excitement
+                - Use exclamation marks sparingly, for genuine enthusiasm
+                - Vary sentence length to create a natural tempo
+                - Use question marks often to keep it interactive
+                - Avoid long, complex sentences; prefer short, spoken-style phrasing
 
-Content Guidelines:
-- Explain technical terms simply and naturally
-- Highlight motivation, methods, results, and implications clearly
-- Break complex ideas into digestible bits, with analogies and examples
-- Include small interruptions, clarifications, and reactions between speakers
-- Begin with a friendly introduction and end with a brief, reflective wrap-up
-- Cover the paper comprehensively - don't rush through topics
-- Output **only the dialogue text** (no narration or stage directions)
+                Content Guidelines:
+                - Explain technical terms simply and naturally
+                - Highlight motivation, methods, results, and implications clearly
+                - Break complex ideas into digestible bits, with analogies and examples
+                - Include small interruptions, clarifications, and reactions between speakers
+                - Begin with a friendly introduction and end with a brief, reflective wrap-up
+                - Cover the paper comprehensively - don't rush through topics
+                - Output **only the dialogue text** (no narration or stage directions)
 
-Output Example:
-Aisha: Hey Rohan, did you get a chance to read that new paper on quantum dots?
-Rohan: Oh, absolutely! It's fascinating — especially how they managed to stabilize those tiny structures...
-Aisha: Right?! And the implications for solar energy... just incredible."""
-                
+                Output Example:
+                Aisha: Hey Rohan, did you get a chance to read that new paper on quantum dots?
+                Rohan: Oh, absolutely! It's fascinating — especially how they managed to stabilize those tiny structures...
+                Aisha: Right?! And the implications for solar energy... just incredible."""
+                                
                 user_prompt = f"""
-Here is the research paper content to discuss:
+                    Here is the research paper content to discuss:
 
-{paper_text[:8000]}
+                    {paper_text[:8000]}
 
-Please generate an engaging podcast dialogue between Aisha and Rohan discussing this research paper. 
+                    Please generate an engaging podcast dialogue between Aisha and Rohan discussing this research paper. 
 
-The dialogue should be substantial - aim for at least 20-30 exchanges between the speakers to create a comprehensive discussion of the paper. Each speaker turn should be meaningful and contribute to explaining the research thoroughly.
-"""
+                    The dialogue should be substantial - aim for at least 20-30 exchanges between the speakers to create a comprehensive discussion of the paper. Each speaker turn should be meaningful and contribute to explaining the research thoroughly.
+                    """
                 
                 res = client.chat.completions(
                     messages=[
@@ -285,6 +285,86 @@ def translate_dialogues_to_hindi(dialogue: str) -> str:
     except Exception as e:
         print(f"❌ Error translating dialogue to Hindi: {str(e)}")
         return dialogue  # Return original dialogue if translation fails completely
+def translate_dialogues_to_tamil(dialogue: str) -> str:
+    """Translate English dialogue to Tamil using AnuvaadHub API."""
+    try:
+        import requests
+        import urllib3
+        
+        # Disable SSL warnings when verification is disabled
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        apiEndpoint = "https://canvas.iiit.ac.in/sandboxbeprod/check_model_status_and_infer/6872172f4f34535ffa89b90e"
+        apiToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjhlYTNmMmRiOTNlM2JlYzkwMWZkODVkIiwicm9sZSI6Im1lZ2F0aG9uX3N0dWRlbnQifQ.uU9rXmgKjGgCPAZasrIp5x-G1NgScc-jlXP89sNVIEk"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "access-token": apiToken
+        }
+        
+        # Split dialogue into lines for translation
+        lines = dialogue.split('\n')
+        translated_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                translated_lines.append('')
+                continue
+                
+            # Check if line contains speaker dialogue
+            if ':' in line and (line.startswith('Aisha:') or line.startswith('Rohan:')):
+                speaker_name = line.split(':')[0].strip()
+                content = ':'.join(line.split(':')[1:]).strip()
+                
+                if content:
+                    try:
+                        # Translate the content
+                        body = {"input_text": content}
+                        # Disable SSL verification to avoid certificate issues
+                        response = requests.post(
+                            apiEndpoint, 
+                            headers=headers, 
+                            json=body, 
+                            timeout=30,
+                            verify=False  # Disable SSL verification
+                        )
+                        
+                        if response.status_code == 200:
+                            response_data = response.json()
+                            if response_data.get('status') == 'success':
+                                translated_content = response_data['data']['output_text']
+                                translated_lines.append(f"{speaker_name}: {translated_content}")
+                                print(f"✅ Translated: {content[:30]}... -> {translated_content[:30]}...")
+                            else:
+                                print(f"Translation API error: {response_data.get('message', 'Unknown error')}")
+                                translated_lines.append(line)  # Keep original if translation fails
+                        else:
+                            print(f"Translation API HTTP error: {response.status_code} - {response.text}")
+                            translated_lines.append(line)  # Keep original if translation fails
+                            
+                    except requests.exceptions.SSLError as e:
+                        print(f"SSL Error during translation: {str(e)}")
+                        print("Skipping translation for this segment due to SSL issues")
+                        translated_lines.append(line)  # Keep original if SSL fails
+                    except requests.exceptions.RequestException as e:
+                        print(f"Translation request error: {str(e)}")
+                        translated_lines.append(line)  # Keep original if translation fails
+                    except Exception as e:
+                        print(f"Unexpected error during translation: {str(e)}")
+                        translated_lines.append(line)  # Keep original if any other error occurs
+                else:
+                    translated_lines.append(line)
+            else:
+                translated_lines.append(line)
+        
+        translated_dialogue = '\n'.join(translated_lines)
+        print(f"✅ Successfully translated dialogue to Tamil")
+        return translated_dialogue
+        
+    except Exception as e:
+        print(f"❌ Error translating dialogue to Tamil: {str(e)}")
+        return dialogue  # Return original dialogue if translation fails completely
 
 def get_audio_clips(dialogue: str, language: str = "english") -> list:
     """Generate audio clips for each speaker's dialogue using Sarvam AI TTS."""
@@ -324,6 +404,14 @@ def get_audio_clips(dialogue: str, language: str = "english") -> list:
                         speaker_voice = "manisha"  # Hindi female voice
                     elif speaker_name.lower() == 'rohan':
                         speaker_voice = "karun"  # Hindi male voice
+                    else:
+                        speaker_voice = "manisha"  # default
+                elif language.lower() == "tamil":
+                    target_language_code = "ta-IN"
+                    if speaker_name.lower() == 'aisha':
+                        speaker_voice = "manisha"  # Tamil female voice
+                    elif speaker_name.lower() == 'rohan':
+                        speaker_voice = "karun"  # Tamil male voice
                     else:
                         speaker_voice = "manisha"  # default
                 else:
@@ -645,8 +733,8 @@ async def get_podcast(file: UploadFile = File(...), language: str = Form("englis
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
     # Validate language selection
-    if language.lower() not in ["english", "hindi"]:
-        raise HTTPException(status_code=400, detail="Language must be 'english' or 'hindi'")
+    if language.lower() not in ["english", "hindi", "tamil"]:
+        raise HTTPException(status_code=400, detail="Language must be 'english', 'hindi', or 'tamil'")
     
     print(f"Generating podcast in {language} language...")
     
@@ -683,10 +771,13 @@ async def get_podcast(file: UploadFile = File(...), language: str = Form("englis
         print("Generating podcast dialogue with Gemini...")
         podcast_dialogue = generate_podcast_with_gemini(gemini_api_key, paper_text)
         
-        # Translate to Hindi if requested
+        # Translate to Hindi or Tamil if requested
         if language.lower() == "hindi":
             print("Translating dialogue to Hindi...")
             podcast_dialogue = translate_dialogues_to_hindi(podcast_dialogue)
+        elif language.lower() == "tamil":
+            print("Translating dialogue to Tamil...")
+            podcast_dialogue = translate_dialogues_to_tamil(podcast_dialogue)
         
         # Save dialogue to file
         paper_name = os.path.splitext(file.filename)[0]

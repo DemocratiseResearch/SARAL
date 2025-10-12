@@ -160,7 +160,7 @@ const PodcastListener = () => {
             </p>
             <button
               onClick={() => navigate('/paper-processing')}
-              className="px-6 py-3 bg-black/40 hover:bg-black-700 text-white rounded-lg transition-colors font-medium"
+              className="px-6 py-3 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors font-medium"
             >
               Go to Paper Processing
             </button>
@@ -189,7 +189,7 @@ const PodcastListener = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center"
         >
-          <div className="inline-flex items-center gap-2 text-black/40 dark:text-black/40 mb-4">
+          <div className="inline-flex items-center gap-2 text-black dark:text-white mb-4">
             <FiHeadphones className="w-8 h-8" />
             <h2 className="text-2xl font-bold">AI-Generated Research Podcast</h2>
           </div>
@@ -205,13 +205,13 @@ const PodcastListener = () => {
           className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-lg overflow-hidden"
         >
           {/* Podcast Info */}
-          <div className="bg-black/40 text-white p-8">
+          <div className="bg-black text-white p-8">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-2xl font-bold mb-2">
                   {podcastData.uploaded_file?.replace('.pdf', '') || 'Research Paper Podcast'}
                 </h2>
-                <div className="flex items-center gap-4 text-black/40">
+                <div className="flex items-center gap-4 text-gray-300">
                   <div className="flex items-center gap-1">
                     <FiFileText className="w-4 h-4" />
                     <span className="text-sm">
@@ -272,11 +272,11 @@ const PodcastListener = () => {
             {/* Progress Bar */}
             <div className="mb-6">
               <div
-                className="w-full h-2 bg-gray-200 dark:bg-neutral-700 rounded-full cursor-pointer"
+                className="w-full h-2 bg-gray-200 dark:bg-neutral-700 rounded-full cursor-pointer border border-blue-200 dark:border-blue-700"
                 onClick={handleSeek}
               >
                 <div
-                  className="h-full bg-gradient-to-r bg-black/40 rounded-full transition-all duration-150"
+                  className="h-full bg-blue-500 rounded-full transition-all duration-150"
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
@@ -290,7 +290,7 @@ const PodcastListener = () => {
             <div className="flex items-center justify-center gap-6 mb-6">
               <button
                 onClick={() => skipTime(-10)}
-                className="p-3 text-gray-600 dark:text-gray-400 hover:text-black/40 dark:hover:text-black-400 transition-colors"
+                className="p-3 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 title="Rewind 10s"
               >
                 <FiSkipBack className="w-6 h-6" />
@@ -299,7 +299,7 @@ const PodcastListener = () => {
               <button
                 onClick={togglePlayPause}
                 disabled={isLoading}
-                className="p-4 bg-gradient-to-r from-black/40 to-black/60 text-white rounded-full hover:from-black/40 hover:to-black/10 transition-all duration-200 shadow-lg disabled:opacity-50"
+                className="p-4 bg-black text-white rounded-full hover:bg-gray-800 transition-all duration-200 shadow-lg disabled:opacity-50 border-2 border-blue-500"
               >
                 {isLoading ? (
                   <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -312,7 +312,7 @@ const PodcastListener = () => {
 
               <button
                 onClick={() => skipTime(10)}
-                className="p-3 text-gray-600 dark:text-gray-400 hover:text-black/40 dark:hover:text-black-400 transition-colors"
+                className="p-3 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
                 title="Forward 10s"
               >
                 <FiSkipForward className="w-6 h-6" />
@@ -331,7 +331,7 @@ const PodcastListener = () => {
                   step="0.05"
                   value={volume}
                   onChange={handleVolumeChange}
-                  className="w-24 accent-black/40"
+                  className="w-24 accent-blue-500"
                 />
               </div>
 
@@ -342,10 +342,10 @@ const PodcastListener = () => {
                   <button
                     key={rate}
                     onClick={() => handlePlaybackRateChange(rate)}
-                    className={`px-2 py-1 text-xs rounded transition-colors font-medium ${
+                    className={`px-2 py-1 text-xs rounded transition-colors font-medium border ${
                       playbackRate === rate
-                        ? 'bg-black/40 text-white'
-                        : 'bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-neutral-600'
+                        ? 'bg-black text-white border-blue-500'
+                        : 'bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-neutral-600 border-blue-300 dark:border-blue-600'
                     }`}
                   >
                     {rate}x
@@ -393,7 +393,7 @@ const PodcastListener = () => {
         >
           <button
             onClick={() => navigate('/paper-processing')}
-            className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium"
+            className="px-6 py-3 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors font-medium border border-blue-500"
           >
             Generate Another Podcast
           </button>
