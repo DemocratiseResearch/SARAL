@@ -7,16 +7,17 @@ import gzip
 from bs4 import BeautifulSoup
 from pathlib import Path
 
+
 class ArxivScraper:
     """Scraper for downloading TeX source files from arXiv papers."""
-    
+
     def __init__(self, download_dir="temp/arxiv_sources"):
         self.download_dir = download_dir
         os.makedirs(download_dir, exist_ok=True)
 
     def extract_arxiv_id(self, url):
         """Extract the arXiv ID from a given URL."""
-        match = re.search(r'arxiv\.org/(?:abs|pdf)/([0-9]+\.[0-9]+)(?:v[0-9]+)?', url)
+        match = re.search(r"arxiv\.org/(?:abs|pdf)/([0-9]+\.[0-9]+)(?:v[0-9]+)?", url)
         if match:
             return match.group(1)
         return None
@@ -31,14 +32,14 @@ class ArxivScraper:
         os.makedirs(paper_dir, exist_ok=True)
 
         source_url = f"https://arxiv.org/e-print/{arxiv_id}"
-        
+
         try:
             print(f"Downloading source for arXiv paper {arxiv_id}...")
             response = requests.get(source_url, stream=True)
             response.raise_for_status()
 
             download_path = os.path.join(paper_dir, f"{arxiv_id}.tar.gz")
-            with open(download_path, 'wb') as f:
+            with open(download_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
@@ -51,22 +52,22 @@ class ArxivScraper:
                 with tarfile.open(download_path) as tar:
                     file_list = tar.getnames()
                     print(f"Found {len(file_list)} files in tar archive")
-                    
+
                     for member in tar.getmembers():
-                        if member.name.startswith('/') or '..' in member.name:
+                        if member.name.startswith("/") or ".." in member.name:
                             continue
                         try:
                             tar.extract(member, path=extracted_dir)
                         except Exception as extract_error:
                             print(f"Error extracting {member.name}: {extract_error}")
                     extracted_successfully = True
-                    
+
             except tarfile.ReadError:
                 try:
                     print(f"Attempting to extract as gzip: {download_path}")
-                    with gzip.open(download_path, 'rb') as f_in:
+                    with gzip.open(download_path, "rb") as f_in:
                         extracted_file = os.path.join(extracted_dir, f"{arxiv_id}.tex")
-                        with open(extracted_file, 'wb') as f_out:
+                        with open(extracted_file, "wb") as f_out:
                             shutil.copyfileobj(f_in, f_out)
                     extracted_successfully = True
                 except Exception:
@@ -78,7 +79,9 @@ class ArxivScraper:
 
             extracted_files = os.listdir(extracted_dir)
             if extracted_files:
-                print(f"Successfully downloaded and extracted source to {extracted_dir}")
+                print(
+                    f"Successfully downloaded and extracted source to {extracted_dir}"
+                )
                 return extracted_dir
             else:
                 raise Exception("Extraction produced no files")
@@ -92,26 +95,62 @@ class ArxivScraper:
         try:
             response = requests.get(url)
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+            soup = BeautifulSoup(response.text, "html.parser")
 
-            title_elem = soup.find('h1', class_='title mathjax')
-            title = title_elem.get_text().replace('Title:', '').strip() if title_elem else "Unknown Title"
+            title_elem = soup.find("h1", class_="title mathjax")
+            title = (
+                title_elem.get_text().replace("Title:", "").strip()
+                if title_elem
+                else "Unknown Title"
+            )
 
-            authors_elem = soup.find('div', class_='authors')
-            authors = authors_elem.get_text().replace('Authors:', '').strip() if authors_elem else "Unknown Authors"
+            authors_elem = soup.find("div", class_="authors")
+            authors = (
+                authors_elem.get_text().replace("Authors:", "").strip()
+                if authors_elem
+                else "Unknown Authors"
+            )
 
-            date_elem = soup.find('div', class_='dateline')
+            date_elem = soup.find("div", class_="dateline")
             date = date_elem.get_text().strip() if date_elem else "Unknown Date"
 
-            return {
-                "title": title,
-                "authors": authors,
-                "date": date
-            }
+            return {"title": title, "authors": authors, "date": date}
         except Exception as e:
             print(f"Error fetching metadata: {e}")
             return {
                 "title": "Unknown Title",
-                "authors": "Unknown Authors", 
-                "date": "Unknown Date"
+                "authors": "Unknown Authors",
+                "date": "Unknown Date",
             }
+
+    def download_pdf_from_arxiv(self, arxiv_id: str, output_path: str) -> bool:
+        """
+        Download PDF from arXiv given paper ID.
+
+        Args:
+            arxiv_id: The arXiv paper ID (e.g., "1706.03762")
+            output_path: Where to save the PDF file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+            print(f"Downloading PDF from {pdf_url}...")
+
+            response = requests.get(pdf_url, stream=True)
+            response.raise_for_status()
+
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            with open(output_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            print(f"✓ PDF downloaded successfully to {output_path}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error downloading PDF: {e}")
+            return False

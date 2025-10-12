@@ -28,7 +28,7 @@ const ApiSetup = () => {
                 <FiInfo className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-blue-800 dark:text-blue-200 font-medium">
-                    <strong>Note:</strong> API keys are optional but recommended for best experience. 
+                    <strong>Note:</strong> API keys are optional but recommended for best experience.
                     You can always configure them later in the settings.
                   </p>
                 </div>
@@ -63,7 +63,7 @@ const ApiSetup = () => {
                   <FiKey className="w-5 h-5" />
                   Configure API Keys
                 </button>
-                
+
                 <button
                   onClick={progressToNextStep}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3

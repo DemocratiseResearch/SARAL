@@ -168,8 +168,9 @@ export default function About() {
           className="text-center mb-16"
         >
           <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-4">
-            About Saral AI
+            About SARAL AI
           </h1>
+
           <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-3xl mx-auto leading-relaxed">
             We democratize research by making academic workflows smoother, faster, and more accessible 
             through AI-integrated tools that transform complex papers into engaging video presentations.

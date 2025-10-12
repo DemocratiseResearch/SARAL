@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from app.services.auth_service import auth_service
 from app.auth.dependencies import get_current_user
+from app.database import get_db, User
+from sqlalchemy.orm import Session
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,20 +25,30 @@ class UserResponse(BaseModel):
     picture: str
 
 @router.post("/google/login", response_model=AuthResponse)
-async def google_login(request: GoogleLoginRequest):
+async def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
     """Authenticate with Google and return JWT token"""
     try:
         # Verify Google token
-        user_data = auth_service.verify_google_token(request.token)
+        google_user_data = auth_service.verify_google_token(request.token)
         
+        # Get or create user in the database
+        user = auth_service.get_or_create_user(db, google_user_data)
+
+        user_data_for_token = {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "picture": user.picture
+        }
+
         # Create JWT token
-        access_token = auth_service.create_access_token(user_data)
+        access_token = auth_service.create_access_token(user_data_for_token)
         
-        logger.info(f"User authenticated: {user_data['email']}")
+        logger.info(f"User authenticated: {user.email}")
         
         return AuthResponse(
             access_token=access_token,
-            user=user_data
+            user=user_data_for_token
         )
         
     except HTTPException:

@@ -1,6 +1,6 @@
-// src/contexts/AuthContext.jsx
+// frontend/src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import { apiService } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -19,14 +19,14 @@ export const AuthProvider = ({ children }) => {
 
   // Set up API interceptor for auth headers
   useEffect(() => {
-    const interceptor = api.interceptors.request.use((config) => {
+    const interceptor = apiService.interceptors.request.use((config) => {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     });
 
-    return () => api.interceptors.request.eject(interceptor);
+    return () => apiService.interceptors.request.eject(interceptor);
   }, [token]);
 
   // Check authentication status on app load
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyToken = async () => {
     try {
-      const response = await api.get('/auth/verify');
+      const response = await apiService.get('/auth/verify');
       setUser(response.data.user);
     } catch (error) {
       console.error('Token verification failed:', error);
@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (googleToken) => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/google/login', {
+      const response = await apiService.post('/auth/google/login', {
         token: googleToken
       });
 
@@ -75,10 +75,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('auth_token');
+  const logout = async () => {
+    try {
+      // Call backend logout endpoint
+      await apiService.auth.logout();
+    } catch (error) {
+      console.warn('Backend logout failed:', error);
+      // Continue with local logout even if backend call fails
+    } finally {
+      // Clear local state regardless of backend response
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('auth_token');
+    }
   };
 
   const value = {

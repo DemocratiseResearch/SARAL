@@ -4,10 +4,12 @@ import jwt
 from datetime import datetime, timedelta
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
 from typing import Dict, Optional
 import logging
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+from app.database import get_db, User
 
 load_dotenv()
 
@@ -18,7 +20,7 @@ class AuthService:
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
         self.jwt_secret = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
         self.jwt_algorithm = "HS256"
-        self.token_expire_hours = 24
+        self.token_expire_days = 7  # Changed from hours to days
         
         if not self.google_client_id:
             logger.warning("GOOGLE_CLIENT_ID not configured")
@@ -46,11 +48,26 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid Google token"
             )
-    
+
+    def get_or_create_user(self, db: Session, user_data: dict) -> User:
+        user = db.query(User).filter(User.email == user_data['email']).first()
+        if not user:
+            db_user = User(
+                id=user_data['id'],
+                email=user_data['email'],
+                name=user_data['name'],
+                picture=user_data.get('picture')
+            )
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            return db_user
+        return user
+
     def create_access_token(self, user_data: Dict) -> str:
         """Create JWT access token"""
         try:
-            expire = datetime.utcnow() + timedelta(hours=self.token_expire_hours)
+            expire = datetime.utcnow() + timedelta(days=self.token_expire_days) # Changed to days
             payload = {
                 **user_data,
                 'exp': expire,

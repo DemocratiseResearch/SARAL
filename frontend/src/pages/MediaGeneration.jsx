@@ -3,15 +3,16 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  FiMic, FiVideo, FiVolume2, FiArrowRight
+  FiMic, FiVideo, FiVolume2, FiArrowRight, FiEdit, FiActivity
 } from 'react-icons/fi';
-import Layout           from '../components/common/Layout';
-import LoadingSpinner   from '../components/common/LoadingSpinner';
-import { useWorkflow }  from '../contexts/WorkflowContext';
-import { apiService }   from '../services/api';
-import toast            from 'react-hot-toast';
-import { useNavigate }  from 'react-router-dom';
-import { TTS_VOICES }   from '../utils/constants';
+import Layout from '../components/common/Layout';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useWorkflow } from '../contexts/WorkflowContext';
+import { apiService } from '../services/api';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { TTS_VOICES } from '../utils/constants';
+import ManimGenerator from '../components/workflow/ManimGenerator';
 
 /* ───────────────── voice selector ───────────────── */
 const VoiceSelector = ({ language, value, onChange }) => (
@@ -33,8 +34,8 @@ const VoiceSelector = ({ language, value, onChange }) => (
 
 /* ─────────────────────────── main page ─────────────────────────── */
 const SUPPORTED_LANGUAGES = [
-  'English','Hindi','Bengali','Gujarati','Kannada','Malayalam',
-  'Marathi','Odia','Punjabi','Tamil','Telugu'
+  'English', 'Hindi', 'Bengali', 'Gujarati', 'Kannada', 'Malayalam',
+  'Marathi', 'Odia', 'Punjabi', 'Tamil', 'Telugu'
 ];
 
 // Initialize voiceSelections for all languages with a default (first available) voice
@@ -49,20 +50,20 @@ const getDefaultVoices = () => {
 
 const MediaGeneration = () => {
   const navigate = useNavigate();
-  const { 
-    paperId, 
+  const {
+    paperId,
     audioFiles,
     videoPath,
-    completedSteps, 
-    setAudioFiles, 
-    setVideoPath, 
+    completedSteps,
+    setAudioFiles,
+    setVideoPath,
     markStepCompleted,
-    progressToNextStep 
+    progressToNextStep
   } = useWorkflow();
 
   /* local state */
   const [voiceSelections, setVoiceSelections] = useState(getDefaultVoices());
-  const [selectedLanguage, setSelectedLang]   = useState('English');
+  const [selectedLanguage, setSelectedLang] = useState('English');
   const [hinglishIterations, setHinglishIterations] = useState(3);
 
   const [audioLoading, setAudioLoading] = useState(false);   // spinner 1
@@ -72,6 +73,7 @@ const MediaGeneration = () => {
   const hasAudioFiles = audioFiles && audioFiles.length > 0;
   const hasVideoPath = videoPath && videoPath.trim() !== '';
   const mediaGenerated = hasAudioFiles && hasVideoPath;
+  const [progress, setProgress] = useState(0); // 0 to 100
 
   /* helper: update voice */
   const changeVoice = (lang, voice) =>
@@ -84,54 +86,61 @@ const MediaGeneration = () => {
   const generateAudio = async () => {
     if (!paperId) return;
     setAudioLoading(true);
+    setProgress(10); // just to show immediate feedback
+
     try {
       const cfg = {
-        voice_selection   : voiceSelections,
+        voice_selection: voiceSelections,
         hinglish_iterations: hinglishIterations,
-        show_hindi_debug  : false,
-        selected_language : selectedLanguage
+        show_hindi_debug: false,
+        selected_language: selectedLanguage
       };
+
       const { data } = await apiService.generateAudio(paperId, cfg);
       setAudioFiles(data.audio_files || []);
-      toast.success('Audio ready – generating video…');
+      setProgress(50); // halfway done after audio
 
-      /* immediately kick off video build */
+      toast.success('Audio ready – generating video…');
       await generateVideo();
     } catch (error) {
       console.error('Audio generation failed:', error);
       toast.error('Audio generation failed');
+      setProgress(0);
     } finally {
       setAudioLoading(false);
     }
   };
 
+
   /* ───── 2. generate video then auto-redirect ───── */
   const generateVideo = async () => {
     if (!paperId) return;
     setVideoLoading(true);
+    setProgress(60); // slight jump to show video starting
+
     try {
       const cfg = { selected_language: selectedLanguage };
       const { data } = await apiService.generateVideo(paperId, cfg);
       setVideoPath(data.video_path);
-      
-      // Mark step 5 (Media Generation) as completed
+
       markStepCompleted(5);
-      
+      setProgress(100); // complete
       toast.success('Video created successfully!');
 
-      // Auto-progress to results page for first-time generation
       const isFirstTimeGeneration = !completedSteps.includes(5);
       if (isFirstTimeGeneration) {
-        progressToNextStep(); // This will automatically navigate to /results        
+        progressToNextStep();
       }
 
     } catch (error) {
       console.error('Video generation failed:', error);
       toast.error('Video generation failed');
+      setProgress(50); // remain at audio
     } finally {
       setVideoLoading(false);
     }
   };
+
 
 
   /* ───── 3. redirect to results page ───── */
@@ -141,7 +150,7 @@ const MediaGeneration = () => {
   };
 
   /* ─────────────────────────── ui ─────────────────────────── */
-  const crumbs = [{ label:'Media Generation', href:'/media-generation' }];
+  const crumbs = [{ label: 'Media Generation', href: '/media-generation' }];
   if (!paperId) {
     return (
       <Layout title="" breadcrumbs={crumbs}>
@@ -162,8 +171,8 @@ const MediaGeneration = () => {
             Generate Audio & Video
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            {mediaGenerated 
-              ? 'Your audio and video have been generated successfully!' 
+            {mediaGenerated
+              ? 'Your audio and video have been generated successfully!'
               : 'Click once – the system narrates your slides and builds the video automatically.'
             }
           </p>
@@ -171,17 +180,21 @@ const MediaGeneration = () => {
 
         {/* generator card */}
         <motion.div
-          initial={{ opacity:0, y:20 }}
-          animate={{ opacity:1, y:0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-neutral-800 rounded-xl p-6
                      border border-neutral-200 dark:border-neutral-700 space-y-6">
 
           {/* spinner bar */}
           {(audioLoading || videoLoading) && (
-            <div className="h-1 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden mb-4">
-              <div className="h-full w-full animate-pulse bg-gray-700 dark:bg-gray-400" />
+            <div className="h-2 w-full bg-gray-900 dark:bg-gray-700 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-blue-600 dark:bg-gray-900 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           )}
+
 
           {/* Success indicator */}
           {mediaGenerated && !audioLoading && !videoLoading && (
@@ -230,6 +243,116 @@ const MediaGeneration = () => {
               </select>
             </div>
           </div>
+
+          {/* Manim Animation Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <ManimGenerator
+              paperId={paperId}
+              audioFile={audioFiles?.[0]}
+              onVideoGenerated={(videoPath) => {
+                console.log('Manim video generated:', videoPath);
+                setVideoPath(videoPath); // Actually set the video path!
+                markStepCompleted(5); // Mark video generation step as completed
+                toast.success('Manim video generated successfully!');
+              }}
+            />
+          </motion.div>
+
+          {/* Manim Animation Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="pt-6 border-t border-gray-200 dark:border-gray-700"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <FiActivity className="w-5 h-5" />
+                  Manim Mathematical Animation
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Create professional mathematical animations with Manim Community v0.19.0
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                    📐 Mathematical Visualizations
+                  </h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Generate stunning mathematical animations with:
+                  </p>
+                  <ul className="text-xs text-gray-600 dark:text-gray-400 mt-2 space-y-1">
+                    <li>✓ AI-generated Manim code</li>
+                    <li>✓ Professional vector graphics</li>
+                    <li>✓ Smooth mathematical transitions</li>
+                    <li>✓ Synchronized TTS narration</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => navigate('/manim-animation')}
+                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-lg transition-all duration-150 shadow-md hover:shadow-lg whitespace-nowrap"
+                >
+                  Create Manim Animation →
+                </button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Whiteboard Animation Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="pt-6 border-t border-gray-200 dark:border-gray-700"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <FiEdit className="w-5 h-5" />
+                  Whiteboard Animation
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Create hand-drawn style educational videos with AI-generated visuals
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                    🎨 New Feature Available
+                  </h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Generate engaging whiteboard-style animations with:
+                  </p>
+                  <ul className="text-xs text-gray-600 dark:text-gray-400 mt-2 space-y-1">
+                    <li>✓ Hand-drawing animation effects</li>
+                    <li>✓ AI-generated scene visuals</li>
+                    <li>✓ Kokoro TTS with word-level subtitles</li>
+                    <li>✓ Multiple image models (Free & Premium)</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => navigate('/whiteboard-animation')}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium rounded-lg transition-all duration-150 shadow-md hover:shadow-lg whitespace-nowrap"
+                >
+                  Create Whiteboard Video →
+                </button>
+              </div>
+            </div>
+          </motion.div>
 
           {/* Action buttons */}
           {!mediaGenerated ? (

@@ -1,0 +1,74 @@
+/* PDF.js styles - Required for react-pdf */
+@import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+@import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+/* Custom PDF viewer styles */
+.pdf-viewer-container {
+	background: #f3f4f6;
+}
+
+.pdf-page-wrapper {
+	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+	border-radius: 8px;
+	overflow: hidden;
+	background: white;
+}
+
+/* Section highlight animation */
+.section-highlight {
+	animation: pulse 2s ease-in-out infinite;
+	background-color: rgba(255, 255, 0, 0.3);
+	border: 2px solid #fbbf24;
+}
+
+@keyframes pulse {
+
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Scrollbar styling for chat */
+.chat-messages::-webkit-scrollbar {
+	width: 8px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+	background: #888;
+	border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+	background: #555;
+}
+
+/* Markdown code block styling */
+.markdown-content pre {
+	border-radius: 8px;
+	margin: 1rem 0;
+}
+
+.markdown-content code {
+	font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* Loading animation */
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.loading-spinner {
+	animation: spin 1s linear infinite;
+}

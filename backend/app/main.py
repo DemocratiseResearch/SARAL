@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-import os
 from pathlib import Path
 import logging
 
@@ -12,14 +11,35 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth
+from app.routes import (
+    api_keys,
+    papers,
+    scripts,
+    slides,
+    media,
+    images,
+    auth,
+    manim,
+    whiteboard,
+    saras,
+    posters,
+)
 from app.auth.google_auth import get_current_user, get_current_user_optional
+from app.database import create_tables
+
+# Create database tables on startup
+create_tables()
 
 # Create temp directories
 temp_dirs = [
-    "temp/arxiv_sources", "temp/images", "temp/title_slides",
-    "temp/videos", "temp/audio", "temp/latex_template",
-    "temp/slides", "temp/scripts"
+    "temp/arxiv_sources",
+    "temp/images",
+    "temp/title_slides",
+    "temp/videos",
+    "temp/audio",
+    "temp/latex_template",
+    "temp/slides",
+    "temp/scripts",
 ]
 
 for dir_path in temp_dirs:
@@ -30,7 +50,7 @@ app = FastAPI(
     description="Convert academic papers to presentation videos with Google OAuth",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Enhanced CORS middleware
@@ -43,23 +63,27 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
         "http://localhost:3001",
+        "http://10-2-133-95.nip.io:3000",
+        "http://10-2-135-255.nip.io:3000",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    expose_headers=["*"]
+    expose_headers=["*"],
 )
+
 
 # Add middleware to log requests
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(f"Request: {request.method} {request.url}")
     logger.info(f"Headers: {dict(request.headers)}")
-    
+
     response = await call_next(request)
-    
+
     logger.info(f"Response: {response.status_code}")
     return response
+
 
 # Custom exception handlers
 @app.exception_handler(HTTPException)
@@ -70,10 +94,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={
             "detail": exc.detail,
             "status_code": exc.status_code,
-            "path": str(request.url.path)
+            "path": str(request.url.path),
         },
-        headers=exc.headers
+        headers=exc.headers,
     )
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -83,9 +108,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "detail": "Validation Error",
             "errors": exc.errors(),
-            "path": str(request.url.path)
-        }
+            "path": str(request.url.path),
+        },
     )
+
 
 # Static files
 app.mount("/static", StaticFiles(directory="temp"), name="static")
@@ -98,6 +124,11 @@ app.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
 app.include_router(slides.router, prefix="/api/slides", tags=["Slides"])
 app.include_router(media.router, prefix="/api/media", tags=["Media"])
 app.include_router(images.router, prefix="/api/images", tags=["Images"])
+app.include_router(manim.router, prefix="/api/manim", tags=["Manim"])
+app.include_router(whiteboard.router, prefix="/api/whiteboard", tags=["Whiteboard"])
+app.include_router(saras.router, prefix="/api/saras", tags=["SARAS Chat"])
+app.include_router(posters.router, prefix="/api/posters", tags=["Poster Generation"])
+
 
 # Public endpoints
 @app.get("/")
@@ -107,13 +138,15 @@ async def root():
         "message": "Saral AI Academic Paper to Video API",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
+
 
 @app.get("/health")
 async def health_check():
     """Public health check endpoint"""
     return {"status": "healthy", "api_version": "1.0.0"}
+
 
 # Protected endpoints example
 @app.get("/api/user/profile")
@@ -121,6 +154,8 @@ async def get_user_profile(current_user: dict = Depends(get_current_user)):
     """Protected endpoint requiring authentication"""
     return {"user": current_user}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
