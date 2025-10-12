@@ -128,6 +128,7 @@ async def tutor_chat(paper_id: str, request: RagTutorRequest, api_keys: dict = D
                 next_index = state.current_step_index + 1
                 if next_index < len(plan['prerequisites']):
                     next_state.current_step_index = next_index
+                    next_state.current_step = state.current_step + 1 
                     next_step_data = plan['prerequisites'][next_index]
                     bot_message += f"Next topic: **{next_step_data['topic']}**\n\n{next_step_data['explanation']}\n\n{next_step_data['question']}"
                 else:
@@ -140,9 +141,11 @@ async def tutor_chat(paper_id: str, request: RagTutorRequest, api_keys: dict = D
                 next_index = state.current_step_index + 1
                 if next_index < len(plan['abstraction_layers']):
                     next_state.current_step_index = next_index
+                    next_state.current_step = state.current_step + 1
                     next_step_data = plan['abstraction_layers'][next_index]
                     bot_message += f"**Next Level of Detail:**\n{next_step_data['summary']}\n\n{next_step_data['question']}"
                 else:
+                    next_state.current_step = state.current_step + 1
                     bot_message += "Excellent! You've successfully gone through all the layers of the paper. You should now have a solid understanding of it. The session is complete."
                     is_final = True
         else:
