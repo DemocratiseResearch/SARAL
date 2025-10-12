@@ -1,14 +1,14 @@
 import os
 from pathlib import Path
-from moviepy.editor import AudioFileClip, VideoFileClip, concatenate_videoclips, CompositeAudioClip
+from moviepy.editor import AudioFileClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip, TextClip
 import wave
 
 import subprocess
 import shlex
 
-def generate_dialogue_video(paper_id, audio_count):
+def generate_dialogue_video(paper_id, audio_count, dialogues):
     # create two videos by overlaying each character
-    subprocess.run(shlex.split('ffmpeg -y -i app/assets/bg2.mp4 -i app/assets/female.png -filter_complex "[0:v][1:v] overlay=0:H-h:enable=\'between(t,0,60)\'" -pix_fmt yuv420p -c:a copy temp/videos/a_video.mp4'))
+    subprocess.run(shlex.split('ffmpeg -y -i app/assets/bg2.mp4 -i app/assets/student.png -filter_complex "[0:v][1:v] overlay=0:H-h:enable=\'between(t,0,60)\'" -pix_fmt yuv420p -c:a copy temp/videos/a_video.mp4'))
     subprocess.run(shlex.split('ffmpeg -y -i app/assets/bg2.mp4 -i app/assets/pkExplains.png -filter_complex "[0:v][1:v] overlay=W-w:H-h:enable=\'between(t,0,60)\'" -pix_fmt yuv420p -c:a copy temp/videos/k_video.mp4'))
 
     # then load both videos
@@ -31,8 +31,11 @@ def generate_dialogue_video(paper_id, audio_count):
         curstart += audio_clip.duration
         # 3. combine the audio with the video
         video_clip = video_clip.set_audio(audio_clip)
-        video_clips.append(video_clip)
+        # 4. place the text on the video
+        text_clip = TextClip(dialogues[i]["dialogue"]).with_position((0.2, 0.2), relative=True)
+        video_clip = CompositeVideoClip([video_clip, text_clip])
 
+        video_clips.append(video_clip)
 
     final_video = concatenate_videoclips(video_clips, method="compose")
     final_video.write_videofile("temp/videos/output.mp4", fps=30, preset="ultrafast", threads=8)

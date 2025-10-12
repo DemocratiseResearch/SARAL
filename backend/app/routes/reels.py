@@ -62,7 +62,7 @@ async def create_reel_video(request: ReelVideoRequest):
     """
     try:
         # Call the video generation function with the list of full paths
-        video_path = generate_dialogue_video(paper_id = request.paper_id, audio_count = request.audio_count)
+        video_path = generate_dialogue_video(paper_id = request.paper_id, audio_count = request.audio_count, dialogues = request.dialogues)
 
     except Exception as e:
         print(f"An unexpected error occurred in video generation: {e}")

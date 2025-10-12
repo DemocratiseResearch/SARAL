@@ -92,3 +92,4 @@ class ReelAudioRequest(BaseModel):
 class ReelVideoRequest(BaseModel):
     paper_id: str
     audio_count: int
+    dialogues: List[Dict[str, str]]
