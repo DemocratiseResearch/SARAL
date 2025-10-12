@@ -26,6 +26,7 @@ import OAuthCallback from './pages/OAuthCallback';
 import VideoPreview from './pages/VideoPreview';
 import VideoDisplay from './pages/VideoDisplay';
 import ChatPage from './pages/ChatPage'; // ⭐️ Import the new page
+import RagTutor from './pages/RagTutor';
 
 
 function App() {
@@ -94,7 +95,11 @@ function App() {
             <ChatPage />
         </ProtectedRoute>
     }/>
-
+    <Route path="/rag-tutor/:paperId" element={
+        <ProtectedRoute>
+            <RagTutor />
+        </ProtectedRoute>
+    }/>
     <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     
