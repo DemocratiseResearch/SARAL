@@ -77,6 +77,12 @@ class GoogleTokenRequest(BaseModel):
     token_type: str
     expiry_date: str | None = None  # optional (frontend may send expiry)
 
+class ReelScriptRequest(BaseModel):
+    args: str # what format to take input in: "pdf" / "latex" / "arxiv"
+    path: str
+    arxiv_id: str
+    language: str
+
 # reel audio generation
 class ReelAudioRequest(BaseModel):
     paper_id: str
@@ -86,3 +92,4 @@ class ReelAudioRequest(BaseModel):
 class ReelVideoRequest(BaseModel):
     paper_id: str
     audio_count: int
+    dialogues: List[Dict[str, str]]

@@ -5,6 +5,8 @@ import tempfile
 import os
 
 from ..services.tts_service import generate_dialogue_audio_bhashini
+
+from ..models.request_models import ReelVideoRequest
 from ..services.shortform_video import generate_dialogue_video
 from ..models.request_models import ReelAudioRequest
 from ..models.request_models import ReelVideoRequest

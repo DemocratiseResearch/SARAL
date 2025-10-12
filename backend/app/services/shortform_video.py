@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from moviepy.editor import AudioFileClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip, TextClip
+from moviepy.editor import AudioFileClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip, TextClip
 import wave
 
 import subprocess

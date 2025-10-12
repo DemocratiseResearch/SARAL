@@ -36,6 +36,12 @@
   },
   {
     "model_type": "tts",
+    "source_language": "English",
+	"api_url": "https://canvas.iiit.ac.in/sandboxbeprod/generate_tts/67bca8b3e0b95a6a1ea34a93",
+	"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjhlYTNmMmRiOTNlM2JlYzkwMWZkODVkIiwicm9sZSI6Im1lZ2F0aG9uX3N0dWRlbnQifQ.uU9rXmgKjGgCPAZasrIp5x-G1NgScc-jlXP89sNVIEk"
+  },
+  {
+    "model_type": "tts",
     "source_language": "Hindi",
     "api_url": "https://canvas.iiit.ac.in/sandboxbeprod/generate_tts/67bca89ae0b95a6a1ea34a92",
     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjhlYTNmMmRiOTNlM2JlYzkwMWZkODVkIiwicm9sZSI6Im1lZ2F0aG9uX3N0dWRlbnQifQ.uU9rXmgKjGgCPAZasrIp5x-G1NgScc-jlXP89sNVIEk"
