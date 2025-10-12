@@ -9,7 +9,7 @@ import shlex
 def generate_dialogue_video(paper_id, audio_count):
     # create two videos by overlaying each character
     subprocess.run(shlex.split('ffmpeg -y -i app/assets/bg2.mp4 -i app/assets/female.png -filter_complex "[0:v][1:v] overlay=0:H-h:enable=\'between(t,0,60)\'" -pix_fmt yuv420p -c:a copy temp/videos/a_video.mp4'))
-    subprocess.run(shlex.split('ffmpeg -y -i app/assets/bg2.mp4 -i app/assets/male.png -filter_complex "[0:v][1:v] overlay=W-w:H-h:enable=\'between(t,0,60)\'" -pix_fmt yuv420p -c:a copy temp/videos/k_video.mp4'))
+    subprocess.run(shlex.split('ffmpeg -y -i app/assets/bg2.mp4 -i app/assets/pkExplains.png -filter_complex "[0:v][1:v] overlay=W-w:H-h:enable=\'between(t,0,60)\'" -pix_fmt yuv420p -c:a copy temp/videos/k_video.mp4'))
 
     # then load both videos
     a_video = VideoFileClip("temp/videos/a_video.mp4")

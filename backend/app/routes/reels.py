@@ -1,15 +1,40 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 
-from ..services.tts_service import generate_dialogue_audio_bhashini
-from ..services.shortform_video import generate_dialogue_video
+from ..models.request_models import ReelScriptRequest
+from ..services.paper_loader import load_paper_snippet
+from ..services.shortform_script import generate_script
+from pathlib import Path
+
 from ..models.request_models import ReelAudioRequest
+from ..services.tts_service import generate_dialogue_audio_bhashini
+
 from ..models.request_models import ReelVideoRequest
+from ..services.shortform_video import generate_dialogue_video
 
 router = APIRouter(
     prefix="/reels",
     tags=["Reels"]
 )
+
+@router.post("/generate-script", status_code=200)
+async def create_reel_script(request: ReelScriptRequest):
+    question = "Summarize the key ideas from the provided material"
+    snippets = []
+    if request.args == "paper":
+        try:
+            paper_path = Path(request.path).resolve()
+            print(f"Reading paper: {paper_path}")
+            paper_snippet = load_paper_snippet(paper_path)
+            if paper_snippet:
+                snippets.append(paper_snippet)
+                print("Added paper to context")
+        except Exception as exc:
+            print(f"Warning: could not process paper ({exc})")
+
+    script = generate_script(question, snippets, language=request.language)
+    return script
+
 
 @router.post("/generate-audio", status_code=201)
 async def create_reel_audio(request: ReelAudioRequest):
