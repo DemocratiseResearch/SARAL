@@ -236,7 +236,7 @@ Create a `.env` file in the `backend/` directory:
 Add your Firebase service account JSON to backend/firebase_service_account.json
 
 ```
-GOOGLE_API_KEY=your_gemini_api_key
+GOOGLE_API_KEY=your_GOOGLE_API_KEY
 SARVAM_API_KEY=your_sarvam_api_key
 FIREBASE_SERVICE_ACCOUNT=./firebase_service_account.json
 ```

@@ -51,7 +51,7 @@ def add_texts_with_retry(vector_store, texts):
     vector_store.add_texts(texts=texts)
 
 
-def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
+def process_pdf_and_create_store(file: UploadFile, GOOGLE_API_KEY: str) -> str:
     """
     Processes an uploaded PDF, creates a Chroma vector store, persists it,
     and correctly saves the paper's metadata.
@@ -123,7 +123,7 @@ def process_pdf_and_create_store(file: UploadFile, gemini_api_key: str) -> str:
         raise e
 
 
-def get_conversational_chain(paper_id: str, gemini_api_key: str):
+def get_conversational_chain(paper_id: str, GOOGLE_API_KEY: str):
     """
     Loads an existing vector store and builds a conversational RAG chain.
     (This function remains unchanged)
@@ -168,7 +168,7 @@ def get_conversational_chain(paper_id: str, gemini_api_key: str):
         template=custom_prompt_template, input_variables=["context", "question"]
     )
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=gemini_api_key, temperature=0.2)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GOOGLE_API_KEY, temperature=0.2)
     
     retriever = vector_store.as_retriever(
         search_type="similarity", 

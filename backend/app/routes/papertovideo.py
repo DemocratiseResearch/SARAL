@@ -254,7 +254,7 @@ async def upload_latex_to_video(file: UploadFile = File(...),
             #     raise HTTPException(status_code=404, detail="User not found")
 
             # api_keys = {
-            #     "gemini_key": os.getenv("GEMINI_API_KEY"),
+            #     "gemini_key": os.getenv("GOOGLE_API_KEY"),
             #     "sarvam_key": os.getenv("SARVAM_API_KEY"),
             #     "openai_key": os.getenv("OPENAI_API_KEY")
             # }
@@ -337,7 +337,7 @@ async def upload_arxiv_to_video(arxiv_url: str = Form(...),
             #     raise HTTPException(status_code=404, detail="User not found")
 
             # api_keys = {
-            #     "gemini_key": os.getenv("GEMINI_API_KEY"),
+            #     "gemini_key": os.getenv("GOOGLE_API_KEY"),
             #     "sarvam_key": os.getenv("SARVAM_API_KEY"),
             #     "openai_key": os.getenv("OPENAI_API_KEY")
             # }

@@ -52,7 +52,7 @@ def get_api_keys(
         raise HTTPException(status_code=404, detail="User not found")
     user = user_doc.to_dict()
     api_keys = {
-        "gemini_key": user.get('gemini_key') or os.getenv("GEMINI_API_KEY"),
+        "gemini_key": user.get('gemini_key') or os.getenv("GOOGLE_API_KEY"),
         "sarvam_key": user.get('sarvam_key') or os.getenv("SARVAM_API_KEY"),
         "openai_key": user.get('openai_key') or os.getenv("OPENAI_API_KEY")
     }
