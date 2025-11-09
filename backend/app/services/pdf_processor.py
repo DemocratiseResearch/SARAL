@@ -67,17 +67,17 @@ def extract_pdf_metadata(doc: fitz.Document) -> Dict:
         "authors": "Author",
         "date": "2024"
     }
-    
+
     # Try to get metadata from PDF
     if doc.metadata:
         # Title
         if doc.metadata.get("title"):
             metadata["title"] = doc.metadata.get("title")
-        
-        # Authors
+
+        # Authors - try metadata first
         if doc.metadata.get("author"):
             metadata["authors"] = doc.metadata.get("author")
-        
+
         # Date - try to extract from different fields
         date_fields = ["creationDate", "modDate"]
         for field in date_fields:
@@ -88,19 +88,181 @@ def extract_pdf_metadata(doc: fitz.Document) -> Dict:
                     date_str = date_str[2:6]  # Extract just year
                 metadata["date"] = date_str
                 break
-    
-    # Fallback: Try to extract title from first page if metadata doesn't have it
+
+    # Fallback: Try to extract title and authors from first page if metadata doesn't have them
+    first_page_text = doc[0].get_text()
+
+    # Title fallback
     if metadata["title"] == "Research Paper":
-        first_page = doc[0].get_text()
-        lines = first_page.split('\n')
-        if lines and len(lines) > 0:
-            # First non-empty line might be the title
-            for line in lines:
-                if line.strip():
-                    metadata["title"] = line.strip()
-                    break
-    
+        metadata["title"] = _extract_title_from_text(first_page_text)
+
+    # Authors fallback - if not found in metadata
+    # Also try text extraction if metadata only has single author
+    # (some PDFs have incomplete metadata)
+    if metadata["authors"] == "Author":
+        metadata["authors"] = _extract_authors_from_text(first_page_text)
+    else:
+        # Even if we have an author from metadata, try text extraction
+        # If text gives us multiple authors, prefer that (more complete)
+        text_authors = _extract_authors_from_text(first_page_text)
+        if text_authors and text_authors != "Author":
+            # Count authors in each version
+            metadata_author_count = len(metadata["authors"].split(","))
+            text_author_count = len(text_authors.split(","))
+            # If text has more authors, use it (likely more complete)
+            if text_author_count > metadata_author_count:
+                metadata["authors"] = text_authors
+
     return metadata
+
+
+def _extract_authors_from_text(text: str) -> str:
+    """
+    Extract author names from PDF text.
+
+    Supports patterns like:
+    - "Authors: Name1, Name2, Name3"
+    - "Authors: Name1 and Name2"
+    - Multi-line author lists (authors spanning multiple lines)
+    - "Name1, Name2, and Name3"
+
+    Also handles:
+    - Superscript numbers (1, 2, 3, etc.) and markers (1†, 2‡, etc.)
+    - Special symbols (†, ‡, *, ¶, §, ¤, etc.)
+    - Affiliation markers in parentheses (e.g., "John Smith (MIT)")
+    - Newlines within author list
+
+    Args:
+        text: Text extracted from PDF
+
+    Returns:
+        Comma-separated author names or default "Author"
+    """
+    if not text:
+        return "Author"
+
+    # Pattern 1: Look for "Authors:" line (most common in academic papers)
+    # Matches across multiple lines until it hits a section header like "Affiliations:" or "Abstract:"
+    authors_pattern = r"Authors?:\s*(.+?)(?=\n[A-Z][a-z]+:|$)"
+    match = re.search(authors_pattern, text, re.IGNORECASE | re.DOTALL)
+
+    if match:
+        authors_text = match.group(1)
+    else:
+        # Pattern 2: If no explicit "Authors:" label, try first page
+        # that contain multiple person names
+        lines = text.split('\n')[:15]  # Look in first 15 lines
+        authors_text = None
+
+        # Skip obvious header/metadata lines 
+        # (first few lines often have journal info)
+        for line in lines[1:]:  # Skip the very first line (often header)
+            stripped = line.strip()
+
+            if not stripped or len(stripped) > 300:
+                continue
+
+            # Look for lines with "First Last and First Last" pattern
+            # Must have at least 2 capitalized words AND either "and" or comma
+            capitalized_words = re.findall(r'\b[A-Z][a-z]+\b', stripped)
+            has_separator = bool(re.search(r'\band\b|\,', stripped, re.IGNORECASE))
+
+            # Check if it looks like an author line:
+            # - At least 3 capitalized words (minimum for "First Last")
+            # - Contains "and" or comma separator
+            # - Doesn't look like a sentence (no common words like "the", "is", etc.)
+            common_words = ['the', 'is', 'are', 'was', 'were', 'this', 'that']
+            has_common_words = any(re.search(rf'\b{w}\b', stripped.lower()) for w in common_words)
+
+            if len(capitalized_words) >= 2 and has_separator and not has_common_words:
+                authors_text = stripped
+                break
+
+        if not authors_text:
+            return "Author"
+
+    # Clean up the extracted authors text
+    authors = _clean_author_names(authors_text)
+
+    return authors if authors else "Author"
+
+
+def _clean_author_names(authors_text: str) -> str:
+    """
+    Clean up author names by removing superscripts, symbols, and affiliations.
+
+    Args:
+        authors_text: Raw author string from PDF
+
+    Returns:
+        Cleaned comma-separated author names
+    """
+    # Remove superscript numbers and special symbols (†, ‡, *, etc.)
+    # Keep: letters, spaces, commas, "and"
+    authors_text = re.sub(r'[0-9†‡*¶§¤†‡†‡]', '', authors_text)
+
+    # Remove parenthetical content (affiliations)
+    authors_text = re.sub(r'\([^)]*\)', '', authors_text)
+
+    # Split by common delimiters
+    # Handle both comma and "and" separators
+    authors_text = re.sub(r'\s+and\s+', ', ', authors_text, flags=re.IGNORECASE)
+
+    # Split by comma
+    author_names = [name.strip() for name in authors_text.split(',')]
+
+    # Clean each author name
+    cleaned_authors = []
+    for author in author_names:
+        # Remove extra whitespace
+        author = ' '.join(author.split())
+
+        # Skip empty or too short names
+        if author and len(author) > 2:
+            cleaned_authors.append(author)
+
+    if cleaned_authors:
+        # Return up to 50 authors 
+        return ', '.join(cleaned_authors[:50])
+
+    return ""
+
+
+def _extract_title_from_text(text: str) -> str:
+    """
+    Extract title from PDF first page text.
+
+    Args:
+        text: Text extracted from first page
+
+    Returns:
+        Extracted title or default "Research Paper"
+    """
+    if not text:
+        return "Research Paper"
+
+    lines = text.split('\n')
+
+    # Skip very short lines and lines that look like page numbers
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip if empty or too short
+        if not stripped or len(stripped) < 10:
+            continue
+
+        # Skip if looks like page number or metadata
+        if stripped.isdigit() or stripped.lower() in ['abstract', 'authors', 'affiliations']:
+            continue
+
+        # Skip if too long 
+        if len(stripped) > 300:
+            continue
+
+        # Found likely title
+        return stripped
+
+    return "Research Paper"
 
 def extract_pdf_images(doc: fitz.Document, output_dir: str) -> List[str]:
     """
