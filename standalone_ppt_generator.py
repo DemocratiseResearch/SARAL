@@ -9,8 +9,8 @@ import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # ================= CONFIGURATION =================
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
-PIXABAY_API_KEY = "YOUR_PIXABAY_API_KEY_HERE"
+GEMINI_API_KEY = "Gemini_API_Key_Here"
+PIXABAY_API_KEY = "Pixabay_API_Key_Here"
 
 INPUT_PPTX_PATHS = ["input1.pptx", "input2.pptx"]
 INPUT_JSON_FILE = "structured_content.json"
