@@ -12,7 +12,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
 PIXABAY_API_KEY = "YOUR_PIXABAY_API_KEY_HERE"
 
-INPUT_PPTX_PATHS = ["input1.pptx", "Second_template.pptx"]
+INPUT_PPTX_PATHS = ["input1.pptx", "input2.pptx"]
 INPUT_JSON_FILE = "structured_content.json"
 OUTPUT_PPTX_PATH_PREFIX = "final_presentation"
 IMAGE_DIR = "downloaded_images"
@@ -30,6 +30,42 @@ safety_settings = {
 
 if not os.path.exists(IMAGE_DIR):
     os.makedirs(IMAGE_DIR)
+
+# ================= RESEARCH DOMAIN DETECTION =================
+
+def extract_research_domain(structured_content):
+    """
+    Uses Gemini to intelligently identify the main research domain/vertical from the paper.
+    Works with any research paper, no hardcoded keywords.
+    """
+    title = structured_content.get("metadata", {}).get("title", "")
+    
+    # Get a sample of the content to analyze
+    sections = structured_content.get("sections", {})
+    sample_text = title + " "
+    
+    for section_key, section_data in list(sections.items())[:2]:  # Use first 2 sections as sample
+        sample_text += section_data.get("script", "")[:300] + " "
+    
+    prompt = f"""
+    Analyze the following research paper excerpt and identify the main research domain or vertical.
+    Respond with ONLY the domain name (e.g., "Computer Vision", "Natural Language Processing", "Robotics", "Medical Imaging", etc).
+    Be concise - just one or two words.
+
+    PAPER EXCERPT:
+    {sample_text[:1500]}
+
+    RESEARCH DOMAIN:
+    """
+    
+    try:
+        response = model.generate_content(prompt, safety_settings=safety_settings)
+        domain = normalize_text(response.text).strip()
+        return domain if domain else "Research"
+    except Exception as e:
+        print(f"   - Gemini API error during domain detection: {e}")
+        return "Research"
+
 
 # ================= IMAGE HANDLING LOGIC =================
 
@@ -59,12 +95,15 @@ def get_image_from_pixabay(query):
         print(f"   - Error fetching image from Pixabay: {e}")
     return None
 
-def generate_image_search_query(slide_content):
-    """Generates a concise, effective image search query from slide content."""
+def generate_image_search_query(slide_content, research_domain):
+    """Generates a domain-specific image search query from slide content."""
     prompt = f"""
-    Based on the following text for a presentation slide, generate a 2-4 word search query for a stock photo website (like Pixabay).
-    The query should be concrete, visual, and represent the main theme of the text.
-    Avoid abstract concepts. Focus on objects, actions, or scenes.
+    The research paper is about: {research_domain}
+    
+    Based on the following text for a presentation slide, generate a 2-4 word search query for Pixabay.
+    The query should be specific to {research_domain}, concrete, visual, and represent the main theme.
+    Focus on professional, technical images related to {research_domain}.
+    Avoid abstract concepts. Focus on objects, actions, or scenes relevant to this research domain.
 
     TEXT: "{slide_content}"
 
@@ -75,15 +114,14 @@ def generate_image_search_query(slide_content):
         return normalize_text(response.text)
     except Exception as e:
         print(f"   - Gemini API error during image query generation: {e}")
-        # Fallback to a simple keyword
-        return " ".join(slide_content.split()[:3])
+        return f"{research_domain} research"
 
-def replace_picture_placeholders(slide, slide_content):
+def replace_picture_placeholders(slide, slide_content, research_domain):
     """
     Replaces picture placeholders on a slide with a fetched image
-    based on the slide's content.
+    based on the slide's content and research domain.
     """
-    query = generate_image_search_query(slide_content)
+    query = generate_image_search_query(slide_content, research_domain)
     print(f"   - Generated image search query: '{query}'")
 
     pic_placeholder = None
@@ -239,6 +277,10 @@ def process_ppt(input_pptx_path, output_pptx_path):
     title = metadata.get("title", "Research Paper")
     authors = metadata.get("authors", "Unknown Authors").split(', ')
     sections = structured_content.get("sections", {})
+    
+    # Extract the research domain from the paper
+    research_domain = extract_research_domain(structured_content)
+    print(f"\nResearch Domain Detected: {research_domain}")
 
     # --- SLIDE 1: Title Slide ---
     print("\nProcessing Slide 1 (Title Slide)...")
@@ -306,7 +348,7 @@ def process_ppt(input_pptx_path, output_pptx_path):
 
         # --- Image Replacement ---
         slide_content_for_image = section_data.get("script", section_key)
-        replace_picture_placeholders(slide, slide_content_for_image)
+        replace_picture_placeholders(slide, slide_content_for_image, research_domain)
 
     try:
         prs.save(output_pptx_path)
