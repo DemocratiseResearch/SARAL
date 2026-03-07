@@ -109,12 +109,78 @@ def clean_text(text):
     
     return text
 
-def generate_full_script_with_gemini(api_key, input_text):
-    """Generate presentation script using Gemini API with improved prompts from app_1.py"""
+def load_images_for_gemini(image_paths, max_images=5):
+    """Load images from file paths as PIL Images for Gemini multimodal input.
+
+    Args:
+        image_paths: List of file paths to images
+        max_images: Maximum number of images to include (to avoid token limits)
+
+    Returns:
+        List of PIL Image objects that were successfully loaded
+    """
+    from PIL import Image
+
+    loaded_images = []
+    supported_extensions = {'.png', '.jpg', '.jpeg'}
+
+    for img_path in image_paths[:max_images]:
+        try:
+            ext = os.path.splitext(img_path)[1].lower()
+            if ext not in supported_extensions:
+                print(f"Skipping unsupported image format: {img_path}")
+                continue
+            if not os.path.exists(img_path):
+                print(f"Image file not found: {img_path}")
+                continue
+            img = Image.open(img_path)
+            # Resize large images to reduce token usage
+            max_dim = 1024
+            if max(img.size) > max_dim:
+                ratio = max_dim / max(img.size)
+                new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+                img = img.resize(new_size, Image.LANCZOS)
+            loaded_images.append(img)
+            print(f"Loaded image for multimodal: {os.path.basename(img_path)} ({img.size[0]}x{img.size[1]})")
+        except Exception as e:
+            print(f"Error loading image {img_path}: {e}")
+            continue
+
+    return loaded_images
+
+
+def generate_full_script_with_gemini(api_key, input_text, image_paths=None, image_captions=None):
+    """Generate presentation script using Gemini API with multimodal figure narration.
+
+    When images are provided, Gemini receives them alongside the text so it can
+    generate narration that directly references and explains the figures.
+    """
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
-    # Enhanced prompt based on app_1.py
+    model = genai.GenerativeModel('gemini-2.5-flash')
+
+    # Build figure context for the prompt
+    figure_context = ""
+    images_for_gemini = []
+
+    if image_paths:
+        images_for_gemini = load_images_for_gemini(image_paths)
+        if images_for_gemini:
+            figure_context = f"\n\nThis paper contains {len(images_for_gemini)} figures (attached as images)."
+            if image_captions:
+                figure_context += "\nFigure captions from the paper:\n"
+                for fig_id, caption in image_captions.items():
+                    figure_context += f"- {fig_id}: {caption}\n"
+
+    # Build the prompt with figure-awareness instructions
+    figure_instructions = ""
+    if images_for_gemini:
+        figure_instructions = """
+8. IMPORTANT: The paper's figures are provided as images. You MUST reference and explain them in your narration.
+   - In the Results section, describe what the charts/tables show (e.g., "As we can see in the results figure, the model achieves...")
+   - In the Methodology section, explain any architecture diagrams (e.g., "The architecture diagram shows how...")
+   - Use natural references like "as illustrated in the figure", "the chart demonstrates", "looking at the comparison table"
+   - Do NOT use generic figure numbers like "Figure 1" — instead describe what the figure shows"""
+
     prompt = f"""
 Create a script for a 3-5 minute educational video based on this research paper.
 STRUCTURE:
@@ -131,16 +197,24 @@ Important rules:
 4. Avoid technical jargon where possible
 5. Make it engaging for a general audience
 6. DO NOT include any video/animation directions or [Narrator:] tags
-7. Make sure that you do not use contracted words, for example: we'll, we're.
-Here’s the paper text to base the script on:
+7. Make sure that you do not use contracted words, for example: we'll, we're.{figure_instructions}
+Here's the paper text to base the script on:
 Research Paper Content:
-{input_text}
+{input_text}{figure_context}
 
 Please generate the complete presentation script with clear section headers:
 """
 
     try:
-        response = model.generate_content(prompt)
+        if images_for_gemini:
+            # Multimodal: send text + images together
+            content_parts = [prompt] + images_for_gemini
+            print(f"Sending multimodal request to Gemini with {len(images_for_gemini)} images")
+            response = model.generate_content(content_parts)
+        else:
+            # Text-only fallback (no images available)
+            print("No images available, using text-only script generation")
+            response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         print(f"Error generating script with Gemini: {e}")
@@ -149,7 +223,7 @@ Please generate the complete presentation script with clear section headers:
 def generate_bullet_points_with_gemini(api_key, section_text):
     """Generate bullet points for a section using improved prompts."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
 Convert this presentation script into 3-5 clear, concise bullet points for a slide.
@@ -209,7 +283,7 @@ Generate exactly 3-5 bullet points in this format:
 def generate_all_bullet_points_with_gemini(api_key, sections_scripts):
     """Generate bullet points for all sections using a single prompt."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     print(f"Generating bullet points for {len(sections_scripts)} sections using single prompt")
     

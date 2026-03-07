@@ -16,6 +16,7 @@ from app.services.script_generator import (
     generate_all_bullet_points_with_gemini,
     extract_paper_metadata
 )
+from app.services.latex_processor import extract_image_captions
 from app.routes.papers import papers_storage
 from app.routes.api_keys import get_api_keys
 from app.services.storage_manager import storage_manager
@@ -81,7 +82,7 @@ def get_or_load_scripts(paper_id: str) -> Dict:
     return scripts_storage[paper_id]
 
 @router.post("/{paper_id}/generate", response_model=ScriptResponse)
-async def generate_script(paper_id: str, api_keys: dict = Depends(get_api_keys)):
+async def generate_script(paper_id: str, multimodal: bool = True, api_keys: dict = Depends(get_api_keys)):
     """Generate presentation script from paper with bullet points."""
     paper_id_str = str(paper_id)  # Ensure we're using a string for comparison
     
@@ -125,9 +126,27 @@ async def generate_script(paper_id: str, api_keys: dict = Depends(get_api_keys))
         print(f"Generated title introduction: {title_intro}")
         input_text = extract_text_from_file(file_path)
         input_text = clean_text(input_text)
-        
-        # Generate full script using Gemini with improved prompts
-        full_script = generate_full_script_with_gemini(api_keys["gemini_key"], input_text)
+
+        # Gather images and captions for multimodal figure narration
+        image_files = []
+        image_captions = {}
+        if multimodal:
+            image_files = paper_info.get("image_files", [])
+            if "tex_file_path" in paper_info and paper_info.get("source_type") != "pdf":
+                try:
+                    image_captions = extract_image_captions(paper_info["tex_file_path"])
+                except Exception as e:
+                    logger.warning(f"Could not extract image captions: {e}")
+
+        logger.info(f"Multimodal narration (enabled={multimodal}): {len(image_files)} images, {len(image_captions)} captions")
+
+        # Generate full script using Gemini with multimodal figure narration
+        full_script = generate_full_script_with_gemini(
+            api_keys["gemini_key"],
+            input_text,
+            image_paths=image_files if image_files else None,
+            image_captions=image_captions if image_captions else None
+        )
         
         # Split into sections
         sections_scripts = split_script_into_sections(full_script)

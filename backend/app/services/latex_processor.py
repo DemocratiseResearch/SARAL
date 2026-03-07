@@ -123,25 +123,34 @@ def convert_pdf_to_png(pdf_path, png_path):
         return False
 
 def extract_image_captions(tex_file_path):
-    """Extract image captions from LaTeX file."""
+    """Extract image captions from LaTeX file, mapping image filenames to captions."""
     captions = {}
-    
+
     try:
         with open(tex_file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        
+
         # Find figure environments with captions
         figure_pattern = r'\\begin\{figure\}(.*?)\\end\{figure\}'
         figures = re.findall(figure_pattern, content, re.DOTALL)
-        
+
+        includegraphics_pattern = r'\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}'
+
         for i, figure in enumerate(figures):
             caption_match = re.search(r'\\caption\{([^}]+)\}', figure)
-            if caption_match:
-                captions[f"figure_{i}"] = caption_match.group(1)
-                
+            img_match = re.search(includegraphics_pattern, figure)
+
+            caption_text = caption_match.group(1) if caption_match else None
+            if caption_text:
+                # Map by image filename if found, otherwise by figure index
+                if img_match:
+                    img_name = os.path.basename(img_match.group(1))
+                    captions[img_name] = caption_text
+                captions[f"figure_{i}"] = caption_text
+
     except Exception as e:
         print(f"Error extracting captions: {e}")
-    
+
     return captions
 
 def create_placeholder_image():
