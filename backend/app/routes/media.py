@@ -1,308 +1,147 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
-from fastapi.responses import FileResponse, StreamingResponse
+"""
+Media routes — audio generation, video generation, streaming/download.
+"""
+
 import os
-from pathlib import Path
-import json
-import traceback
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse
+from sqlmodel import Session
+
+from app.database import get_session
 from app.auth.dependencies import get_current_user
-from app.models.request_models import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
-from app.routes.papers import papers_storage
-from app.routes.scripts import scripts_storage
-from app.routes.slides import slides_storage
-from app.routes.api_keys import get_api_keys
-from app.services.tts_service import ensure_audio_is_generated, ensure_hindi_audio_is_generated, ensure_language_audio_is_generated
-from app.services.tts_service import ensure_audio_is_generated_bhashini, bhashini_mt
-from app.services.video_service import create_video_with_audio
-from app.services.hindi_service import generate_hindi_script_with_google
-from app.services.language_service import translate_to_language
+from app.models.user import User
+from app.schemas.media import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
+from app.services.media_service import generate_audio, generate_video_for_paper, get_media, get_supported_languages
+from app.services.api_key_service import get_key
 
-router = APIRouter()
+router = APIRouter(prefix="/media", tags=["media"])
 
-# In-memory storage for media
-media_storage = {}
 
 @router.post("/{paper_id}/generate-audio", response_model=MediaResponse)
-async def generate_audio(
+async def gen_audio(
     paper_id: str,
     request: AudioGenerationRequest,
-    api_keys: dict = Depends(get_api_keys)
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ):
-    print(f"using voice selection:, {request.voice_selection}")
-    print(f"Generating audio for paper ID: {paper_id}")
-    if paper_id not in scripts_storage:
-        scripts_file = f"temp/scripts/{paper_id}_scripts.json"
-        if os.path.exists(scripts_file):
-            import json
-            with open(scripts_file, 'r', encoding='utf-8') as f:
-                scripts_storage[paper_id] = json.load(f)
-        else:
-            raise HTTPException(status_code=404, detail="Scripts not found")
+    sarvam_key = get_key(user, session, "sarvam")
+    if not sarvam_key:
+        raise HTTPException(400, "Sarvam API key required for TTS")
 
-    if not api_keys.get("sarvam_key"):
-        raise HTTPException(status_code=400, detail="Sarvam API key required for TTS")
+    media = generate_audio(
+        paper_uid=paper_id,
+        user=user,
+        session=session,
+        sarvam_api_key=sarvam_key,
+        language=request.language,
+        voice=request.voice,
+    )
+    return MediaResponse(
+        paper_id=paper_id,
+        language=media.language,
+        audio_files=[os.path.basename(f) for f in (media.audio_files or [])],
+        video_path=os.path.basename(media.video_path) if media.video_path else None,
+        status=media.status,
+    )
 
-    try:
-        scripts_info = scripts_storage[paper_id]
-        audio_dir = f"temp/audio/{paper_id}"
-        Path(audio_dir).mkdir(parents=True, exist_ok=True)
 
-        sections_scripts = {}
-        for section_name, section_data in scripts_info.get("sections", {}).items():
-            if isinstance(section_data, dict):
-                sections_scripts[section_name] = section_data.get("script", "")
-            else:
-                sections_scripts[section_name] = str(section_data)
+@router.post("/{paper_id}/generate-video", response_model=MediaResponse)
+async def gen_video(
+    paper_id: str,
+    request: VideoGenerationRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    media = generate_video_for_paper(
+        paper_uid=paper_id,
+        user=user,
+        session=session,
+        language=request.language,
+    )
+    return MediaResponse(
+        paper_id=paper_id,
+        language=media.language,
+        audio_files=[os.path.basename(f) for f in (media.audio_files or [])],
+        video_path=os.path.basename(media.video_path) if media.video_path else None,
+        status=media.status,
+    )
 
-        if request.selected_language == "Hindi":
-            print("Generating Hindi audio")
-            print(f"Title intro script: {scripts_info.get('title_intro_script', '')}")
-            title_intro_hindi = generate_hindi_script_with_google(
-                scripts_info.get("title_intro_script", ""),
-                api_keys.get("sarvam_key")
-            )
-            hindi_sections_scripts = {
-                name: generate_hindi_script_with_google(script, api_keys.get("sarvam_key"))
-                for name, script in sections_scripts.items()
-            }
-            title_intro_script = title_intro_hindi
-            sections_scripts = hindi_sections_scripts
-            language = "Hindi"
-        elif request.selected_language == "English":
-            title_intro_script = scripts_info.get("title_intro_script", "")
-            language = "English"
-        else:
-            print(f"Translating to {request.selected_language}")
-            title_intro_script = translate_to_language(
-                scripts_info.get("title_intro_script", ""),
-                request.selected_language,
-                api_keys.get("sarvam_key")
-            )
-            sections_scripts = {
-                name: translate_to_language(script, request.selected_language, api_keys.get("sarvam_key"))
-                for name, script in sections_scripts.items()
-            }
-            language = request.selected_language
-        print(f"Title intro script: {title_intro_script}")
-        
-        if language == "Hindi":
-            audio_response = ensure_hindi_audio_is_generated(
-                sarvam_api_key=api_keys.get("sarvam_key"),
-                paper_id=paper_id,
-                title_intro_script=title_intro_script,
-                sections_scripts=sections_scripts,
-                voice_selections=request.voice_selection,
-                hinglish_iterations=request.hinglish_iterations,
-                openai_api_key=api_keys.get("openai_key"),
-                show_hindi_debug=request.show_hindi_debug
-            )
-        elif language == "English":
-            audio_response = ensure_audio_is_generated(
-                sarvam_api_key=api_keys.get("sarvam_key"),
-                language=language,
-                paper_id=paper_id,
-                title_intro_script=title_intro_script,
-                sections_scripts=sections_scripts,
-                voice_selections=request.voice_selection,
-                hinglish_iterations=request.hinglish_iterations,
-                openai_api_key=api_keys.get("openai_key"),
-                show_hindi_debug=request.show_hindi_debug
-            )
-        else:
-            audio_response = ensure_language_audio_is_generated(
-                sarvam_api_key=api_keys.get("sarvam_key"),
-                language=language,
-                paper_id=paper_id,
-                title_intro_script=title_intro_script,
-                sections_scripts=sections_scripts,
-                voice_selections=request.voice_selection,
-                hinglish_iterations=request.hinglish_iterations,
-                openai_api_key=api_keys.get("openai_key")
-            )
 
-        audio_files = audio_response["audio_files"]
-        if paper_id not in media_storage:
-            media_storage[paper_id] = {}
+@router.get("/{paper_id}/audio/{filename}")
+async def stream_audio(
+    paper_id: str,
+    filename: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    media = get_media(paper_id, user, session)
+    if not media or not media.audio_dir:
+        raise HTTPException(404, "Audio not found")
 
-        media_storage[paper_id]["audio_files"] = [os.path.join(audio_dir, f) for f in audio_files]
-        media_storage[paper_id]["audio_dir"] = audio_dir
+    audio_path = os.path.join(media.audio_dir, filename)
+    if not os.path.isfile(audio_path):
+        raise HTTPException(404, "Audio file not found")
 
-        return MediaResponse(
-            audio_files=audio_files,
-            paper_id=paper_id
-        )
+    return _stream_file(audio_path, "audio/wav", request)
 
-    except Exception as e:
-        print(f"Error generating audio: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
-@router.get("/{paper_id}/stream-audio/{filename}")
-async def stream_audio(paper_id: str, filename: str, request: Request):
-    if paper_id not in media_storage:
-        raise HTTPException(status_code=404, detail="Media not found")
+@router.get("/{paper_id}/video")
+async def stream_video(
+    paper_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    media = get_media(paper_id, user, session)
+    if not media or not media.video_path or not os.path.isfile(media.video_path):
+        raise HTTPException(404, "Video not found")
 
-    audio_dir = media_storage[paper_id].get("audio_dir")
-    if not audio_dir:
-        raise HTTPException(status_code=404, detail="Audio directory not found")
+    return _stream_file(media.video_path, "video/mp4", request)
 
-    audio_path = os.path.join(audio_dir, filename)
-    if not os.path.exists(audio_path):
-        raise HTTPException(status_code=404, detail="Audio file not found")
 
-    file_size = os.path.getsize(audio_path)
+@router.get("/{paper_id}/download-video")
+async def download_video(
+    paper_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    media = get_media(paper_id, user, session)
+    if not media or not media.video_path or not os.path.isfile(media.video_path):
+        raise HTTPException(404, "Video not found")
+    return FileResponse(
+        media.video_path,
+        media_type="video/mp4",
+        filename=f"presentation_{paper_id}.mp4",
+    )
+
+
+@router.get("/languages")
+async def languages():
+    return get_supported_languages()
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _stream_file(path: str, media_type: str, request: Request):
+    """Range-aware streaming for audio/video."""
+    file_size = os.path.getsize(path)
     range_header = request.headers.get("range")
+
     if range_header:
         start, end = range_header.replace("bytes=", "").split("-")
         start = int(start)
         end = int(end) if end else file_size - 1
-        chunk_size = end - start + 1
-
-        def iterfile():
-            with open(audio_path, "rb") as f:
-                f.seek(start)
-                yield f.read(chunk_size)
-
-        return StreamingResponse(
-            iterfile(),
-            status_code=206,
-            media_type="audio/wav",
-            headers={
-                "Content-Range": f"bytes {start}-{end}/{file_size}",
-                "Accept-Ranges": "bytes",
-                "Content-Length": str(chunk_size),
-            },
-        )
-    else:
-        return StreamingResponse(
-            open(audio_path, "rb"),
-            media_type="audio/wav",
-            headers={
-                "Accept-Ranges": "bytes",
-                "Content-Length": str(file_size),
-            },
-        )
-
-
-@router.post("/{paper_id}/generate-video", response_model=MediaResponse)
-async def generate_video(
-    paper_id: str,
-    request: VideoGenerationRequest,
-    background_tasks: BackgroundTasks
-):
-    """Generate final video from slides and audio."""
-    
-    if paper_id not in slides_storage:
-        raise HTTPException(status_code=404, detail="Slides not found")
-    
-    if paper_id not in media_storage or "audio_files" not in media_storage[paper_id]:
-        raise HTTPException(status_code=404, detail="Audio files not found")
-    
-    try:
-        slides_info = slides_storage[paper_id]
-        media_info = media_storage[paper_id]
-        
-        # Create video directory
-        video_dir = f"temp/videos/{paper_id}"
-        Path(video_dir).mkdir(parents=True, exist_ok=True)
-        
-        # Get slide images and audio files
-        slide_images = slides_info["image_paths"]
-        audio_files = media_info["audio_files"]
-        
-        print(f"Creating video with {len(slide_images)} slides and {len(audio_files)} audio files")
-        
-        # Generate video
-        output_file = os.path.join(video_dir, f"final_video_{request.selected_language.lower()}.mp4")
-        
-        video_path = create_video_with_audio(
-            slide_images=slide_images,
-            audio_files=audio_files,
-            background_music_file=request.background_music_file,
-            output_file=output_file
-        )
-        
-        media_storage[paper_id]["video_path"] = video_path
-        
-        return MediaResponse(
-            audio_files=[os.path.basename(f) for f in audio_files],
-            video_path=os.path.basename(video_path) if video_path else None,
-            paper_id=paper_id
-        )
-        
-    except Exception as e:
-        print(f"Error generating video: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error generating video: {str(e)}")
-
-@router.get("/{paper_id}/download-video")
-async def download_video(paper_id: str):
-    """Download the generated video."""
-    
-    if paper_id not in media_storage or "video_path" not in media_storage[paper_id]:
-        raise HTTPException(status_code=404, detail="Video not found")
-    
-    video_path = media_storage[paper_id]["video_path"]
-    
-    if not os.path.exists(video_path):
-        raise HTTPException(status_code=404, detail="Video file not found")
-    
-    return FileResponse(
-        video_path,
-        media_type='video/mp4',
-        filename=f"presentation_{paper_id}.mp4"
-    )
-
-@router.get("/{paper_id}/download-audio/{filename}")
-async def download_audio(paper_id: str, filename: str):
-    """Download individual audio files."""
-    
-    if paper_id not in media_storage:
-        raise HTTPException(status_code=404, detail="Media not found")
-    
-    audio_dir = media_storage[paper_id].get("audio_dir")
-    if not audio_dir:
-        raise HTTPException(status_code=404, detail="Audio directory not found")
-    
-    audio_path = os.path.join(audio_dir, filename)
-    
-    if not os.path.exists(audio_path):
-        raise HTTPException(status_code=404, detail="Audio file not found")
-    
-    return FileResponse(
-        audio_path,
-        media_type='audio/wav',
-        filename=filename
-    )
-
-@router.get("/{paper_id}/stream-video")
-async def stream_video(paper_id: str, request: Request):
-    if paper_id not in media_storage:
-        raise HTTPException(status_code=404, detail="Video not found")
-
-    # Get the actual stored video path instead of constructing it
-    video_path = media_storage[paper_id].get("video_path")
-    if not video_path or not os.path.exists(video_path):
-        raise HTTPException(status_code=404, detail="Video file not found")
-
-    file_size = os.path.getsize(video_path)
-    range_header = request.headers.get("range")
-    
-    if range_header:
-        # Parse range header
-        range_match = range_header.replace("bytes=", "").split("-")
-        start = int(range_match[0]) if range_match[0] else 0
-        end = int(range_match[1]) if range_match[1] else file_size - 1
-        
-        # Ensure end doesn't exceed file size
         end = min(end, file_size - 1)
-        chunk_size = end - start + 1
+        length = end - start + 1
 
         def iterfile():
-            with open(video_path, "rb") as f:
+            with open(path, "rb") as f:
                 f.seek(start)
-                remaining = chunk_size
-                while remaining:
-                    chunk = f.read(min(8192, remaining))  # Read in 8KB chunks
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(8192, remaining))
                     if not chunk:
                         break
                     remaining -= len(chunk)
@@ -311,150 +150,19 @@ async def stream_video(paper_id: str, request: Request):
         return StreamingResponse(
             iterfile(),
             status_code=206,
-            media_type="video/mp4",
+            media_type=media_type,
             headers={
                 "Content-Range": f"bytes {start}-{end}/{file_size}",
                 "Accept-Ranges": "bytes",
-                "Content-Length": str(chunk_size),
-                "Cache-Control": "no-cache",
+                "Content-Length": str(length),
             },
         )
     else:
-        # Return entire file
         return StreamingResponse(
-            open(video_path, "rb"),
-            media_type="video/mp4",
+            open(path, "rb"),
+            media_type=media_type,
             headers={
                 "Accept-Ranges": "bytes",
                 "Content-Length": str(file_size),
-                "Cache-Control": "no-cache",
             },
         )
-
-
-
-@router.post("/{paper_id}/generate-audio-bhashini", response_model=MediaResponse)
-async def generate_audio_bhashini(
-    paper_id: str,
-    request: AudioGenerationRequest,
-    api_keys: dict = Depends(get_api_keys)
-):
-    print(f"using voice selection:, {request.voice_selection}")
-    print(f"Generating audio for paper ID: {paper_id}")
-    lang = request.selected_language
-    gender = "male"
-    print("lang", lang)
-    if paper_id not in scripts_storage:
-        scripts_file = f"temp/scripts/{paper_id}_scripts.json"
-        if os.path.exists(scripts_file):
-            with open(scripts_file, 'r', encoding='utf-8') as f:
-                scripts_storage[paper_id] = json.load(f)
-        else:
-            raise HTTPException(status_code=404, detail="Scripts not found")
-
-    if not api_keys.get("sarvam_key"):
-        raise HTTPException(status_code=400, detail="Sarvam API key required for TTS")
-
-    try:
-        scripts_info = scripts_storage[paper_id]
-        audio_dir = f"temp/audio/{paper_id}"
-        Path(audio_dir).mkdir(parents=True, exist_ok=True)
-
-         # Load model details for MT and TTS
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        print("BASE_DIR", BASE_DIR)
-        MODEL_PATH = os.path.join(BASE_DIR, "..", "services", "models.json")
-
-        api_url = None
-        access_token = None
-        with open(MODEL_PATH, "r") as f:
-            data = json.load(f)
-
-
-        sections_scripts = {}
-        for section_name, section_data in scripts_info.get("sections", {}).items():
-            if isinstance(section_data, dict):
-                sections_scripts[section_name] = section_data.get("script", "")
-            else:
-                sections_scripts[section_name] = str(section_data)
-
-        
-        # translate to required lang if required
-        if lang == "English":
-            print(f"Generating {lang} script")
-            title_intro_script = scripts_info.get("title_intro_script", "")
-            language = "English"
-        else:
-            print(f"Generating {lang} script")
-            # print(f"Title intro script: {scripts_info.get('title_intro_script', '')}")
-
-            if isinstance(data, list):
-                for item in data:
-                    if (
-                        item.get("model_type") == "mt"
-                        and item.get("source_language") == "English"
-                        and item.get("target_language") == lang
-                    ):
-                        api_url = item.get("api_url")
-                        access_token = item.get("access_token")
-
-                headers = {"access-token": access_token}
-
-                title_intro = await bhashini_mt(
-                    scripts_info.get("title_intro_script", ""),
-                    headers,
-                    api_url
-                )
-                nonEngish_sections_scripts = {
-                    name: await bhashini_mt(script, headers, api_url)
-                    for name, script in sections_scripts.items()
-                }
-                print("title_intro", title_intro)
-                print("nonEngish_sections_scripts", nonEngish_sections_scripts)
-                title_intro_script = title_intro
-                sections_scripts = nonEngish_sections_scripts
-        
-
-
-        # generate audio
-        
-        for item in data:
-            if (
-                item.get("model_type") == "tts"
-                and item.get("source_language") == lang
-            ):
-                api_url = item.get("api_url")
-                access_token = item.get("access_token")
-
-        headers = {"access-token": access_token}
-
-
-        print("calling aduio generator of bhashini ")
-        audio_response = await ensure_audio_is_generated_bhashini(
-            language=lang,
-            gender = gender,
-            headers = headers,
-            api_url = api_url,
-            paper_id=paper_id,
-            title_intro_script=title_intro_script,
-            sections_scripts=sections_scripts
-        )
-        print("audio_response", audio_response)
-
-
-        audio_files = audio_response["audio_files"]
-        if paper_id not in media_storage:
-            media_storage[paper_id] = {}
-
-        media_storage[paper_id]["audio_files"] = [os.path.join(audio_dir, f) for f in audio_files]
-        media_storage[paper_id]["audio_dir"] = audio_dir
-
-        return MediaResponse(
-            audio_files=audio_files,
-            paper_id=paper_id
-        )
-
-    except Exception as e:
-        print(f"Error generating audio: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
