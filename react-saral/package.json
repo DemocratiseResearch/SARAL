@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "firebase": "^12.10.0",
     "lucide-react": "^0.577.0",
+    "motion": "^12.35.2",
     "nitro": "latest",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

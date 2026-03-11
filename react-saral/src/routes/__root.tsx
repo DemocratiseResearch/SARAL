@@ -7,6 +7,7 @@ import {
 import { useEffect } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useAuthStore } from "@/stores/auth-store"
+import { initTheme } from "@/stores/theme-store"
 
 import appCss from "../styles.css?url"
 
@@ -58,6 +59,10 @@ function RootComponent() {
     const unsub = init()
     return unsub
   }, [init])
+
+  useEffect(() => {
+    return initTheme()
+  }, [])
 
   return (
     <QueryClientProvider client={queryClient}>

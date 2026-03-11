@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { useAuthStore } from "@/stores/auth-store"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function Header() {
   const user = useAuthStore((s) => s.user)
@@ -17,6 +18,7 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-4">
+          <ThemeToggle />
           {user ? (
             <>
               <Link

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <rect width="120" height="120" rx="8" fill="#fff"/>
+  <g transform="translate(15,10)">
+    <!-- Triangle shape -->
+    <polygon points="45,5 5,80 85,80" fill="none" stroke="#1a73a7" stroke-width="4"/>
+    <polygon points="45,25 20,70 70,70" fill="#5cc8d7"/>
+    <!-- A letter -->
+    <text x="37" y="62" font-family="Arial,sans-serif" font-size="28" font-weight="bold" fill="#1a73a7">A</text>
+    <!-- Text lines -->
+    <text x="58" y="35" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#1a73a7">Anusandhan</text>
+    <text x="58" y="46" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#1a73a7">National</text>
+    <text x="58" y="57" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#e8433e">Research</text>
+    <text x="58" y="68" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#1a73a7">Foundation</text>
+  </g>
+</svg>

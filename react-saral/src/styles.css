@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -75,7 +76,7 @@
 }
 
 @theme inline {
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: 'Poppins', sans-serif;
     --color-brand-50: #eef2ff;
     --color-brand-100: #e0e7ff;
     --color-brand-200: #c7d2fe;
@@ -136,5 +137,8 @@
     }
   html {
     @apply font-sans;
+    }
+  button, a, [role="button"], summary {
+    @apply cursor-pointer;
     }
 }
