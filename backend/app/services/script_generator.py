@@ -109,22 +109,29 @@ def clean_text(text):
     
     return text
 
-def load_images_for_gemini(image_paths, max_images=5):
+def load_images_for_gemini(image_paths, min_size_pixels=150, max_images=50):
     """Load images from file paths as PIL Images for Gemini multimodal input.
+
+    Filters out small images (logos/icons) and sorts by image area descending
+    so the most informative figures (architecture diagrams, result charts) are
+    prioritised.  PIL file handles are explicitly closed after loading pixel
+    data into memory to prevent resource leaks under concurrent usage.
 
     Args:
         image_paths: List of file paths to images
-        max_images: Maximum number of images to include (to avoid token limits)
+        min_size_pixels: Minimum width AND height an image must exceed to be
+            included.  Logos and icons are typically smaller than this.
+        max_images: Maximum number of images to include
 
     Returns:
-        List of PIL Image objects that were successfully loaded
+        List of PIL Image objects (always in RGB mode) that were successfully loaded
     """
     from PIL import Image
 
-    loaded_images = []
+    candidates = []  # (area, img) tuples for sorting
     supported_extensions = {'.png', '.jpg', '.jpeg'}
 
-    for img_path in image_paths[:max_images]:
+    for img_path in image_paths:
         try:
             ext = os.path.splitext(img_path)[1].lower()
             if ext not in supported_extensions:
@@ -133,19 +140,59 @@ def load_images_for_gemini(image_paths, max_images=5):
             if not os.path.exists(img_path):
                 print(f"Image file not found: {img_path}")
                 continue
+
             img = Image.open(img_path)
+            img.load()  # force pixel data into memory
+            img_copy = img.copy()  # work with an in-memory copy
+            img.close()  # release the file handle
+
+            # Filter out small images (logos, icons, decorative elements)
+            width, height = img_copy.size
+            if width < min_size_pixels or height < min_size_pixels:
+                print(f"Skipping small image ({width}x{height}): {os.path.basename(img_path)}")
+                img_copy.close()
+                continue
+
+            # Normalize image mode to RGB (JPEG doesn't support RGBA/P modes)
+            if img_copy.mode in ('RGBA', 'LA'):
+                background = Image.new('RGB', img_copy.size, (255, 255, 255))
+                background.paste(img_copy, mask=img_copy.split()[-1])  # use alpha as mask
+                img_copy.close()
+                img_copy = background
+            elif img_copy.mode == 'P':
+                img_copy = img_copy.convert('RGBA')
+                background = Image.new('RGB', img_copy.size, (255, 255, 255))
+                background.paste(img_copy, mask=img_copy.split()[-1])
+                img_copy.close()
+                img_copy = background
+            elif img_copy.mode != 'RGB':
+                img_copy = img_copy.convert('RGB')
+
             # Resize large images to reduce token usage
             max_dim = 1024
-            if max(img.size) > max_dim:
-                ratio = max_dim / max(img.size)
-                new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
-                img = img.resize(new_size, Image.LANCZOS)
-            loaded_images.append(img)
-            print(f"Loaded image for multimodal: {os.path.basename(img_path)} ({img.size[0]}x{img.size[1]})")
+            if max(img_copy.size) > max_dim:
+                ratio = max_dim / max(img_copy.size)
+                new_size = (int(img_copy.size[0] * ratio), int(img_copy.size[1] * ratio))
+                img_copy = img_copy.resize(new_size, Image.LANCZOS)
+
+            area = img_copy.size[0] * img_copy.size[1]
+            candidates.append((area, img_copy, img_path))
+            print(f"Loaded image for multimodal: {os.path.basename(img_path)} ({img_copy.size[0]}x{img_copy.size[1]})")
         except Exception as e:
             print(f"Error loading image {img_path}: {e}")
             continue
 
+    # Sort by area descending – larger figures (results, diagrams) come first
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    selected = candidates[:max_images]
+
+    # Close images that didn't make the cut
+    for area, img, path in candidates[max_images:]:
+        img.close()
+        print(f"Dropped image (over limit): {os.path.basename(path)}")
+
+    loaded_images = [img for _, img, _ in selected]
+    print(f"Selected {len(loaded_images)} informative images out of {len(image_paths)} total")
     return loaded_images
 
 
@@ -158,24 +205,16 @@ def generate_full_script_with_gemini(api_key, input_text, image_paths=None, imag
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
 
-    # Build figure context for the prompt
-    figure_context = ""
+    # Load and prepare images
     images_for_gemini = []
-
     if image_paths:
         images_for_gemini = load_images_for_gemini(image_paths)
-        if images_for_gemini:
-            figure_context = f"\n\nThis paper contains {len(images_for_gemini)} figures (attached as images)."
-            if image_captions:
-                figure_context += "\nFigure captions from the paper:\n"
-                for fig_id, caption in image_captions.items():
-                    figure_context += f"- {fig_id}: {caption}\n"
 
     # Build the prompt with figure-awareness instructions
     figure_instructions = ""
     if images_for_gemini:
         figure_instructions = """
-8. IMPORTANT: The paper's figures are provided as images. You MUST reference and explain them in your narration.
+8. IMPORTANT: The paper's figures are provided as images interleaved below. You MUST reference and explain them in your narration.
    - In the Results section, describe what the charts/tables show (e.g., "As we can see in the results figure, the model achieves...")
    - In the Methodology section, explain any architecture diagrams (e.g., "The architecture diagram shows how...")
    - Use natural references like "as illustrated in the figure", "the chart demonstrates", "looking at the comparison table"
@@ -198,18 +237,49 @@ Important rules:
 5. Make it engaging for a general audience
 6. DO NOT include any video/animation directions or [Narrator:] tags
 7. Make sure that you do not use contracted words, for example: we'll, we're.{figure_instructions}
-Here's the paper text to base the script on:
+
+Here is the paper text to base the script on:
 Research Paper Content:
-{input_text}{figure_context}
+{input_text}
 
 Please generate the complete presentation script with clear section headers:
 """
 
     try:
         if images_for_gemini:
-            # Multimodal: send text + images together
-            content_parts = [prompt] + images_for_gemini
-            print(f"Sending multimodal request to Gemini with {len(images_for_gemini)} images")
+            # Multimodal: interleave images with captions as structured parts
+            # so Gemini can associate each image with its context
+            content_parts = [prompt]
+
+            content_parts.append(
+                f"\n\nThe following {len(images_for_gemini)} figures are from the paper. "
+                "Each image is preceded by its caption (if available). "
+                "Refer to these figures in your narration where relevant.\n"
+            )
+
+            for idx, img in enumerate(images_for_gemini):
+                # Add caption text before its corresponding image
+                caption_text = ""
+                if image_captions:
+                    # Try to match by index-based figure ID conventions
+                    for fig_id, caption in image_captions.items():
+                        fig_num = re.search(r'(\d+)', str(fig_id))
+                        if fig_num and int(fig_num.group(1)) == idx + 1:
+                            caption_text = caption
+                            break
+                    # Fallback: assign captions in order
+                    if not caption_text:
+                        caption_items = list(image_captions.items())
+                        if idx < len(caption_items):
+                            caption_text = caption_items[idx][1]
+
+                if caption_text:
+                    content_parts.append(f"\nFigure {idx + 1} caption: {caption_text}")
+                else:
+                    content_parts.append(f"\nFigure {idx + 1}:")
+                content_parts.append(img)  # PIL image right after its caption
+
+            print(f"Sending multimodal request to Gemini with {len(images_for_gemini)} interleaved images")
             response = model.generate_content(content_parts)
         else:
             # Text-only fallback (no images available)
