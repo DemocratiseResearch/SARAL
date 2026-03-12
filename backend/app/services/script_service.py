@@ -2,6 +2,7 @@
 Script service — generate presentation scripts and bullet points from paper text.
 """
 
+import re
 import logging
 from sqlmodel import Session, select
 
@@ -13,7 +14,43 @@ from app.utils.latex import extract_text_from_file
 
 logger = logging.getLogger(__name__)
 
-SECTION_ORDER = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+DEFAULT_SECTIONS = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+
+
+def _detect_sections(paper_text: str) -> list[str]:
+    """Extract section headings from paper text.
+
+    Looks for common heading patterns and falls back to
+    DEFAULT_SECTIONS if fewer than 2 headings are found.
+    """
+    patterns = [
+        r"\\(?:sub)?section\*?\{([^}]+)\}",           # LaTeX \section{...}
+        r"^#{1,3}\s+(.+)$",                             # Markdown ## heading
+        r"^(?:[IVXLC]+|\d+)\.?\s+([A-Z][A-Za-z &-]+)$",  # Numbered: 1. Intro
+        r"^([A-Z][A-Z &-]{3,})$",                       # ALL-CAPS headings
+    ]
+
+    skip = {
+        "abstract", "references", "bibliography", "acknowledgements",
+        "acknowledgments", "appendix", "supplementary material",
+        "keywords", "conflict of interest", "funding",
+    }
+
+    found: list[str] = []
+    seen: set[str] = set()
+
+    for pattern in patterns:
+        for m in re.finditer(pattern, paper_text, re.MULTILINE):
+            name = m.group(1).strip().rstrip(":")
+            if len(name) < 3 or len(name) > 60:
+                continue
+            key = name.lower()
+            if key in skip or key in seen:
+                continue
+            seen.add(key)
+            found.append(name.title() if name.isupper() else name)
+
+    return found if len(found) >= 2 else DEFAULT_SECTIONS
 
 
 def generate_scripts(
@@ -42,9 +79,13 @@ def generate_scripts(
         raise ValueError("No text file available for this paper")
     paper_text = extract_text_from_file(file_path)
 
+    # Detect actual sections from the paper text
+    sections = _detect_sections(paper_text)
+    logger.info(f"Detected sections for {paper_uid}: {sections}")
+
     # Generate full script → split into sections
-    full_script = generate_script(paper_text, model=model, api_key=api_key)
-    sections_scripts = _split_script(full_script)
+    full_script = generate_script(paper_text, sections, model=model, api_key=api_key)
+    sections_scripts = _split_script(full_script, sections)
 
     # Generate bullet points for all sections
     bullet_map = generate_bullet_points(sections_scripts, model=model, api_key=api_key)
@@ -56,7 +97,7 @@ def generate_scripts(
 
     # Create new Script rows
     scripts: list[Script] = []
-    for section_name in SECTION_ORDER:
+    for section_name in sections:
         content = sections_scripts.get(section_name, "")
         bullets = bullet_map.get(section_name, [])
         if not content:
@@ -132,21 +173,21 @@ def assign_images(paper_uid: str, assignments: dict[str, str], user: User, sessi
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-def _split_script(full_script: str) -> dict[str, str]:
+def _split_script(full_script: str, sections: list[str]) -> dict[str, str]:
     """Split a full script into sections by header."""
-    import re
 
-    sections: dict[str, str] = {}
-    # Match section headers like **Introduction:** or ## Methodology or Introduction:
-    pattern = r"(?:^|\n)\s*(?:\*\*|#{1,3}\s*)?(" + "|".join(SECTION_ORDER) + r")(?:\*\*)?[:\s]*\n"
+    result: dict[str, str] = {}
+    # Build regex pattern from actual section names
+    escaped = [re.escape(s) for s in sections]
+    pattern = r"(?:^|\n)\s*(?:\*\*|#{1,3}\s*)?(" + "|".join(escaped) + r")(?:\*\*)?[:\s]*\n"
     parts = re.split(pattern, full_script, flags=re.IGNORECASE)
 
-    # parts = [preamble, "Introduction", intro_text, "Methodology", method_text, ...]
+    # parts = [preamble, "SectionName", text, "SectionName", text, ...]
     i = 1
     while i < len(parts) - 1:
         name = parts[i].strip()
         # Normalise to our canonical names
-        for canonical in SECTION_ORDER:
+        for canonical in sections:
             if canonical.lower() == name.lower():
                 name = canonical
                 break
@@ -155,7 +196,7 @@ def _split_script(full_script: str) -> dict[str, str]:
         text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
         text = re.sub(r"\*([^*]+)\*", r"\1", text)
         text = re.sub(r"#+\s*", "", text)
-        sections[name] = text
+        result[name] = text
         i += 2
 
-    return sections
+    return result

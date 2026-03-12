@@ -127,6 +127,9 @@ export const slidesApi = {
   generate: (paperId: string) =>
     api.post<SlideResponse>(`/slides/${paperId}/generate`),
   get: (paperId: string) => api.get<SlideResponse>(`/slides/${paperId}`),
+  fetchImage: (path: string) => api.get<Blob>(path, { responseType: "blob" }),
+  downloadPptx: (paperId: string) =>
+    api.get(`/slides/${paperId}/download-pptx`, { responseType: "blob" }),
 }
 
 // Media

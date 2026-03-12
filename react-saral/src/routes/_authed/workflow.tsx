@@ -3,7 +3,7 @@ import { useWorkflowStore } from "@/stores/workflow-store"
 import { StepIndicator } from "@/components/step-indicator"
 import { PaperUpload } from "@/components/paper-upload"
 import { ScriptEditor } from "@/components/script-editor"
-import { ImageSelector } from "@/components/image-selector"
+
 import { SlideViewer } from "@/components/slide-viewer"
 import { AudioGenerator } from "@/components/audio-generator"
 import { VideoPlayer } from "@/components/video-player"
@@ -42,11 +42,7 @@ function WorkflowPage() {
         )}
 
         {currentStep === "scripts" && paperId && (
-          <ScriptEditor paperId={paperId} onDone={() => setStep("images")} />
-        )}
-
-        {currentStep === "images" && paperId && (
-          <ImageSelector paperId={paperId} onDone={() => setStep("slides")} />
+          <ScriptEditor paperId={paperId} onDone={() => setStep("slides")} />
         )}
 
         {currentStep === "slides" && paperId && (

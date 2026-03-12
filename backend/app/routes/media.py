@@ -3,6 +3,7 @@ Media routes — audio generation, video generation, streaming/download.
 """
 
 import os
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
@@ -80,7 +81,10 @@ async def stream_audio(
     if not media or not media.audio_dir:
         raise HTTPException(404, "Audio not found")
 
-    audio_path = os.path.join(media.audio_dir, filename)
+    safe_name = os.path.basename(filename)
+    if safe_name != filename or ".." in filename:
+        raise HTTPException(400, "Invalid filename")
+    audio_path = os.path.join(media.audio_dir, safe_name)
     if not os.path.isfile(audio_path):
         raise HTTPException(404, "Audio file not found")
 
@@ -130,10 +134,15 @@ def _stream_file(path: str, media_type: str, request: Request):
     range_header = request.headers.get("range")
 
     if range_header:
-        start, end = range_header.replace("bytes=", "").split("-")
-        start = int(start)
-        end = int(end) if end else file_size - 1
+        match = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if not match:
+            raise HTTPException(416, "Invalid Range header")
+        start = int(match.group(1))
+        end_str = match.group(2)
+        end = int(end_str) if end_str else file_size - 1
         end = min(end, file_size - 1)
+        if start >= file_size or start > end:
+            raise HTTPException(416, "Range Not Satisfiable")
         length = end - start + 1
 
         def iterfile():

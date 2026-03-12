@@ -15,7 +15,10 @@ class Settings(BaseSettings):
     TEMP_DIR: Path = Path(__file__).resolve().parent.parent.parent / "temp"
 
     # ── Database ───────────────────────────────────────────────────────
-    DATABASE_URL: str = ""  # Computed in model_post_init if empty
+    # PostgreSQL: postgresql://user:password@localhost:5432/saral
+    # No default — must be set explicitly in .env so new developers don't
+    # accidentally connect to the wrong database.
+    DATABASE_URL: str = ""
 
     # ── Firebase ───────────────────────────────────────────────────────
     FIREBASE_SERVICE_ACCOUNT_BASE64: str = ""
@@ -56,10 +59,12 @@ class Settings(BaseSettings):
     }
 
     def model_post_init(self, __context):
-        # Default DATABASE_URL to SQLite in data/ if not explicitly set
         if not self.DATABASE_URL:
-            db_path = self.DATA_DIR / "saral.db"
-            object.__setattr__(self, "DATABASE_URL", f"sqlite:///{db_path}")
+            raise ValueError(
+                "DATABASE_URL is not set. Add it to your .env file.\n"
+                "Example: DATABASE_URL=postgresql://youruser@localhost:5432/saral\n"
+                "See backend/.env.example for details."
+            )
 
 
 @lru_cache()

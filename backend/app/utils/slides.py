@@ -16,8 +16,6 @@ from pptx.enum.shapes import MSO_SHAPE
 
 logger = logging.getLogger(__name__)
 
-SECTION_ORDER = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
-
 # ── Theme colors ──────────────────────────────────────────────────────────────
 BG_COLOR = RGBColor(0x1A, 0x1A, 0x2E)  # dark navy
 TITLE_COLOR = RGBColor(0x00, 0xD2, 0xFF)  # cyan accent
@@ -96,9 +94,7 @@ def create_presentation(
     )
 
     # ── Section slides ────────────────────────────────────────────────────
-    for section_name in SECTION_ORDER:
-        if section_name not in sections:
-            continue
+    for section_name in sections:
 
         section_data = sections[section_name]
         bullet_points = section_data.get("bullet_points", []) if isinstance(section_data, dict) else []
@@ -171,13 +167,33 @@ def pptx_to_images(pptx_path: str, output_dir: str, dpi: int = 200) -> list[str]
     return _render_slides_fallback(pptx_path, images_dir)
 
 
+def _find_libreoffice() -> Optional[str]:
+    """Locate the LibreOffice binary across platforms."""
+    import shutil
+
+    candidates = [
+        "libreoffice",
+        "soffice",
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    ]
+    for cmd in candidates:
+        if shutil.which(cmd):
+            return cmd
+    return None
+
+
 def _pptx_to_pdf_libreoffice(pptx_path: str, output_dir: str) -> Optional[str]:
     """Convert PPTX → PDF using LibreOffice headless."""
     import subprocess
 
+    lo_bin = _find_libreoffice()
+    if lo_bin is None:
+        logger.warning("LibreOffice not found — install it for best slide rendering")
+        return None
+
     try:
         subprocess.run(
-            ["libreoffice", "--headless", "--convert-to", "pdf", "--outdir", output_dir, pptx_path],
+            [lo_bin, "--headless", "--convert-to", "pdf", "--outdir", output_dir, pptx_path],
             check=True,
             capture_output=True,
             timeout=120,
@@ -210,6 +226,24 @@ def _pdf_to_images(pdf_path: str, images_dir: str, dpi: int) -> list[str]:
     return paths
 
 
+def _get_fallback_font(size: int = 28):
+    """Try platform-specific fonts, fall back to Pillow default."""
+    from PIL import ImageFont
+
+    font_paths = [
+        "/System/Library/Fonts/Helvetica.ttc",          # macOS
+        "/System/Library/Fonts/SFNSMono.ttf",           # macOS SF Mono
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",          # Arch Linux
+    ]
+    for fp in font_paths:
+        try:
+            return ImageFont.truetype(fp, size)
+        except (OSError, IOError):
+            continue
+    return ImageFont.load_default()
+
+
 def _render_slides_fallback(pptx_path: str, images_dir: str) -> list[str]:
     """Minimal fallback: render each slide as a simple image using Pillow."""
     from PIL import Image, ImageDraw, ImageFont
@@ -228,10 +262,7 @@ def _render_slides_fallback(pptx_path: str, images_dir: str) -> list[str]:
                 for para in shape.text_frame.paragraphs:
                     text = para.text.strip()
                     if text:
-                        try:
-                            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
-                        except (OSError, IOError):
-                            font = ImageFont.load_default()
+                        font = _get_fallback_font(28)
                         draw.text((60, y), text, fill=(224, 224, 224), font=font)
                         y += 44
 

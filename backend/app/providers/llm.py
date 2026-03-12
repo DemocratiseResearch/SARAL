@@ -19,12 +19,10 @@ litellm.suppress_debug_info = True
 
 SCRIPT_PROMPT = """Create a script for a 3-5 minute educational video based on this research paper.
 STRUCTURE:
-Create scripts for exactly these 5 sections:
-**Introduction**
-**Methodology**
-**Results**
-**Discussion**
-**Conclusion**
+Create scripts for exactly these sections, in the order listed:
+{sections_list}
+
+Each section MUST start with its exact heading as shown above (wrapped in ** markers).
 Important rules:
 1. Each section MUST start with its exact heading as shown above
 2. Keep content clear and focused - about 2-3 paragraphs per section
@@ -74,9 +72,10 @@ def _chat(model: str, prompt: str, api_key: str | None = None) -> str:
     return response.choices[0].message.content or ""
 
 
-def generate_script(paper_text: str, model: str, api_key: str | None = None) -> str:
-    """Generate a 5-section presentation script from paper text."""
-    prompt = SCRIPT_PROMPT.format(paper_text=paper_text)
+def generate_script(paper_text: str, sections: list[str], model: str, api_key: str | None = None) -> str:
+    """Generate a presentation script from paper text for the given sections."""
+    sections_list = "\n".join(f"**{s}**" for s in sections)
+    prompt = SCRIPT_PROMPT.format(paper_text=paper_text, sections_list=sections_list)
     return _chat(model, prompt, api_key)
 
 

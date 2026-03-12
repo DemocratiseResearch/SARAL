@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import { Moon, Sun, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,9 +17,18 @@ const options = [
 
 export function ThemeToggle() {
   const { theme, setTheme } = useThemeStore()
+  const [mounted, setMounted] = useState(false)
 
-  const CurrentIcon =
-    theme === "dark" ? Sun : theme === "light" ? Moon : Monitor
+  useEffect(() => setMounted(true), [])
+
+  // Always render Monitor on first pass to match SSR; swap after mount
+  const CurrentIcon = !mounted
+    ? Monitor
+    : theme === "dark"
+      ? Sun
+      : theme === "light"
+        ? Moon
+        : Monitor
 
   return (
     <DropdownMenu>

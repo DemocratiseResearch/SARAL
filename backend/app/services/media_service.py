@@ -24,8 +24,6 @@ from app.utils.files import ensure_paper_dirs
 
 logger = logging.getLogger(__name__)
 
-SECTION_ORDER = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
-
 
 def _title_intro(paper: Paper) -> str:
     """Generate a simple title introduction narration."""
@@ -70,7 +68,7 @@ def generate_audio(
     dirs = ensure_paper_dirs(paper.paper_uid)
     audio_dir = dirs["audio"]
 
-    # Build section text map
+    # Build section text map (preserving DB order)
     sections_text: dict[str, str] = {}
     for script in scripts:
         sections_text[script.section_name] = script.content
@@ -93,8 +91,8 @@ def generate_audio(
     if synthesize_long_text(sarvam_api_key, title_intro, title_path, lang_code, voice, language):
         audio_files.append(title_path)
 
-    # Section audio
-    for i, section_name in enumerate(SECTION_ORDER):
+    # Section audio — iterate in the order scripts were created
+    for i, section_name in enumerate(sections_text):
         text = sections_text.get(section_name)
         if not text:
             continue

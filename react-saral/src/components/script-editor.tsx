@@ -1,5 +1,6 @@
+import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { scriptsApi, type SectionScript } from "@/lib/api"
+import { scriptsApi, type SectionScript, type ScriptResponse } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
@@ -10,19 +11,49 @@ interface ScriptEditorProps {
 }
 
 export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editContent, setEditContent] = useState("")
+
   const scriptsQuery = useQuery({
     queryKey: ["scripts", paperId],
     queryFn: () => scriptsApi.get(paperId).then((r) => r.data),
     retry: false,
+    enabled: false, // Don't auto-fetch — only fetch after generate or manual refetch
   })
 
   const generateMutation = useMutation({
     mutationFn: () => scriptsApi.generate(paperId).then((r) => r.data),
-    onSuccess: () => scriptsQuery.refetch(),
+    onSuccess: (data: ScriptResponse) => {
+      scriptsQuery.refetch()
+    },
   })
 
-  const scripts = scriptsQuery.data
+  const updateMutation = useMutation({
+    mutationFn: ({ id, content }: { id: number; content: string }) =>
+      scriptsApi.update(id, { content }).then((r) => r.data),
+    onSuccess: () => {
+      setEditingId(null)
+      setEditContent("")
+      scriptsQuery.refetch()
+    },
+  })
+
+  const scripts = generateMutation.data ?? scriptsQuery.data
   const loading = generateMutation.isPending
+
+  const startEdit = (section: SectionScript) => {
+    setEditingId(section.id)
+    setEditContent(section.content)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditContent("")
+  }
+
+  const saveEdit = (id: number) => {
+    updateMutation.mutate({ id, content: editContent })
+  }
 
   return (
     <Card className="mx-auto max-w-4xl">
@@ -38,7 +69,16 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
             </Button>
           )}
           {scripts?.sections?.length ? (
-            <Button onClick={onDone}>Continue</Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => generateMutation.mutate()}
+                disabled={loading}
+              >
+                {loading ? <Spinner size="sm" /> : "Regenerate"}
+              </Button>
+              <Button onClick={onDone}>Continue</Button>
+            </>
           ) : null}
         </div>
       </CardHeader>
@@ -51,13 +91,47 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
 
         {scripts?.sections?.map((section: SectionScript) => (
           <div key={section.id} className="mb-6">
-            <h4 className="mb-2 text-lg font-semibold">
-              {section.section_name}
-            </h4>
-            <p className="mb-2 text-sm whitespace-pre-line text-gray-600 dark:text-gray-400">
-              {section.content}
-            </p>
-            {section.bullet_points.length > 0 && (
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-lg font-semibold">{section.section_name}</h4>
+              {editingId !== section.id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => startEdit(section)}
+                >
+                  Edit
+                </Button>
+              )}
+            </div>
+
+            {editingId === section.id ? (
+              <div className="space-y-2">
+                <textarea
+                  className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm dark:border-gray-700"
+                  rows={8}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => saveEdit(section.id)}
+                    disabled={updateMutation.isPending}
+                  >
+                    {updateMutation.isPending ? <Spinner size="sm" /> : "Save"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={cancelEdit}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="mb-2 text-sm whitespace-pre-line text-gray-600 dark:text-gray-400">
+                {section.content}
+              </p>
+            )}
+
+            {section.bullet_points.length > 0 && editingId !== section.id && (
               <ul className="ml-4 list-disc space-y-1 text-sm">
                 {section.bullet_points.map((bp, i) => (
                   <li key={i}>{bp}</li>
@@ -67,7 +141,7 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
           </div>
         ))}
 
-        {scriptsQuery.isLoading && (
+        {loading && (
           <div className="flex justify-center py-8">
             <Spinner />
           </div>

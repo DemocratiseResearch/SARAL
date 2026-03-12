@@ -25,7 +25,7 @@ function applyTheme(theme: Theme) {
 }
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  theme: getStoredTheme(),
+  theme: "system",
   setTheme: (theme) => {
     if (isBrowser) localStorage.setItem("theme", theme)
     applyTheme(theme)

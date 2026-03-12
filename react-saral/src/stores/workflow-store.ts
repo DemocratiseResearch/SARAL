@@ -3,7 +3,6 @@ import { create } from "zustand"
 export type WorkflowStep =
   | "upload"
   | "scripts"
-  | "images"
   | "slides"
   | "audio"
   | "video"

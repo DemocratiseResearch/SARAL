@@ -51,7 +51,7 @@ export function ImageSelector({ paperId, onDone }: ImageSelectorProps) {
                   className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
                 >
                   <img
-                    src={`/api/papers/${paperId}/images/${img}`}
+                    src={`${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}/api/papers/${paperId}/images/${img}`}
                     alt={img}
                     className="h-32 w-full bg-gray-100 object-contain dark:bg-gray-800"
                   />

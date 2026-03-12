@@ -13,7 +13,9 @@ backend/**/*.pyc
 *$py.class
 backend/.env
 frontend/.env
+react-saral/.env
 frontend/node_modules/
+react-saral/node_modules/
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
