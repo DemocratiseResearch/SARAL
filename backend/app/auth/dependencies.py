@@ -4,7 +4,7 @@ Extracts the Firebase ID token from the Authorization header,
 verifies it, and returns the current user's DB record.
 """
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
 from typing import Optional
@@ -71,3 +71,18 @@ async def get_current_user_optional(
         return _get_or_create_user(session, user_info)
     except Exception:
         return None
+
+
+async def get_current_user_from_token_param(
+    token: str = Query(..., alias="token"),
+    session: Session = Depends(get_session),
+) -> User:
+    """Auth via query parameter — for <audio>/<img>/<video> src URLs."""
+    try:
+        user_info = verify_firebase_token(token)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+    return _get_or_create_user(session, user_info)

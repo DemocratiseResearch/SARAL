@@ -10,7 +10,6 @@ from app.auth.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.scripts import ScriptResponse, SectionScript, ScriptUpdateRequest
 from app.services.script_service import generate_scripts, get_scripts, update_script, assign_images
-from app.services.api_key_service import get_key
 from app.config import get_settings
 
 router = APIRouter(prefix="/scripts", tags=["scripts"])
@@ -24,9 +23,7 @@ async def generate(
 ):
     settings = get_settings()
     model = settings.LLM_MODEL
-
-    # Try user's stored key first, fall back to server-level env var
-    api_key = get_key(user, session, "llm") or settings.LLM_API_KEY or None
+    api_key = settings.LLM_API_KEY or None
 
     scripts = generate_scripts(paper_id, user, session, model, api_key)
 

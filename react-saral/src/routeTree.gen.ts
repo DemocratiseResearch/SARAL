@@ -13,7 +13,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedWorkflowRouteImport } from './routes/_authed/workflow'
-import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as AuthedDashboardRouteImport } from './routes/_authed/dashboard'
 
 const LoginRoute = LoginRouteImport.update({
@@ -35,11 +34,6 @@ const AuthedWorkflowRoute = AuthedWorkflowRouteImport.update({
   path: '/workflow',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedDashboardRoute = AuthedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -50,14 +44,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AuthedDashboardRoute
-  '/settings': typeof AuthedSettingsRoute
   '/workflow': typeof AuthedWorkflowRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AuthedDashboardRoute
-  '/settings': typeof AuthedSettingsRoute
   '/workflow': typeof AuthedWorkflowRoute
 }
 export interface FileRoutesById {
@@ -66,21 +58,19 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/dashboard': typeof AuthedDashboardRoute
-  '/_authed/settings': typeof AuthedSettingsRoute
   '/_authed/workflow': typeof AuthedWorkflowRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboard' | '/settings' | '/workflow'
+  fullPaths: '/' | '/login' | '/dashboard' | '/workflow'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard' | '/settings' | '/workflow'
+  to: '/' | '/login' | '/dashboard' | '/workflow'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/login'
     | '/_authed/dashboard'
-    | '/_authed/settings'
     | '/_authed/workflow'
   fileRoutesById: FileRoutesById
 }
@@ -120,13 +110,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedWorkflowRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/settings': {
-      id: '/_authed/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthedSettingsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/dashboard': {
       id: '/_authed/dashboard'
       path: '/dashboard'
@@ -139,13 +122,11 @@ declare module '@tanstack/react-router' {
 
 interface AuthedRouteChildren {
   AuthedDashboardRoute: typeof AuthedDashboardRoute
-  AuthedSettingsRoute: typeof AuthedSettingsRoute
   AuthedWorkflowRoute: typeof AuthedWorkflowRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedDashboardRoute: AuthedDashboardRoute,
-  AuthedSettingsRoute: AuthedSettingsRoute,
   AuthedWorkflowRoute: AuthedWorkflowRoute,
 }
 

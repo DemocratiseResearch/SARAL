@@ -35,7 +35,19 @@ SUPPORTED_LANGUAGES = {
 # Languages with complex scripts that need grapheme-aware chunking
 COMPLEX_SCRIPT_LANGUAGES = {"hindi", "bengali", "marathi", "gujarati"}
 
-VOICE_MAP = {"meera": "vidya", "arjun": "karun"}
+VOICE_MAP = {"meera": "ritu", "arjun": "shubh"}
+
+# v3 voices
+V3_VOICES_MALE = [
+    "shubh", "aditya", "rahul", "rohan", "amit", "dev", "ratan", "varun",
+    "manan", "sumit", "kabir", "aayan", "ashutosh", "advait", "anand",
+    "tarun", "sunny", "mani", "gokul", "vijay", "mohit", "rehan", "soham",
+]
+V3_VOICES_FEMALE = [
+    "ritu", "priya", "neha", "pooja", "simran", "kavya", "ishita", "shreya",
+    "roopa", "amelia", "sophia", "tanya", "shruti", "suhani", "kavitha", "rupali",
+]
+V3_VOICES = V3_VOICES_MALE + V3_VOICES_FEMALE
 
 TTS_API_URL = "https://api.sarvam.ai/text-to-speech"
 
@@ -59,24 +71,23 @@ def get_supported_languages() -> dict[str, str]:
 
 # ── TTS synthesis ─────────────────────────────────────────────────────────────
 
-def synthesize_text(api_key: str, text: str, language_code: str, voice: str = "vidya") -> bytes:
+def synthesize_text(api_key: str, text: str, language_code: str, voice: str = "shubh") -> bytes:
     """
-    Call Sarvam TTS API for a single chunk of text.
+    Call Sarvam TTS API (Bulbul v3) for a single chunk of text.
     Returns raw audio bytes (WAV).
     """
     voice = VOICE_MAP.get(voice, voice)
+    if voice not in V3_VOICES:
+        voice = "shubh"
 
     headers = {"api-subscription-key": api_key, "Content-Type": "application/json"}
     payload = {
-        "inputs": [text],
+        "text": text,
         "target_language_code": language_code,
         "speaker": voice,
-        "pitch": 0,
         "pace": 1.0,
-        "loudness": 1.5,
-        "speech_sample_rate": 22050,
-        "enable_preprocessing": True,
-        "model": "bulbul:v2",
+        "speech_sample_rate": 24000,
+        "model": "bulbul:v3",
     }
 
     resp = requests.post(TTS_API_URL, headers=headers, json=payload, timeout=60)
@@ -100,18 +111,18 @@ def synthesize_long_text(
     text: str,
     output_path: str,
     language_code: str,
-    voice: str = "vidya",
+    voice: str = "shubh",
     language: str = "English",
 ) -> bool:
     """
-    Synthesize text that may exceed the API's max chunk size.
+    Synthesize text that may exceed the API's max chunk size (2500 chars for v3).
     Chunks the text, synthesizes each chunk, and concatenates via ffmpeg.
     """
     text = _clean_text(text)
     if not text:
         return False
 
-    max_len = 450 if language.lower() in COMPLEX_SCRIPT_LANGUAGES else 500
+    max_len = 2000 if language.lower() in COMPLEX_SCRIPT_LANGUAGES else 2400
     chunks = _chunk_text(text, max_len, language)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -146,7 +157,7 @@ def synthesize_long_text(
 def test_connection(api_key: str) -> bool:
     """Quick API reachability test."""
     try:
-        synthesize_text(api_key, "test", "hi-IN", "vidya")
+        synthesize_text(api_key, "test", "hi-IN", "shubh")
         return True
     except Exception:
         return False

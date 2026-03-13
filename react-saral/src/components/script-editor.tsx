@@ -18,7 +18,6 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
     queryKey: ["scripts", paperId],
     queryFn: () => scriptsApi.get(paperId).then((r) => r.data),
     retry: false,
-    enabled: false, // Don't auto-fetch — only fetch after generate or manual refetch
   })
 
   const generateMutation = useMutation({
@@ -40,6 +39,7 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
 
   const scripts = generateMutation.data ?? scriptsQuery.data
   const loading = generateMutation.isPending
+  const fetching = scriptsQuery.isLoading
 
   const startEdit = (section: SectionScript) => {
     setEditingId(section.id)
@@ -60,7 +60,7 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Presentation Scripts</CardTitle>
         <div className="flex gap-2">
-          {!scripts?.sections?.length && (
+          {!scripts?.sections?.length && !fetching && (
             <Button
               onClick={() => generateMutation.mutate()}
               disabled={loading}
@@ -83,6 +83,11 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
         </div>
       </CardHeader>
       <CardContent>
+        {fetching && (
+          <div className="flex justify-center py-12">
+            <Spinner />
+          </div>
+        )}
         {generateMutation.error && (
           <p className="mb-4 text-sm text-red-500">
             {(generateMutation.error as Error).message}

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # anthropic/claude-3-haiku-20240307, groq/llama3-8b-8192, ollama/llama3
     # See https://docs.litellm.ai/docs/providers for full list.
     LLM_MODEL: str = "gemini/gemini-2.0-flash"
-    LLM_API_KEY: str = ""  # User-level default; per-user keys stored encrypted in DB
+    LLM_API_KEY: str = ""
 
     # ── Auth ──────────────────────────────────────────────────────────
     GOOGLE_CLIENT_ID: str = ""
@@ -41,9 +41,6 @@ class Settings(BaseSettings):
     # ── YouTube upload ────────────────────────────────────────────────
     YOUTUBE_CLIENT_ID: str = ""
     YOUTUBE_CLIENT_SECRET: str = ""
-
-    # ── Encryption key for user API keys in DB ────────────────────────
-    ENCRYPTION_KEY: str = ""
 
     # ── CORS ──────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]

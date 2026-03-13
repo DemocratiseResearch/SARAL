@@ -3,11 +3,11 @@ import { useWorkflowStore } from "@/stores/workflow-store"
 import { StepIndicator } from "@/components/step-indicator"
 import { PaperUpload } from "@/components/paper-upload"
 import { ScriptEditor } from "@/components/script-editor"
-
 import { SlideViewer } from "@/components/slide-viewer"
 import { AudioGenerator } from "@/components/audio-generator"
-import { VideoPlayer } from "@/components/video-player"
 import { useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { scriptsApi } from "@/lib/api"
 
 export const Route = createFileRoute("/_authed/workflow")({
   component: WorkflowPage,
@@ -27,6 +27,21 @@ function WorkflowPage() {
     }
   }, [queryPaperId, paperId, setPaperId, setStep])
 
+  // Check if scripts already exist for this paper
+  const existingScripts = useQuery({
+    queryKey: ["scripts", paperId],
+    queryFn: () => scriptsApi.get(paperId!).then((r) => r.data),
+    enabled: !!paperId && currentStep === "scripts",
+    retry: false,
+  })
+
+  // Auto-advance to output if scripts already exist
+  useEffect(() => {
+    if (existingScripts.data?.sections?.length && currentStep === "scripts") {
+      setStep("output")
+    }
+  }, [existingScripts.data, currentStep, setStep])
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
       <StepIndicator current={currentStep} />
@@ -42,19 +57,14 @@ function WorkflowPage() {
         )}
 
         {currentStep === "scripts" && paperId && (
-          <ScriptEditor paperId={paperId} onDone={() => setStep("slides")} />
+          <ScriptEditor paperId={paperId} onDone={() => setStep("output")} />
         )}
 
-        {currentStep === "slides" && paperId && (
-          <SlideViewer paperId={paperId} onDone={() => setStep("audio")} />
-        )}
-
-        {currentStep === "audio" && paperId && (
-          <AudioGenerator paperId={paperId} onDone={() => setStep("video")} />
-        )}
-
-        {currentStep === "video" && paperId && (
-          <VideoPlayer paperId={paperId} />
+        {currentStep === "output" && paperId && (
+          <div className="space-y-6">
+            <SlideViewer paperId={paperId} />
+            <AudioGenerator paperId={paperId} />
+          </div>
         )}
       </div>
     </div>

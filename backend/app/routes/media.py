@@ -10,11 +10,11 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlmodel import Session
 
 from app.database import get_session
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_current_user_from_token_param
+from app.config import get_settings
 from app.models.user import User
 from app.schemas.media import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
 from app.services.media_service import generate_audio, generate_video_for_paper, get_media, get_supported_languages
-from app.services.api_key_service import get_key
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -26,7 +26,7 @@ async def gen_audio(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    sarvam_key = get_key(user, session, "sarvam")
+    sarvam_key = get_settings().SARVAM_API_KEY
     if not sarvam_key:
         raise HTTPException(400, "Sarvam API key required for TTS")
 
@@ -74,7 +74,7 @@ async def stream_audio(
     paper_id: str,
     filename: str,
     request: Request,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_from_token_param),
     session: Session = Depends(get_session),
 ):
     media = get_media(paper_id, user, session)
@@ -95,7 +95,7 @@ async def stream_audio(
 async def stream_video(
     paper_id: str,
     request: Request,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_from_token_param),
     session: Session = Depends(get_session),
 ):
     media = get_media(paper_id, user, session)
@@ -108,7 +108,7 @@ async def stream_video(
 @router.get("/{paper_id}/download-video")
 async def download_video(
     paper_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user_from_token_param),
     session: Session = Depends(get_session),
 ):
     media = get_media(paper_id, user, session)
@@ -124,6 +124,12 @@ async def download_video(
 @router.get("/languages")
 async def languages():
     return get_supported_languages()
+
+
+@router.get("/voices")
+async def voices():
+    from app.utils.tts import V3_VOICES_MALE, V3_VOICES_FEMALE
+    return {"male": V3_VOICES_MALE, "female": V3_VOICES_FEMALE}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -27,12 +27,6 @@ export function Header() {
               >
                 Dashboard
               </Link>
-              <Link
-                to="/settings"
-                className="text-sm transition-colors hover:text-brand-600"
-              >
-                Settings
-              </Link>
               <div className="flex items-center gap-3">
                 {user.photoURL && (
                   <img

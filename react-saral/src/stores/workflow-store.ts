@@ -1,12 +1,6 @@
 import { create } from "zustand"
 
-export type WorkflowStep =
-  | "upload"
-  | "scripts"
-  | "slides"
-  | "audio"
-  | "video"
-  | "done"
+export type WorkflowStep = "upload" | "scripts" | "output" | "done"
 
 interface WorkflowState {
   currentStep: WorkflowStep
@@ -24,7 +18,7 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
   currentStep: "upload",
   paperId: null,
   language: "English",
-  voice: "vidya",
+  voice: "shubh",
 
   setStep: (step) => set({ currentStep: step }),
   setPaperId: (id) => set({ paperId: id }),
@@ -35,6 +29,6 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
       currentStep: "upload",
       paperId: null,
       language: "English",
-      voice: "vidya",
+      voice: "shubh",
     }),
 }))

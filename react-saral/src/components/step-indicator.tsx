@@ -5,9 +5,7 @@ import { Check } from "lucide-react"
 const STEPS: { key: WorkflowStep; label: string }[] = [
   { key: "upload", label: "Upload" },
   { key: "scripts", label: "Scripts" },
-  { key: "slides", label: "Slides" },
-  { key: "audio", label: "Audio" },
-  { key: "video", label: "Video" },
+  { key: "output", label: "Output" },
 ]
 
 const ORDER = STEPS.map((s) => s.key)

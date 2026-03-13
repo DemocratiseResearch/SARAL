@@ -42,16 +42,6 @@ export const authApi = {
   getMe: () => api.get("/auth/me"),
 }
 
-// API keys
-export const apiKeysApi = {
-  save: (keys: { llm_key?: string; sarvam_key?: string }) =>
-    api.post("/api-keys", keys),
-  status: () =>
-    api.get<{ llm_configured: boolean; sarvam_configured: boolean }>(
-      "/api-keys/status"
-    ),
-}
-
 // Papers
 export interface PaperMetadata {
   title: string
@@ -117,19 +107,9 @@ export const scriptsApi = {
 }
 
 // Slides
-export interface SlideResponse {
-  paper_id: string
-  pptx_path?: string
-  image_paths: string[]
-}
-
 export const slidesApi = {
-  generate: (paperId: string) =>
-    api.post<SlideResponse>(`/slides/${paperId}/generate`),
-  get: (paperId: string) => api.get<SlideResponse>(`/slides/${paperId}`),
-  fetchImage: (path: string) => api.get<Blob>(path, { responseType: "blob" }),
-  downloadPptx: (paperId: string) =>
-    api.get(`/slides/${paperId}/download-pptx`, { responseType: "blob" }),
+  // Kept for potential backend video pipeline use
+  generate: (paperId: string) => api.post(`/slides/${paperId}/generate`),
 }
 
 // Media
@@ -141,18 +121,19 @@ export interface MediaResponse {
   status: string
 }
 
+export interface VoicesResponse {
+  male: string[]
+  female: string[]
+}
+
 export const mediaApi = {
-  generateAudio: (paperId: string, language: string, voice: string = "vidya") =>
+  generateAudio: (paperId: string, language: string, voice: string = "shubh") =>
     api.post<MediaResponse>(`/media/${paperId}/generate-audio`, {
       language,
       voice,
     }),
-  generateVideo: (paperId: string, language: string) =>
-    api.post<MediaResponse>(`/media/${paperId}/generate-video`, { language }),
   languages: () => api.get<Record<string, string>>("/media/languages"),
-  audioUrl: (paperId: string, filename: string) =>
-    `${API_BASE}/api/media/${paperId}/audio/${filename}`,
-  videoUrl: (paperId: string) => `${API_BASE}/api/media/${paperId}/video`,
-  downloadVideoUrl: (paperId: string) =>
-    `${API_BASE}/api/media/${paperId}/download-video`,
+  voices: () => api.get<VoicesResponse>("/media/voices"),
+  audioUrl: (paperId: string, filename: string, token: string) =>
+    `${API_BASE}/api/media/${paperId}/audio/${filename}?token=${encodeURIComponent(token)}`,
 }
