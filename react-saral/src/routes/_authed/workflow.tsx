@@ -5,7 +5,7 @@ import { PaperUpload } from "@/components/paper-upload"
 import { ScriptEditor } from "@/components/script-editor"
 import { SlideViewer } from "@/components/slide-viewer"
 import { AudioGenerator } from "@/components/audio-generator"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { scriptsApi } from "@/lib/api"
 
@@ -19,11 +19,13 @@ export const Route = createFileRoute("/_authed/workflow")({
 function WorkflowPage() {
   const { paperId: queryPaperId } = useSearch({ from: "/_authed/workflow" })
   const { currentStep, paperId, setStep, setPaperId } = useWorkflowStore()
+  const hasAutoAdvanced = useRef(false)
 
   useEffect(() => {
     if (queryPaperId && queryPaperId !== paperId) {
       setPaperId(queryPaperId)
       setStep("scripts")
+      hasAutoAdvanced.current = false
     }
   }, [queryPaperId, paperId, setPaperId, setStep])
 
@@ -31,13 +33,18 @@ function WorkflowPage() {
   const existingScripts = useQuery({
     queryKey: ["scripts", paperId],
     queryFn: () => scriptsApi.get(paperId!).then((r) => r.data),
-    enabled: !!paperId && currentStep === "scripts",
+    enabled: !!paperId && currentStep === "scripts" && !hasAutoAdvanced.current,
     retry: false,
   })
 
-  // Auto-advance to output if scripts already exist
+  // Auto-advance to output if scripts already exist (only on initial load)
   useEffect(() => {
-    if (existingScripts.data?.sections?.length && currentStep === "scripts") {
+    if (
+      existingScripts.data?.sections?.length &&
+      currentStep === "scripts" &&
+      !hasAutoAdvanced.current
+    ) {
+      hasAutoAdvanced.current = true
       setStep("output")
     }
   }, [existingScripts.data, currentStep, setStep])

@@ -122,9 +122,10 @@ def generate_audio(
             language=language,
             voice=voice,
             audio_dir=audio_dir,
-            audio_files=audio_files,
+            audio_files_json="[]",
             status="audio_ready",
         )
+        media.audio_files = audio_files
     session.add(media)
     session.commit()
     session.refresh(media)

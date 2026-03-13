@@ -5,10 +5,8 @@ from typing import Optional
 
 
 class AudioGenerationRequest(BaseModel):
-    selected_language: str = "English"
-    voice_selection: dict[str, str] = {}  # language → voice name
-    hinglish_iterations: int = 3
-    show_hindi_debug: bool = False
+    language: str = "English"
+    voice: str = "shubh"
 
 
 class VideoGenerationRequest(BaseModel):
@@ -18,5 +16,7 @@ class VideoGenerationRequest(BaseModel):
 
 class MediaResponse(BaseModel):
     paper_id: str
+    language: Optional[str] = None
     audio_files: list[str] = []
     video_path: Optional[str] = None
+    status: Optional[str] = None
