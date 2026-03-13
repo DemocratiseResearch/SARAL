@@ -85,10 +85,10 @@ function LandingPage() {
         "Convert scripts to natural-sounding audio narration with support for multiple languages including Hindi.",
     },
     {
-      icon: Video,
-      title: "Video Production",
+      icon: Check,
+      title: "Slide Generation",
       description:
-        "Automatically create professional presentation videos combining slides, narration, and visual elements.",
+        "Preview and download slides as PPTX. Slides are rendered client-side for fast, customizable presentations.",
     },
   ]
 
@@ -96,9 +96,8 @@ function LandingPage() {
     "Upload papers from arXiv or LaTeX sources",
     "AI-powered script generation",
     "Multi-language voice synthesis",
-    "Professional video output",
     "Customizable slides and content",
-    "Export in multiple formats",
+    "Export slides and audio",
   ]
 
   return (
@@ -142,13 +141,13 @@ function LandingPage() {
             className="text-center md:w-1/2"
           >
             <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl dark:text-white">
-              Turn Academic Papers into Engaging Video Presentations
+              Turn Academic Papers into Slide Presentations with Narrated Audio
             </h2>
 
             <p className="mb-8 text-lg text-gray-600 dark:text-gray-400">
-              Saral AI seamlessly transforms your research papers into
-              professional video presentations, utilizing AI-powered scripts,
-              customized slides, and natural voice narration.
+              Saral AI seamlessly transforms your research papers into engaging
+              slide presentations, utilizing AI-powered scripts, customizable
+              slides, and natural voice narration.
             </p>
 
             <div className="flex items-center justify-center gap-3">

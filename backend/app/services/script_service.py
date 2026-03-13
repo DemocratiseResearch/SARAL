@@ -1,10 +1,13 @@
+
 """
 Script service — generate presentation scripts and bullet points from paper text.
 """
 
+
 import re
 import logging
 from sqlmodel import Session, select
+from fastapi import HTTPException
 
 from app.models.paper import Paper
 from app.models.script import Script
@@ -71,12 +74,14 @@ def generate_scripts(
         select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
     ).first()
     if not paper:
-        raise ValueError("Paper not found")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Paper not found")
 
     # Read paper text
     file_path = paper.tex_file_path or paper.text_file_path
     if not file_path:
-        raise ValueError("No text file available for this paper")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="No text file available for this paper")
     paper_text = extract_text_from_file(file_path)
 
     # Detect actual sections from the paper text
@@ -122,7 +127,7 @@ def get_scripts(paper_uid: str, user: User, session: Session) -> list[Script]:
         select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
     ).first()
     if not paper:
-        raise ValueError("Paper not found")
+        raise HTTPException(status_code=400, detail="Paper not found")
     return list(session.exec(select(Script).where(Script.paper_id == paper.id)).all())
 
 
@@ -134,13 +139,14 @@ def update_script(
     bullet_points: list[str] | None = None,
     assigned_image: str | None = None,
 ) -> Script:
+
     script = session.get(Script, script_id)
     if not script:
-        raise ValueError("Script not found")
+        raise HTTPException(status_code=400, detail="Script not found")
     # Verify ownership
     paper = session.get(Paper, script.paper_id)
     if not paper or paper.user_id != user.id:
-        raise ValueError("Not authorized")
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     if content is not None:
         script.content = content
@@ -157,11 +163,12 @@ def update_script(
 
 def assign_images(paper_uid: str, assignments: dict[str, str], user: User, session: Session):
     """Assign images to script sections. assignments: {section_name: image_path}"""
+
     paper = session.exec(
         select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
     ).first()
     if not paper:
-        raise ValueError("Paper not found")
+        raise HTTPException(status_code=400, detail="Paper not found")
 
     scripts = session.exec(select(Script).where(Script.paper_id == paper.id)).all()
     for script in scripts:

@@ -94,21 +94,25 @@ def generate_audio(
     # Section audio — iterate in the order scripts were created
     for i, section_name in enumerate(sections_text):
         text = sections_text.get(section_name)
-        if not text:
-            continue
+        if not paper:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Paper not found")
         out_path = os.path.join(audio_dir, f"{i + 1:02d}_{section_name.lower()}.wav")
-        if synthesize_long_text(sarvam_api_key, text, out_path, lang_code, voice, language):
-            audio_files.append(out_path)
-        else:
-            logger.warning(f"Audio generation failed for section: {section_name}")
-
+        scripts = list(
+            session.exec(select(Script).where(Script.paper_id == paper.id)).all()
+        )
+        if not scripts:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Scripts not generated yet")
     if not audio_files:
-        raise RuntimeError("No audio files were generated")
-
-    # Upsert Media row
+        lang_code = get_language_code(language)
+        if not lang_code:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=f"Unsupported language: {language}")
     existing = session.exec(
-        select(Media).where(Media.paper_id == paper.id, Media.language == language)
-    ).first()
+        if not audio_files:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="No audio files were generated")
 
     if existing:
         existing.audio_dir = audio_dir
@@ -145,17 +149,20 @@ def generate_video_for_paper(
         select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
     ).first()
     if not paper:
-        raise ValueError("Paper not found")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Paper not found")
 
     slide = session.exec(select(Slide).where(Slide.paper_id == paper.id)).first()
     if not slide or not slide.image_paths:
-        raise ValueError("Slides not generated yet")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Slides not generated yet")
 
     media = session.exec(
         select(Media).where(Media.paper_id == paper.id, Media.language == language)
     ).first()
     if not media or not media.audio_files:
-        raise ValueError("Audio not generated yet")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Audio not generated yet")
 
     dirs = ensure_paper_dirs(paper.paper_uid)
     output_path = os.path.join(dirs["video"], f"presentation_{language.lower()}.mp4")
@@ -179,7 +186,8 @@ def get_media(paper_uid: str, user: User, session: Session, language: str = "Eng
         select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
     ).first()
     if not paper:
-        raise ValueError("Paper not found")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Paper not found")
     return session.exec(
         select(Media).where(Media.paper_id == paper.id, Media.language == language)
     ).first()
