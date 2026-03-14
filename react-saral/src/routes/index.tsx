@@ -121,7 +121,7 @@ function LandingPage() {
             {user ? (
               <Link
                 to="/dashboard"
-                className="text-sm text-brand-600 transition-colors hover:text-brand-600"
+                className="text-base font-semibold text-black dark:text-white dark:hover:text-white/50 hover:text-[#084898]"
               >
                 Dashboard
               </Link>

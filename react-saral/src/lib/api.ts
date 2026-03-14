@@ -54,6 +54,8 @@ export interface PaperResponse {
   metadata: PaperMetadata
   image_files: string[]
   status: string
+  has_scripts: boolean
+  has_audio: boolean
 }
 
 export const papersApi = {
@@ -127,6 +129,7 @@ export interface VoicesResponse {
 }
 
 export const mediaApi = {
+  get: (paperId: string) => api.get<MediaResponse>(`/media/${paperId}`),
   generateAudio: (paperId: string, language: string, voice: string = "shubh") =>
     api.post<MediaResponse>(`/media/${paperId}/generate-audio`, {
       language,

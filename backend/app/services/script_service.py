@@ -116,6 +116,8 @@ def generate_scripts(
         session.add(script)
         scripts.append(script)
 
+    paper.status = "scripts_generated"
+    session.add(paper)
     session.commit()
     for s in scripts:
         session.refresh(s)

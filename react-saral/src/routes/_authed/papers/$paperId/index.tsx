@@ -40,7 +40,8 @@ function PaperDetailPage() {
   })
 
   const paper = paperQuery.data
-  const hasScripts = !!scriptsQuery.data?.sections?.length
+  const hasScripts = !!scriptsQuery.data?.sections?.length || !!paper?.has_scripts
+  const hasAudio = !!paper?.has_audio
 
   const steps = [
     {
@@ -64,7 +65,7 @@ function PaperDetailPage() {
       icon: Presentation,
       description:
         "Preview and download your auto-generated presentation slides.",
-      completed: false,
+      completed: hasScripts, // Slides are ready once scripts are ready
     },
     {
       key: "audio",
@@ -72,7 +73,7 @@ function PaperDetailPage() {
       icon: Volume2,
       description:
         "Generate narrated audio for your presentation in multiple languages.",
-      completed: false,
+      completed: hasAudio,
     },
   ]
 

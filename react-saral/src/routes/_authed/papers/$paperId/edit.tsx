@@ -54,7 +54,8 @@ function StepEditorPage() {
   })
 
   const paper = paperQuery.data
-  const hasScripts = !!scriptsQuery.data?.sections?.length
+  const hasScripts = !!scriptsQuery.data?.sections?.length || !!paper?.has_scripts
+  const hasAudio = !!paper?.has_audio
 
   const steps = [
     {
@@ -73,13 +74,13 @@ function StepEditorPage() {
       key: "slides",
       label: "Slides",
       icon: Presentation,
-      completed: false,
+      completed: hasScripts, // Slides are ready once scripts are ready
     },
     {
       key: "audio",
       label: "Audio",
       icon: Volume2,
-      completed: false,
+      completed: hasAudio,
     },
   ]
 

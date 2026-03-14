@@ -20,3 +20,5 @@ class PaperResponse(BaseModel):
     metadata: PaperMetadata
     image_files: list[str] = []
     status: str = "processed"
+    has_scripts: bool = False
+    has_audio: bool = False

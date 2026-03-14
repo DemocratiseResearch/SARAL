@@ -121,6 +121,8 @@ def generate_audio(
             status="audio_ready",
         )
         media.audio_files = audio_files
+    paper.status = "audio_generated"
+    session.add(paper)
     session.add(media)
     session.commit()
     session.refresh(media)

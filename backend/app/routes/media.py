@@ -181,3 +181,20 @@ def _stream_file(path: str, media_type: str, request: Request):
                 "Content-Length": str(file_size),
             },
         )
+@router.get("/{paper_id}", response_model=MediaResponse)
+async def get_media_status(
+    paper_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    media = get_media(paper_id, user, session)
+    if not media:
+        raise HTTPException(404, "Media not found")
+        
+    return MediaResponse(
+        paper_id=paper_id,
+        language=media.language,
+        audio_files=[os.path.basename(f) for f in (media.audio_files or [])],
+        video_path=os.path.basename(media.video_path) if media.video_path else None,
+        status=media.status,
+    )

@@ -23,7 +23,7 @@ export function Header() {
             <>
               <Link
                 to="/dashboard"
-                className="text-sm text-[#084898] hover:text-[#084898]"
+                className="text-base font-semibold text-black dark:text-white hover:text-[#084898]"
               >
                 Dashboard
               </Link>

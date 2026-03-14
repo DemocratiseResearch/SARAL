@@ -11,11 +11,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.database import get_session
 from app.auth.dependencies import get_current_user
 from app.models.user import User
+from app.models.script import Script
+from app.models.media import Media
 from app.schemas.papers import PaperResponse, PaperMetadata, ArxivRequest
 from app.services.paper_service import ingest_arxiv, ingest_zip, ingest_pdf, get_paper, list_papers
 
@@ -45,7 +47,19 @@ async def _read_with_limit(file: UploadFile, max_bytes: int) -> bytes:
     return buf.getvalue()
 
 
-def _paper_response(paper) -> PaperResponse:
+def _paper_response(paper, session: Session) -> PaperResponse:
+    has_scripts = session.exec(select(Script).where(Script.paper_id == paper.id)).first() is not None
+    has_audio = session.exec(select(Media).where(Media.paper_id == paper.id)).first() is not None
+
+    # Determine a logical "status" fallback from boolean flags.
+    # We no longer overload the database paper.status field directly for this tracking.
+    inferred_status = paper.status or "processed"
+    if inferred_status in ["processing", "processed", "uploaded"]:
+        if has_audio:
+            inferred_status = "audio_generated"
+        elif has_scripts:
+            inferred_status = "scripts_generated"
+
     return PaperResponse(
         paper_id=paper.paper_uid,
         metadata=PaperMetadata(
@@ -55,7 +69,9 @@ def _paper_response(paper) -> PaperResponse:
             arxiv_id=paper.arxiv_id,
         ),
         image_files=[os.path.basename(f) for f in (paper.image_files or [])],
-        status=paper.status or "processed",
+        status=inferred_status,
+        has_scripts=has_scripts,
+        has_audio=has_audio,
     )
 
 
@@ -75,7 +91,7 @@ async def upload_zip(
     except zipfile.BadZipFile:
         raise HTTPException(400, "Uploaded file is not a valid ZIP archive")
     paper = ingest_zip(file.filename, content, user, session)
-    return _paper_response(paper)
+    return _paper_response(paper, session)
 
 
 @router.post("/upload-pdf", response_model=PaperResponse)
@@ -90,7 +106,7 @@ async def upload_pdf(
     if not content[:5].startswith(PDF_MAGIC):
         raise HTTPException(400, "Uploaded file is not a valid PDF")
     paper = ingest_pdf(file.filename, content, user, session)
-    return _paper_response(paper)
+    return _paper_response(paper, session)
 
 
 @router.post("/scrape-arxiv", response_model=PaperResponse)
@@ -100,7 +116,7 @@ async def scrape_arxiv(
     session: Session = Depends(get_session),
 ):
     paper = ingest_arxiv(request.arxiv_url, user, session)
-    return _paper_response(paper)
+    return _paper_response(paper, session)
 
 
 @router.get("", response_model=list[PaperResponse])
@@ -109,7 +125,7 @@ async def get_papers(
     session: Session = Depends(get_session),
 ):
     papers = list_papers(user, session)
-    return [_paper_response(p) for p in papers]
+    return [_paper_response(p, session) for p in papers]
 
 
 @router.get("/{paper_id}", response_model=PaperResponse)
@@ -119,7 +135,7 @@ async def get_paper_detail(
     session: Session = Depends(get_session),
 ):
     paper = get_paper(paper_id, user, session)
-    return _paper_response(paper)
+    return _paper_response(paper, session)
 
 
 @router.get("/{paper_id}/images/{filename}")
