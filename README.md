@@ -15,7 +15,8 @@
 
 1. **Upload** — paste an arXiv URL, upload a LaTeX ZIP, or upload a PDF
 2. **Scripts** — AI generates section-wise narration scripts; edit inline if needed
-3. **Output** — view slide previews + download PPTX, generate per-section audio (side by side)
+3. **Slides** — view slide previews + download PPTX directly in the browser
+4. **Audio** — generate narrated audio for the presentation in multiple Indian languages using Sarvam AI
 
 Returning to a paper auto-fetches existing scripts and skips to output.
 
@@ -125,9 +126,11 @@ react-saral/
 | POST   | `/api/papers/upload-zip`         | Upload LaTeX ZIP                   |
 | POST   | `/api/papers/upload-pdf`         | Upload PDF                         |
 | GET    | `/api/papers`                    | List user's papers                 |
-| POST   | `/api/scripts/{id}/generate`     | Generate presentation scripts      |
+| GET    | `/api/papers/{id}`               | Get a specific paper detail        |
+| DELETE | `/api/papers/{id}`               | Delete a paper and all its assets  |
 | GET    | `/api/scripts/{id}`              | Get scripts for a paper            |
-| PUT    | `/api/scripts/{id}/{section_id}` | Update a script section            |
+| PUT    | `/api/scripts/{id}`              | Update a script section            |
+| GET    | `/api/media/{id}`                | Get generated audio for a paper    |
 | POST   | `/api/media/{id}/generate-audio` | Generate per-section TTS audio     |
 | GET    | `/api/media/{id}/audio/{file}`   | Stream audio file                  |
 | GET    | `/api/media/languages`           | List supported TTS languages       |

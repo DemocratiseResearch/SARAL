@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Upload, Link as LinkIcon, FileText } from "lucide-react"
+import { toast } from "sonner"
 
 interface PaperUploadProps {
   onSuccess: (paper: PaperResponse) => void
@@ -15,19 +16,31 @@ export function PaperUpload({ onSuccess }: PaperUploadProps) {
   const [arxivUrl, setArxivUrl] = useState("")
   const [tab, setTab] = useState<"arxiv" | "zip" | "pdf">("arxiv")
 
+  const handleSuccess = (data: PaperResponse) => {
+    toast.success("Paper uploaded successfully!")
+    onSuccess(data)
+  }
+
+  const handleError = (error: Error) => {
+    toast.error(error.message || "Failed to upload paper")
+  }
+
   const arxivMutation = useMutation({
     mutationFn: (url: string) => papersApi.scrapeArxiv(url).then((r) => r.data),
-    onSuccess,
+    onSuccess: handleSuccess,
+    onError: handleError,
   })
 
   const zipMutation = useMutation({
     mutationFn: (file: File) => papersApi.uploadZip(file).then((r) => r.data),
-    onSuccess,
+    onSuccess: handleSuccess,
+    onError: handleError,
   })
 
   const pdfMutation = useMutation({
     mutationFn: (file: File) => papersApi.uploadPdf(file).then((r) => r.data),
-    onSuccess,
+    onSuccess: handleSuccess,
+    onError: handleError,
   })
 
   const loading =

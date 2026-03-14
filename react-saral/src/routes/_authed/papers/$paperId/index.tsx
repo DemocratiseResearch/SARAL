@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { papersApi, scriptsApi } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
@@ -19,7 +19,9 @@ import {
   Pencil,
   CheckCircle2,
   Circle,
+  Trash2,
 } from "lucide-react"
+import { toast } from "sonner"
 
 export const Route = createFileRoute("/_authed/papers/$paperId/")({
   component: PaperDetailPage,
@@ -27,6 +29,20 @@ export const Route = createFileRoute("/_authed/papers/$paperId/")({
 
 function PaperDetailPage() {
   const { paperId } = Route.useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  const deleteMutation = useMutation({
+    mutationFn: () => papersApi.delete(paperId),
+    onSuccess: () => {
+      toast.success("Project deleted successfully")
+      queryClient.invalidateQueries({ queryKey: ["papers"] })
+      navigate({ to: "/dashboard" })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete project")
+    }
+  })
 
   const paperQuery = useQuery({
     queryKey: ["paper", paperId],
@@ -97,15 +113,40 @@ function PaperDetailPage() {
       </Link>
 
       {/* Paper title */}
-      <div className="mb-8">
-        <h1 className="font-heading text-2xl font-bold text-foreground">
-          {paper?.metadata.title ?? "Paper"}
-        </h1>
-        {paper?.metadata.authors && (
-          <p className="mt-2 font-sans text-sm text-muted-foreground">
-            {paper.metadata.authors}
-          </p>
-        )}
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-foreground">
+            {paper?.metadata.title ?? "Paper"}
+          </h1>
+          {paper?.metadata.authors && (
+            <p className="mt-2 font-sans text-sm text-muted-foreground">
+              {paper.metadata.authors}
+            </p>
+          )}
+        </div>
+        
+        <Button 
+          variant="destructive" 
+          size="sm" 
+          className="shrink-0"
+          onClick={() => {
+            toast("Delete Project?", {
+              description: "This will permanently delete the paper and all generated assets. This action cannot be undone.",
+              action: {
+                label: "Delete",
+                onClick: () => deleteMutation.mutate()
+              },
+              cancel: {
+                label: "Cancel",
+                onClick: () => {}
+              }
+            })
+          }}
+          disabled={deleteMutation.isPending}
+        >
+          <Trash2 className="size-4 mr-2" />
+          {deleteMutation.isPending ? "Deleting..." : "Delete Project"}
+        </Button>
       </div>
 
       {/* Steps accordion */}

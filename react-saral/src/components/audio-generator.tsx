@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { useWorkflowStore } from "@/stores/workflow-store"
+import { toast } from "sonner"
 
 interface AudioGeneratorProps {
   paperId: string
@@ -33,8 +34,12 @@ export function AudioGenerator({ paperId }: AudioGeneratorProps) {
     mutationFn: () =>
       mediaApi.generateAudio(paperId, language, voice).then((r) => r.data),
     onSuccess: () => {
+      toast.success("Audio generated successfully!")
       getIdToken().then(setToken)
     },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to generate audio")
+    }
   })
 
   const mediaQuery = useQuery({

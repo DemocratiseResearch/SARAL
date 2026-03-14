@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { scriptsApi, type SectionScript, type ScriptResponse } from "@/lib/api"
+import { scriptsApi, type SectionScript } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 
 interface ScriptEditorProps {
   paperId: string
@@ -22,19 +23,27 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
 
   const generateMutation = useMutation({
     mutationFn: () => scriptsApi.generate(paperId).then((r) => r.data),
-    onSuccess: (data: ScriptResponse) => {
+    onSuccess: () => {
+      toast.success("Scripts generated successfully!")
       scriptsQuery.refetch()
     },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to generate scripts")
+    }
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, content }: { id: number; content: string }) =>
       scriptsApi.update(id, { content }).then((r) => r.data),
     onSuccess: () => {
+      toast.success("Script updated successfully!")
       setEditingId(null)
       setEditContent("")
       scriptsQuery.refetch()
     },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update script")
+    }
   })
 
   const scripts = generateMutation.data ?? scriptsQuery.data

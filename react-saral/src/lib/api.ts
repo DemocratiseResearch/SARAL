@@ -77,6 +77,7 @@ export const papersApi = {
   },
   list: () => api.get<PaperResponse[]>("/papers"),
   get: (id: string) => api.get<PaperResponse>(`/papers/${id}`),
+  delete: (id: string) => api.delete<{ status: string }>(`/papers/${id}`),
 }
 
 // Scripts

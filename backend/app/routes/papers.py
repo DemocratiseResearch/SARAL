@@ -19,7 +19,7 @@ from app.models.user import User
 from app.models.script import Script
 from app.models.media import Media
 from app.schemas.papers import PaperResponse, PaperMetadata, ArxivRequest
-from app.services.paper_service import ingest_arxiv, ingest_zip, ingest_pdf, get_paper, list_papers
+from app.services.paper_service import ingest_arxiv, ingest_zip, ingest_pdf, get_paper, list_papers, delete_paper
 
 router = APIRouter(prefix="/papers", tags=["papers"])
 
@@ -156,3 +156,16 @@ async def serve_image(
         if os.path.basename(img_path) == safe_name and os.path.isfile(img_path):
             return FileResponse(img_path)
     raise HTTPException(404, "Image not found")
+
+
+@router.delete("/{paper_id}")
+async def delete_paper_route(
+    paper_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    try:
+        delete_paper(paper_id, user, session)
+        return {"status": "deleted"}
+    except ValueError as e:
+        raise HTTPException(404, str(e))

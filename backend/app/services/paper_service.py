@@ -13,6 +13,10 @@ from sqlmodel import Session, select
 
 from app.models.paper import Paper
 from app.models.user import User
+from app.models.script import Script
+from app.models.media import Media
+from app.models.slide import Slide
+from app.models.job import Job
 from app.utils.arxiv import extract_arxiv_id, download_source, get_arxiv_metadata
 from app.utils.latex import find_tex_file, extract_metadata_from_tex, extract_text_from_file, find_image_files
 from app.utils.pdf import process_pdf
@@ -142,4 +146,33 @@ def get_paper(paper_uid: str, user: User, session: Session) -> Paper:
 
 
 def list_papers(user: User, session: Session) -> list[Paper]:
-    return list(session.exec(select(Paper).where(Paper.user_id == user.id)).all())
+    return list(session.exec(select(Paper).where(Paper.user_id == user.id).order_by(Paper.created_at.desc())).all())
+
+
+def delete_paper(paper_uid: str, user: User, session: Session) -> None:
+    paper = session.exec(
+        select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
+    ).first()
+    if not paper:
+        raise ValueError("Paper not found")
+
+    # Cascade deletes sequentially
+    # Scripts
+    for script in session.exec(select(Script).where(Script.paper_id == paper.id)).all():
+        session.delete(script)
+    # Media
+    for media in session.exec(select(Media).where(Media.paper_id == paper.id)).all():
+        session.delete(media)
+    # Slides
+    for slide in session.exec(select(Slide).where(Slide.paper_id == paper.id)).all():
+        session.delete(slide)
+    # Jobs
+    for job in session.exec(select(Job).where(Job.paper_id == paper.id)).all():
+        session.delete(job)
+
+    # Note: paper.source_dir = "temp/papers/<uuid>/source", so dirname goes one up
+    if paper.source_dir and os.path.exists(os.path.dirname(paper.source_dir)):
+        shutil.rmtree(os.path.dirname(paper.source_dir), ignore_errors=True)
+
+    session.delete(paper)
+    session.commit()
