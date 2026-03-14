@@ -52,13 +52,11 @@ def create_app() -> FastAPI:
     from app.routes.auth import router as auth_router
     from app.routes.papers import router as papers_router
     from app.routes.scripts import router as scripts_router
-    from app.routes.slides import router as slides_router
     from app.routes.media import router as media_router
 
     app.include_router(auth_router, prefix="/api")
     app.include_router(papers_router, prefix="/api")
     app.include_router(scripts_router, prefix="/api")
-    app.include_router(slides_router, prefix="/api")
     app.include_router(media_router, prefix="/api")
 
     @app.get("/api/health")

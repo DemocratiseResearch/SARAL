@@ -93,26 +93,17 @@ def generate_audio(
 
     # Section audio — iterate in the order scripts were created
     for i, section_name in enumerate(sections_text):
-        text = sections_text.get(section_name)
-        if not paper:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Paper not found")
+        text = sections_text[section_name]
         out_path = os.path.join(audio_dir, f"{i + 1:02d}_{section_name.lower()}.wav")
-        scripts = list(
-            session.exec(select(Script).where(Script.paper_id == paper.id)).all()
-        )
-        if not scripts:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Scripts not generated yet")
+        if synthesize_long_text(sarvam_api_key, text, out_path, lang_code, voice, language):
+            audio_files.append(out_path)
+
     if not audio_files:
-        lang_code = get_language_code(language)
-        if not lang_code:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail=f"Unsupported language: {language}")
+        raise ValueError("No audio files were generated")
+
     existing = session.exec(
-        if not audio_files:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="No audio files were generated")
+        select(Media).where(Media.paper_id == paper.id, Media.language == language)
+    ).first()
 
     if existing:
         existing.audio_dir = audio_dir

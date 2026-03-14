@@ -8,11 +8,11 @@ export function Header() {
   const logout = useAuthStore((s) => s.logout)
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-gray-950/80">
+    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <Link
           to="/"
-          className="flex items-center gap-2 text-xl font-bold text-brand-600"
+          className="flex items-center gap-2 text-xl font-bold text-[#084898]"
         >
           SARAL
         </Link>
@@ -23,7 +23,7 @@ export function Header() {
             <>
               <Link
                 to="/dashboard"
-                className="text-sm transition-colors hover:text-brand-600"
+                className="text-sm text-[#084898] hover:text-[#084898]"
               >
                 Dashboard
               </Link>
@@ -42,8 +42,11 @@ export function Header() {
               </div>
             </>
           ) : (
-            <Link to="/login">
-              <Button size="sm">Sign in</Button>
+            <Link
+              to="/login"
+              className="text-sm text-[#084898] transition-colors hover:text-[#084898]"
+            >
+              Sign in
             </Link>
           )}
         </nav>

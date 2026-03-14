@@ -14,6 +14,8 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedWorkflowRouteImport } from './routes/_authed/workflow'
 import { Route as AuthedDashboardRouteImport } from './routes/_authed/dashboard'
+import { Route as AuthedPapersPaperIdIndexRouteImport } from './routes/_authed/papers/$paperId/index'
+import { Route as AuthedPapersPaperIdEditRouteImport } from './routes/_authed/papers/$paperId/edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -39,18 +41,33 @@ const AuthedDashboardRoute = AuthedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedPapersPaperIdIndexRoute =
+  AuthedPapersPaperIdIndexRouteImport.update({
+    id: '/papers/$paperId/',
+    path: '/papers/$paperId/',
+    getParentRoute: () => AuthedRoute,
+  } as any)
+const AuthedPapersPaperIdEditRoute = AuthedPapersPaperIdEditRouteImport.update({
+  id: '/papers/$paperId/edit',
+  path: '/papers/$paperId/edit',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AuthedDashboardRoute
   '/workflow': typeof AuthedWorkflowRoute
+  '/papers/$paperId/edit': typeof AuthedPapersPaperIdEditRoute
+  '/papers/$paperId/': typeof AuthedPapersPaperIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AuthedDashboardRoute
   '/workflow': typeof AuthedWorkflowRoute
+  '/papers/$paperId/edit': typeof AuthedPapersPaperIdEditRoute
+  '/papers/$paperId': typeof AuthedPapersPaperIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +76,26 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/dashboard': typeof AuthedDashboardRoute
   '/_authed/workflow': typeof AuthedWorkflowRoute
+  '/_authed/papers/$paperId/edit': typeof AuthedPapersPaperIdEditRoute
+  '/_authed/papers/$paperId/': typeof AuthedPapersPaperIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboard' | '/workflow'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/dashboard'
+    | '/workflow'
+    | '/papers/$paperId/edit'
+    | '/papers/$paperId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard' | '/workflow'
+  to:
+    | '/'
+    | '/login'
+    | '/dashboard'
+    | '/workflow'
+    | '/papers/$paperId/edit'
+    | '/papers/$paperId'
   id:
     | '__root__'
     | '/'
@@ -72,6 +103,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/dashboard'
     | '/_authed/workflow'
+    | '/_authed/papers/$paperId/edit'
+    | '/_authed/papers/$paperId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -117,17 +150,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedDashboardRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/papers/$paperId/': {
+      id: '/_authed/papers/$paperId/'
+      path: '/papers/$paperId'
+      fullPath: '/papers/$paperId/'
+      preLoaderRoute: typeof AuthedPapersPaperIdIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/papers/$paperId/edit': {
+      id: '/_authed/papers/$paperId/edit'
+      path: '/papers/$paperId/edit'
+      fullPath: '/papers/$paperId/edit'
+      preLoaderRoute: typeof AuthedPapersPaperIdEditRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
 interface AuthedRouteChildren {
   AuthedDashboardRoute: typeof AuthedDashboardRoute
   AuthedWorkflowRoute: typeof AuthedWorkflowRoute
+  AuthedPapersPaperIdEditRoute: typeof AuthedPapersPaperIdEditRoute
+  AuthedPapersPaperIdIndexRoute: typeof AuthedPapersPaperIdIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedDashboardRoute: AuthedDashboardRoute,
   AuthedWorkflowRoute: AuthedWorkflowRoute,
+  AuthedPapersPaperIdEditRoute: AuthedPapersPaperIdEditRoute,
+  AuthedPapersPaperIdIndexRoute: AuthedPapersPaperIdIndexRoute,
 }
 
 const AuthedRouteWithChildren =
