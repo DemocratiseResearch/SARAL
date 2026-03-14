@@ -170,11 +170,11 @@ def extract_paper_metadata(
     paper_text: str, model: str, api_key: str | None = None
 ) -> dict:
     """Extract metadata (title, authors, date) from paper text using LLM."""
-    # Use first 6000 chars roughly to capture title/authors/date
-    snippet = paper_text[:6000]
-    raw = _chat(model, METADATA_PROMPT.format(paper_text=snippet), api_key)
-
     try:
+        # Use first 6000 chars roughly to capture title/authors/date
+        snippet = paper_text[:6000]
+        raw = _chat(model, METADATA_PROMPT.format(paper_text=snippet), api_key)
+
         # Find JSON block if LLM was verbose
         json_match = re.search(r"\{.*\}", raw, re.DOTALL)
         if json_match:
@@ -188,5 +188,5 @@ def extract_paper_metadata(
             "date": str(data.get("date", "")).strip(),
         }
     except Exception as e:
-        logger.warning(f"Failed to parse LLM metadata response: {e}. Raw: {raw[:100]}")
+        logger.warning(f"Metadata extraction failed (LLM offline or quota hit): {e}")
         return {"title": "Untitled", "authors": "Unknown", "date": ""}
