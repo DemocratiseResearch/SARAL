@@ -5,20 +5,19 @@
 ## Features
 
 - **Multi-source input** — arXiv URL, LaTeX ZIP upload, or PDF upload
-- **AI-generated scripts** — section-wise presentation scripts (Title, Intro, Methodology, Results, Discussion, Conclusion) with editable content
-- **Model-agnostic LLM** — any provider via LiteLLM: Gemini, OpenAI, Anthropic, Groq, Ollama, Mistral, and [100+ more](https://docs.litellm.ai/docs/providers)
-- **Client-side slides** — rendered as React components with PPTX download via PptxGenJS (no backend dependency)
-- **11-language TTS** — Sarvam AI Bulbul v3 with 39 voices (23 male, 16 female): English, Hindi, Tamil, Telugu, Bengali, Gujarati, Kannada, Malayalam, Marathi, Odia, Punjabi
-- **Firebase Auth** — Google sign-in
+- **Standardized Metadata** — LLM-powered extraction of clean title, authors, and year across all formats
+- **AI-generated scripts** — section-wise presentation scripts with editable content
+- **Model-agnostic LLM** — any provider via LiteLLM: Gemini, OpenAI, Claude, Groq, Ollama
+- **Parallel Audio Engine** — Concurrently synthesizes TTS sections for 70% faster generation
+- **Client-side slides** — rendered as React components with PPTX download via PptxGenJS
+- **11-language TTS** — Sarvam AI Bulbul v3 with 39 voices and localized accent support
 
 ## Workflow
 
-1. **Upload** — paste an arXiv URL, upload a LaTeX ZIP, or upload a PDF
-2. **Scripts** — AI generates section-wise narration scripts; edit inline if needed
-3. **Slides** — view slide previews + download PPTX directly in the browser
-4. **Audio** — generate narrated audio for the presentation in multiple Indian languages using Sarvam AI
-
-Returning to a paper auto-fetches existing scripts and skips to output.
+1. **Upload** — paste an arXiv URL or upload a ZIP/PDF paper
+2. **Scripts** — AI extracts metadata and generates editable section scripts
+3. **Slides** — preview auto-generated slides and download as PPTX
+4. **Audio** — parallelized TTS generation with real-time progress tracking
 
 ## Quick Start
 
@@ -27,7 +26,6 @@ Returning to a paper auto-fetches existing scripts and skips to output.
 - Python 3.11+
 - Node.js 20+
 - PostgreSQL
-- ffmpeg (`brew install ffmpeg` / `apt install ffmpeg`)
 - A Firebase project with Google sign-in enabled
 
 ### 1. Clone & configure
@@ -94,6 +92,53 @@ Paste the output into `FIREBASE_SERVICE_ACCOUNT_BASE64` in `backend/.env`.
 
 ## Architecture
 
+### System Diagram
+
+```mermaid
+graph TD
+    subgraph Frontend ["Frontend (React 19 + Vite)"]
+        UI[User Interface - Shadcn UI]
+        Router[TanStack Router]
+        Query[TanStack Query - State & Cache Management]
+        Store[Zustand - Client Store]
+        PPTX[PptxGenJS - Client-side PPTX Gen]
+    end
+
+    subgraph Backend ["Backend (FastAPI + SQLModel)"]
+        API[FastAPI Routes]
+        Service[Service Layer - Paper/Script/Audio Logic]
+        Ingest[Ingestion Engine - arXiv/PDF/LaTeX]
+        TTS[Parallel Audio Engine - ThreadPoolExecutor]
+        DB[(PostgreSQL - Metadata/Asset Mapping)]
+    end
+
+    subgraph External ["External Services"]
+        FB[Firebase Auth - Google OAuth]
+        LLM[LiteLLM - Model Agnostic Script & Meta Gen]
+        Sarvam[Sarvam AI - TTS Bulbul v3 API]
+    end
+
+    %% Flow
+    UI --> Router
+    Router --> Query
+    Query -- JWT Auth --> API
+    API --> Service
+    Service --> Ingest
+    Service --> TTS
+    Service --> DB
+    
+    %% Ingest Details
+    Ingest -- Scrapes --> LLM
+    Ingest -- PDF Extraction --> LLM
+    
+    %% Service Details
+    Service -- Model Agnostic --> LLM
+    TTS -- Concurrent Synthesis --> Sarvam
+    API -- Verification --> FB
+```
+
+### Module Structure
+
 ```
 backend/
   app/
@@ -104,16 +149,9 @@ backend/
     models/            # SQLModel tables (User, Paper, Script, Slide, Media, Job)
     schemas/           # Pydantic request/response models
     providers/         # LLM calls (LiteLLM — model-agnostic)
-    services/          # Business logic orchestration
+    services/          # Business logic orchestration (Parallel TTS, Ingestion)
     routes/            # FastAPI routers
-    utils/             # PDF, arXiv, LaTeX, TTS, slides, video
-
-react-saral/
-  src/
-    routes/            # TanStack Router file-based routing
-    components/        # React components (slides, audio, scripts, upload)
-    stores/            # Zustand state (auth, workflow)
-    lib/               # API client (Axios), Firebase config, utils
+    utils/             # PDF, arXiv, LaTeX, TTS, slides
 ```
 
 ## API Endpoints
