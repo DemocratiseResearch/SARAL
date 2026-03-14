@@ -10,6 +10,7 @@ See https://docs.litellm.ai/docs/providers for the full list.
 
 import re
 import logging
+import json
 import litellm
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,28 @@ OUTPUT FORMAT (strictly follow this layout):
 • Bullet point 5 (if applicable)
 
 Process all sections in the input and generate bullet points accordingly."""
+
+METADATA_PROMPT = """You are a research assistant tasked with extracting standardized metadata from a research paper's text.
+Given the text of an academic paper (extracted from PDF or LaTeX), identify and extract the following:
+1. Title (The full, correct title of the research paper)
+2. Authors (A list of all authors, formatted as a single comma-separated string)
+3. Date/Year (The publication date or year, e.g., "2024" or "September 2023")
+
+Important Rules:
+- If the title is split across lines, join it cleanly into one line.
+- Do not include journal names, footers, or "Submitted to..." as part of the title.
+- Extract ONLY the metadata requested.
+- Return ONLY a valid JSON object.
+
+Example Output:
+{{
+  "title": "Quantum Supremacy using a Programmable Superconducting Processor",
+  "authors": "Frank Arute, Kunal Arya, Ryan Babbush",
+  "date": "2019"
+}}
+
+Research Paper Text:
+{paper_text}"""
 
 
 def _chat(model: str, prompt: str, api_key: str | None = None) -> str:
@@ -141,3 +164,29 @@ def _parse_bullet_response(
         result[name] = result[name][:5]
 
     return result
+
+
+def extract_paper_metadata(
+    paper_text: str, model: str, api_key: str | None = None
+) -> dict:
+    """Extract metadata (title, authors, date) from paper text using LLM."""
+    # Use first 6000 chars roughly to capture title/authors/date
+    snippet = paper_text[:6000]
+    raw = _chat(model, METADATA_PROMPT.format(paper_text=snippet), api_key)
+
+    try:
+        # Find JSON block if LLM was verbose
+        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group())
+        else:
+            data = json.loads(raw)
+
+        return {
+            "title": data.get("title", "Untitled").strip(),
+            "authors": data.get("authors", "Unknown").strip(),
+            "date": str(data.get("date", "")).strip(),
+        }
+    except Exception as e:
+        logger.warning(f"Failed to parse LLM metadata response: {e}. Raw: {raw[:100]}")
+        return {"title": "Untitled", "authors": "Unknown", "date": ""}

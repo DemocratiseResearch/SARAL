@@ -21,6 +21,8 @@ from app.utils.arxiv import extract_arxiv_id, download_source, get_arxiv_metadat
 from app.utils.latex import find_tex_file, extract_metadata_from_tex, extract_text_from_file, find_image_files
 from app.utils.pdf import process_pdf
 from app.utils.files import ensure_paper_dirs
+from app.providers.llm import extract_paper_metadata
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +42,28 @@ def ingest_arxiv(arxiv_url: str, user: User, session: Session) -> Paper:
 
     images: list[str] = []
     text_path: str | None = None
+    paper_text: str = ""
 
     if tex_path:
         images = find_image_files(extracted_dir)
         text_path = tex_path  # we'll extract text via the tex file
+        paper_text = extract_text_from_file(tex_path)
     else:
         # Fallback: look for PDF
         for f in Path(extracted_dir).rglob("*.pdf"):
             result = process_pdf(str(f), dirs["source"])
-            text_path = result["text_file"]
-            images = result.get("images", [])
+            text_path = result["text_file_path"]
+            images = result.get("image_files", [])
+            with open(text_path, "r", encoding="utf-8") as rf:
+                paper_text = rf.read()
             break
+
+    # Standardized metadata extraction via LLM
+    if paper_text:
+        settings = get_settings()
+        llm_meta = extract_paper_metadata(paper_text, settings.LLM_MODEL, settings.LLM_API_KEY)
+        if llm_meta["title"] != "Untitled":
+            metadata.update(llm_meta)
 
     paper = Paper(
         paper_uid=paper_uid,
@@ -89,6 +102,14 @@ def ingest_zip(filename: str, file_bytes: bytes, user: User, session: Session) -
     metadata = extract_metadata_from_tex(tex_path) if tex_path else {}
     images = find_image_files(extract_dir) if tex_path else []
 
+    # Standardized metadata refinement
+    if tex_path:
+        paper_text = extract_text_from_file(tex_path)
+        settings = get_settings()
+        llm_meta = extract_paper_metadata(paper_text, settings.LLM_MODEL, settings.LLM_API_KEY)
+        if llm_meta["title"] != "Untitled":
+            metadata.update(llm_meta)
+
     paper = Paper(
         paper_uid=paper_uid,
         user_id=user.id,
@@ -117,13 +138,24 @@ def ingest_pdf(filename: str, file_bytes: bytes, user: User, session: Session) -
         f.write(file_bytes)
 
     result = process_pdf(pdf_path, dirs["source"])
+    metadata = result.get("metadata", {})
+
+    # Standardized metadata extraction via LLM
+    text_path = result.get("text_file_path")
+    if text_path and os.path.exists(text_path):
+        with open(text_path, "r", encoding="utf-8") as f:
+            paper_text = f.read()
+        settings = get_settings()
+        llm_meta = extract_paper_metadata(paper_text, settings.LLM_MODEL, settings.LLM_API_KEY)
+        if llm_meta["title"] != "Untitled":
+            metadata.update(llm_meta)
 
     paper = Paper(
         paper_uid=paper_uid,
         user_id=user.id,
-        title=result["metadata"].get("title", Path(filename).stem),
-        authors=result["metadata"].get("authors", "Unknown"),
-        date=result["metadata"].get("date", ""),
+        title=metadata.get("title", Path(filename).stem),
+        authors=metadata.get("authors", "Unknown"),
+        date=metadata.get("date", ""),
         source_type="pdf",
         source_dir=dirs["source"],
         text_file_path=result["text_file_path"],

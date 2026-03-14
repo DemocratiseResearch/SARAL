@@ -1,16 +1,29 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { papersApi, type PaperResponse } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
-import { Plus, Clock, CheckCircle2, FileText } from "lucide-react"
+import { Plus, Clock, CheckCircle2, FileText, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 export const Route = createFileRoute("/_authed/dashboard")({
   component: DashboardPage,
 })
 
 function PaperCard({ paper }: { paper: PaperResponse }) {
+  const queryClient = useQueryClient()
+  const deleteMutation = useMutation({
+    mutationFn: () => papersApi.delete(paper.paper_id),
+    onSuccess: () => {
+      toast.success("Project deleted successfully")
+      queryClient.invalidateQueries({ queryKey: ["papers"] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete project")
+    }
+  })
+
   const isUploaded = paper.status === "processing" || paper.status === "processed" || paper.status === "uploaded" || paper.has_scripts || paper.has_audio
 
   let pendingWord = "Upload"
@@ -41,19 +54,53 @@ function PaperCard({ paper }: { paper: PaperResponse }) {
             </p>
           </div>
 
-          {/* Simple Pending Status */}
-          <div className="mt-2 flex items-center">
+          {/* Simple Pending Status & Actions */}
+          <div className="mt-2 flex items-center justify-between">
             {pendingWord === "Completed" ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100/60 px-2.5 py-1 font-sans text-xs font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-400">
                 <CheckCircle2 className="size-3.5" />
                 Completed
               </span>
-            ) : (
+            ) : pendingWord === "Scripts" ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100/60 px-2.5 py-1 font-sans text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                 <Clock className="size-3.5" />
-                {pendingWord} Pending
+                Scripts Pending
+              </span>
+            ) : pendingWord === "Audio" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100/60 px-2.5 py-1 font-sans text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                <Clock className="size-3.5" />
+                Audio Pending
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100/60 px-2.5 py-1 font-sans text-xs font-semibold text-gray-700 dark:bg-gray-800/30 dark:text-gray-400">
+                <Clock className="size-3.5" />
+                Upload Pending
               </span>
             )}
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                toast("Delete Project?", {
+                  description: "This will permanently delete the paper and all assets.",
+                  action: {
+                    label: "Delete",
+                    onClick: () => deleteMutation.mutate()
+                  },
+                  cancel: {
+                    label: "Cancel",
+                    onClick: () => {}
+                  }
+                })
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="size-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -99,28 +99,32 @@ function downloadPptx(slides: SlideData[]) {
 function SlidePreview({ slide }: { slide: SlideData }) {
   if (slide.isTitle) {
     return (
-      <div className="flex aspect-video w-full flex-col items-center justify-center rounded-lg bg-[#1A1A2E] p-8">
-        <h2 className="mb-4 text-center text-2xl font-bold text-[#00D2FF] md:text-3xl">
-          {slide.title}
-        </h2>
-        {slide.subtitle && (
-          <p className="text-center text-sm text-gray-300 md:text-base">
-            {slide.subtitle}
-          </p>
-        )}
+      <div className="flex aspect-video w-full flex-col items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-8 shadow-inner md:p-12">
+        <div className="max-w-4xl space-y-6 text-center">
+          <h2 className="text-balance font-heading text-3xl font-bold tracking-tight text-white drop-shadow-sm md:text-4xl lg:text-5xl">
+            {slide.title}
+          </h2>
+          {slide.subtitle && (
+            <p className="text-balance font-sans text-sm font-medium text-slate-300 md:text-base lg:text-lg">
+              {slide.subtitle}
+            </p>
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex aspect-video w-full flex-col rounded-lg bg-[#1A1A2E] p-6">
-      <h3 className="mb-4 text-lg font-bold text-[#00D2FF] md:text-xl">
+    <div className="flex aspect-video w-full flex-col rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-8 shadow-inner md:p-10">
+      <h3 className="mb-6 font-heading text-2xl font-bold tracking-tight text-white drop-shadow-sm md:text-3xl lg:text-4xl px-2">
         {slide.title}
       </h3>
       {slide.content && (
-        <p className="overflow-y-auto text-sm leading-relaxed text-gray-200 md:text-base">
-          {slide.content}
-        </p>
+        <div className="flex-1 overflow-y-auto px-2">
+          <p className="text-base leading-relaxed text-slate-200 md:text-lg">
+            {slide.content}
+          </p>
+        </div>
       )}
     </div>
   )
@@ -174,8 +178,9 @@ export function SlideViewer({ paperId }: SlideViewerProps) {
         )}
 
         {total > 0 && (
-          <div className="space-y-4">
-            <div className="relative">
+          <div className="space-y-6">
+            {/* Slide Preview with Controls */}
+            <div className="group relative overflow-hidden rounded-xl shadow-lg ring-1 ring-border/50">
               <SlidePreview slide={slides[currentSlide]} />
 
               {total > 1 && (
@@ -184,39 +189,43 @@ export function SlideViewer({ paperId }: SlideViewerProps) {
                     onClick={() =>
                       setCurrentSlide((p) => (p > 0 ? p - 1 : total - 1))
                     }
-                    className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition hover:bg-black/70"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2.5 text-white/70 opacity-0 backdrop-blur-md transition-all hover:bg-black/60 hover:text-white group-hover:opacity-100"
                   >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="size-6 cursor-pointer" />
                   </button>
                   <button
                     onClick={() =>
                       setCurrentSlide((p) => (p < total - 1 ? p + 1 : 0))
                     }
-                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition hover:bg-black/70"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2.5 text-white/70 opacity-0 backdrop-blur-md transition-all hover:bg-black/60 hover:text-white group-hover:opacity-100"
                   >
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="size-6 cursor-pointer" />
                   </button>
                 </>
               )}
 
-              <div className="absolute right-3 bottom-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
+              <div className="absolute bottom-4 right-4 rounded-full bg-black/50 px-3 py-1 text-xs font-medium tracking-wide text-white/90 backdrop-blur-md">
                 {currentSlide + 1} / {total}
               </div>
             </div>
 
             {/* Thumbnail strip */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex snap-x gap-2 overflow-x-auto pb-2 pt-2 scrollbar-none">
               {slides.map((slide, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentSlide(i)}
-                  className={`shrink-0 rounded border-2 px-3 py-1 text-xs transition ${
+                  className={`shrink-0 snap-center rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
                     i === currentSlide
-                      ? "border-blue-500 bg-blue-500/10 text-blue-400"
-                      : "border-transparent text-gray-400 opacity-60 hover:opacity-100"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   }`}
                 >
-                  {slide.isTitle ? "Title" : slide.title}
+                  {slide.isTitle
+                    ? "Title"
+                    : slide.title.length > 30
+                      ? slide.title.substring(0, 30) + "..."
+                      : slide.title}
                 </button>
               ))}
             </div>

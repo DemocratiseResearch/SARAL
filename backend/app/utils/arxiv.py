@@ -70,7 +70,9 @@ def get_arxiv_metadata(url: str) -> dict:
     """Scrape title, authors, and date from an arXiv abstract page."""
     metadata = {"title": "Unknown Title", "authors": "Unknown Authors", "date": "Unknown Date"}
     try:
-        resp = requests.get(url, timeout=30)
+        arxiv_id = extract_arxiv_id(url)
+        abs_url = f"https://arxiv.org/abs/{arxiv_id}"
+        resp = requests.get(abs_url, timeout=30)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 

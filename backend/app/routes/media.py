@@ -14,7 +14,7 @@ from app.auth.dependencies import get_current_user, get_current_user_from_token_
 from app.config import get_settings
 from app.models.user import User
 from app.schemas.media import AudioGenerationRequest, VideoGenerationRequest, MediaResponse
-from app.services.media_service import generate_audio, generate_video_for_paper, get_media, get_supported_languages
+from app.services.media_service import generate_audio, generate_video_for_paper, get_media, get_media_by_audio_file, get_latest_media, get_supported_languages
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -77,7 +77,7 @@ async def stream_audio(
     user: User = Depends(get_current_user_from_token_param),
     session: Session = Depends(get_session),
 ):
-    media = get_media(paper_id, user, session)
+    media = get_media_by_audio_file(paper_id, user, session, filename)
     if not media or not media.audio_dir:
         raise HTTPException(404, "Audio not found")
 
@@ -187,9 +187,15 @@ async def get_media_status(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    media = get_media(paper_id, user, session)
+    media = get_latest_media(paper_id, user, session)
     if not media:
-        raise HTTPException(404, "Media not found")
+        return MediaResponse(
+            paper_id=paper_id,
+            language="English",
+            audio_files=[],
+            video_path=None,
+            status="pending"
+        )
         
     return MediaResponse(
         paper_id=paper_id,

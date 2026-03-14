@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # Model format: "provider/model" e.g. gemini/gemini-2.0-flash, gpt-4o-mini,
     # anthropic/claude-3-haiku-20240307, groq/llama3-8b-8192, ollama/llama3
     # See https://docs.litellm.ai/docs/providers for full list.
-    LLM_MODEL: str = "gemini/gemini-2.0-flash"
+    LLM_MODEL: str = ""
     LLM_API_KEY: str = ""
 
     # ── Auth ──────────────────────────────────────────────────────────
@@ -60,6 +60,13 @@ class Settings(BaseSettings):
             raise ValueError(
                 "DATABASE_URL is not set. Add it to your .env file.\n"
                 "Example: DATABASE_URL=postgresql://youruser@localhost:5432/saral\n"
+                "See backend/.env.example for details."
+            )
+
+        if not self.LLM_MODEL:
+            raise ValueError(
+                "LLM_MODEL is not set. Add it to your .env file.\n"
+                "Example: LLM_MODEL=gpt-4o-mini\n"
                 "See backend/.env.example for details."
             )
 

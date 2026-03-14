@@ -36,7 +36,7 @@ export function Header() {
                     referrerPolicy="no-referrer"
                   />
                 )}
-                <Button variant="ghost" size="sm" onClick={logout}>
+                <Button variant="ghost" size="sm" className="font-heading" onClick={logout}>
                   Sign out
                 </Button>
               </div>
@@ -44,7 +44,7 @@ export function Header() {
           ) : (
             <Link
               to="/login"
-              className="text-sm text-[#084898] transition-colors hover:text-[#084898]"
+              className="text-base text-black dark:text-white"
             >
               Sign in
             </Link>

@@ -83,20 +83,43 @@ def generate_audio(
             if translated:
                 sections_text[name] = translated
 
-    # Synthesize audio
-    audio_files: list[str] = []
+    # Synthesize audio (parallelized for speed)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    # Build list of (output_path, text) tuples to synthesize
+    synth_tasks: list[tuple[str, str]] = []
 
     # Title intro
     title_path = os.path.join(audio_dir, "00_title_intro.wav")
-    if synthesize_long_text(sarvam_api_key, title_intro, title_path, lang_code, voice, language):
-        audio_files.append(title_path)
+    synth_tasks.append((title_path, title_intro))
 
-    # Section audio — iterate in the order scripts were created
+    # Section audio
     for i, section_name in enumerate(sections_text):
         text = sections_text[section_name]
         out_path = os.path.join(audio_dir, f"{i + 1:02d}_{section_name.lower()}.wav")
-        if synthesize_long_text(sarvam_api_key, text, out_path, lang_code, voice, language):
-            audio_files.append(out_path)
+        synth_tasks.append((out_path, text))
+
+    # Run TTS calls in parallel (max 4 concurrent to respect API rate limits)
+    audio_files: list[str] = []
+    successful_paths: set[str] = set()
+
+    def _synth(path_text: tuple[str, str]) -> str | None:
+        path, text = path_text
+        if synthesize_long_text(sarvam_api_key, text, path, lang_code, voice, language):
+            return path
+        return None
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(_synth, task): task[0] for task in synth_tasks}
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                successful_paths.add(result)
+
+    # Preserve original ordering
+    for path, _ in synth_tasks:
+        if path in successful_paths:
+            audio_files.append(path)
 
     if not audio_files:
         raise ValueError("No audio files were generated")
@@ -183,6 +206,38 @@ def get_media(paper_uid: str, user: User, session: Session, language: str = "Eng
         raise HTTPException(status_code=400, detail="Paper not found")
     return session.exec(
         select(Media).where(Media.paper_id == paper.id, Media.language == language)
+    ).first()
+
+
+def get_media_by_audio_file(paper_uid: str, user: User, session: Session, filename: str) -> Media | None:
+    """Find the Media record that contains a specific audio file, regardless of language."""
+    paper = session.exec(
+        select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
+    ).first()
+    if not paper:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Paper not found")
+    
+    all_media = session.exec(
+        select(Media).where(Media.paper_id == paper.id)
+    ).all()
+    
+    for media in all_media:
+        if media.audio_dir and os.path.isfile(os.path.join(media.audio_dir, filename)):
+            return media
+    return None
+
+
+def get_latest_media(paper_uid: str, user: User, session: Session) -> Media | None:
+    """Return the most recently created media for a paper, regardless of language."""
+    paper = session.exec(
+        select(Paper).where(Paper.paper_uid == paper_uid, Paper.user_id == user.id)
+    ).first()
+    if not paper:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Paper not found")
+    return session.exec(
+        select(Media).where(Media.paper_id == paper.id).order_by(Media.id.desc())
     ).first()
 
 

@@ -293,17 +293,25 @@ def _split_sentences(text: str, max_size: int) -> list[str]:
 
 
 def _concat_wav_files(chunk_files: list[str], output_path: str, temp_dir: str, base: str):
-    """Concatenate WAV files using ffmpeg."""
-    list_file = os.path.join(temp_dir, f"{base}_list.txt")
-    with open(list_file, "w") as f:
-        for cf in chunk_files:
-            f.write(f"file '{os.path.abspath(cf)}'\n")
+    """Concatenate WAV files natively without requiring ffmpeg."""
+    import wave
+    
     try:
-        subprocess.run(
-            ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", output_path],
-            check=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError:
+        data = []
+        params = None
+        for infile in chunk_files:
+            with wave.open(infile, 'rb') as w:
+                if not params:
+                    params = w.getparams()
+                data.append(w.readframes(w.getnframes()))
+                
+        with wave.open(output_path, 'wb') as outfile:
+            if params:
+                outfile.setparams(params)
+            for d in data:
+                outfile.writeframes(d)
+                
+    except Exception as e:
+        logger.error(f"Native WAV concatenation failed: {e}")
         # Fallback: just use the first chunk
         shutil.copy(chunk_files[0], output_path)

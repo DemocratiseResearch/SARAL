@@ -11,7 +11,10 @@ interface ScriptEditorProps {
   onDone: () => void
 }
 
+import { useQueryClient } from "@tanstack/react-query"
+
 export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
+  const queryClient = useQueryClient()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editContent, setEditContent] = useState("")
 
@@ -25,7 +28,8 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
     mutationFn: () => scriptsApi.generate(paperId).then((r) => r.data),
     onSuccess: () => {
       toast.success("Scripts generated successfully!")
-      scriptsQuery.refetch()
+      queryClient.invalidateQueries({ queryKey: ["scripts", paperId] })
+      queryClient.invalidateQueries({ queryKey: ["paper", paperId] })
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to generate scripts")
@@ -39,7 +43,8 @@ export function ScriptEditor({ paperId, onDone }: ScriptEditorProps) {
       toast.success("Script updated successfully!")
       setEditingId(null)
       setEditContent("")
-      scriptsQuery.refetch()
+      queryClient.invalidateQueries({ queryKey: ["scripts", paperId] })
+      queryClient.invalidateQueries({ queryKey: ["paper", paperId] })
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update script")
