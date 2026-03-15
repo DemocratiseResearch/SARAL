@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { useAuthStore } from "@/stores/auth-store"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -6,6 +6,12 @@ import { ThemeToggle } from "@/components/theme-toggle"
 export function Header() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate({ to: "/login" })
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
@@ -36,7 +42,7 @@ export function Header() {
                     referrerPolicy="no-referrer"
                   />
                 )}
-                <Button variant="ghost" size="sm" className="font-heading" onClick={logout}>
+                <Button variant="ghost" size="sm" className="font-heading" onClick={handleLogout}>
                   Sign out
                 </Button>
               </div>
