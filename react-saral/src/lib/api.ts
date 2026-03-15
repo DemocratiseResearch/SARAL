@@ -77,6 +77,8 @@ export const papersApi = {
   },
   list: () => api.get<PaperResponse[]>("/papers"),
   get: (id: string) => api.get<PaperResponse>(`/papers/${id}`),
+  update: (id: string, data: Partial<PaperMetadata>) =>
+    api.patch<PaperResponse>(`/papers/${id}`, data),
   delete: (id: string) => api.delete<{ status: string }>(`/papers/${id}`),
 }
 

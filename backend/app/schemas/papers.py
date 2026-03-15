@@ -22,3 +22,9 @@ class PaperResponse(BaseModel):
     status: str = "processed"
     has_scripts: bool = False
     has_audio: bool = False
+
+
+class PaperUpdate(BaseModel):
+    title: Optional[str] = None
+    authors: Optional[str] = None
+    date: Optional[str] = None

@@ -10,6 +10,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion"
 import { PaperUpload } from "@/components/paper-upload"
+import { MetadataEditor } from "@/components/metadata-editor"
 import { ScriptEditor } from "@/components/script-editor"
 import { SlideViewer } from "@/components/slide-viewer"
 import { AudioGenerator } from "@/components/audio-generator"
@@ -65,6 +66,12 @@ function StepEditorPage() {
       completed: !!paper,
     },
     {
+      key: "metadata",
+      label: "Metadata",
+      icon: FileText,
+      completed: !!paper?.metadata.title && paper.metadata.title !== "Untitled",
+    },
+    {
       key: "scripts",
       label: "Scripts",
       icon: FileText,
@@ -74,7 +81,7 @@ function StepEditorPage() {
       key: "slides",
       label: "Slides",
       icon: Presentation,
-      completed: hasScripts, // Slides are ready once scripts are ready
+      completed: hasScripts,
     },
     {
       key: "audio",
@@ -115,29 +122,53 @@ function StepEditorPage() {
         <CardContent className="p-0">
           <Accordion defaultValue={[activeStep]}>
             {steps.map((step) => (
-              <AccordionItem key={step.key} value={step.key}>
-                <AccordionTrigger className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    {step.completed ? (
-                      <CheckCircle2 className="size-5 shrink-0 text-green-500" />
-                    ) : (
-                      <Circle className="size-5 shrink-0 text-muted-foreground" />
-                    )}
-                    <div className="flex items-center gap-2">
-                      <step.icon className="size-4 text-primary" />
-                      <span className="font-heading text-base font-semibold text-foreground">
-                        {step.label}
-                      </span>
+              <AccordionItem
+                key={step.key}
+                value={step.key}
+                className="border-b last:border-b-0"
+              >
+                <AccordionTrigger className="px-6 py-5 transition-all hover:bg-primary/[0.02] hover:no-underline [&[data-state=open]]:bg-primary/[0.03]">
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="relative flex scale-110 items-center justify-center">
+                      {step.completed ? (
+                        <div className="rounded-full bg-green-500/10 p-1">
+                          <CheckCircle2 className="size-5 shrink-0 text-green-500" />
+                        </div>
+                      ) : (
+                        <div className="rounded-full bg-muted/30 p-1">
+                          <Circle className="size-5 shrink-0 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <step.icon className="size-4 text-primary/70" />
+                        <span className="font-heading text-lg font-bold tracking-tight text-foreground">
+                          {step.label}
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {step.completed ? "Step completed" : "Pending action"}
+                      </p>
                     </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6">
+                <AccordionContent className="px-6 pb-8 pt-2">
                   {step.key === "upload" && (
                     <PaperUpload
+                      isReadonly={hasScripts}
                       onSuccess={(newPaper) => {
                         setPaperId(newPaper.paper_id)
-                        setStep("scripts")
+                        setStep("metadata")
                       }}
+                    />
+                  )}
+
+                  {step.key === "metadata" && paper && (
+                    <MetadataEditor
+                      paper={paper}
+                      isReadonly={hasScripts}
+                      onSuccess={() => setStep("scripts")}
                     />
                   )}
 

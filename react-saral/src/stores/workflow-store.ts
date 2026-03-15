@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-export type WorkflowStep = "upload" | "scripts" | "output" | "done"
+export type WorkflowStep = "upload" | "metadata" | "scripts" | "output" | "done"
 
 interface WorkflowState {
   currentStep: WorkflowStep

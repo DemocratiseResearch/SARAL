@@ -68,6 +68,13 @@ function PaperDetailPage() {
       completed: !!paper,
     },
     {
+      key: "metadata",
+      label: "Metadata",
+      icon: FileText,
+      description: "Review and edit paper title, authors, and other metadata.",
+      completed: !!paper?.metadata.title && paper.metadata.title !== "Untitled",
+    },
+    {
       key: "scripts",
       label: "Scripts",
       icon: FileText,
@@ -81,7 +88,7 @@ function PaperDetailPage() {
       icon: Presentation,
       description:
         "Preview and download your auto-generated presentation slides.",
-      completed: hasScripts, // Slides are ready once scripts are ready
+      completed: hasScripts,
     },
     {
       key: "audio",
@@ -152,7 +159,7 @@ function PaperDetailPage() {
       {/* Steps accordion */}
       <Card>
         <CardContent className="p-0">
-          <Accordion defaultValue={[hasScripts ? "slides" : paper ? "scripts" : "upload"]}>
+          <Accordion defaultValue={[hasScripts ? "slides" : paper ? "metadata" : "upload"]}>
             {steps.map((step) => (
               <AccordionItem key={step.key} value={step.key}>
                 <AccordionTrigger className="px-6 py-4">

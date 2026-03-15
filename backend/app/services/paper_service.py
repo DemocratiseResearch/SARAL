@@ -177,6 +177,21 @@ def get_paper(paper_uid: str, user: User, session: Session) -> Paper:
     return paper
 
 
+def update_paper(paper_uid: str, update_data: dict, user: User, session: Session) -> Paper:
+    paper = get_paper(paper_uid, user, session)
+    if "title" in update_data:
+        paper.title = update_data["title"]
+    if "authors" in update_data:
+        paper.authors = update_data["authors"]
+    if "date" in update_data:
+        paper.date = update_data["date"]
+    
+    session.add(paper)
+    session.commit()
+    session.refresh(paper)
+    return paper
+
+
 def list_papers(user: User, session: Session) -> list[Paper]:
     return list(session.exec(select(Paper).where(Paper.user_id == user.id).order_by(Paper.created_at.desc())).all())
 

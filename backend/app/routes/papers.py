@@ -18,8 +18,8 @@ from app.auth.dependencies import get_current_user
 from app.models.user import User
 from app.models.script import Script
 from app.models.media import Media
-from app.schemas.papers import PaperResponse, PaperMetadata, ArxivRequest
-from app.services.paper_service import ingest_arxiv, ingest_zip, ingest_pdf, get_paper, list_papers, delete_paper
+from app.schemas.papers import PaperResponse, PaperMetadata, ArxivRequest, PaperUpdate
+from app.services.paper_service import ingest_arxiv, ingest_zip, ingest_pdf, get_paper, list_papers, delete_paper, update_paper
 
 router = APIRouter(prefix="/papers", tags=["papers"])
 
@@ -167,5 +167,17 @@ async def delete_paper_route(
     try:
         delete_paper(paper_id, user, session)
         return {"status": "deleted"}
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+@router.patch("/{paper_id}", response_model=PaperResponse)
+async def update_paper_route(
+    paper_id: str,
+    data: PaperUpdate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    try:
+        paper = update_paper(paper_id, data.model_dump(exclude_unset=True), user, session)
+        return _paper_response(paper, session)
     except ValueError as e:
         raise HTTPException(404, str(e))
