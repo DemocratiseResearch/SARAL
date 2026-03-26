@@ -1,0 +1,14 @@
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+frontend/coverage
+
+# production
+frontend/build
+/package-lock.json
+/.env
+.env

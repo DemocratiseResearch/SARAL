@@ -1,4 +1,5 @@
 from sarvamai import SarvamAI
+from app.utils.timing import track_performance
 
 # Comprehensive language mapping for Sarvam SDK
 SUPPORTED_LANGUAGES = {
@@ -14,6 +15,7 @@ SUPPORTED_LANGUAGES = {
     'Telugu': 'te-IN'
 }
 
+@track_performance
 def get_supported_languages():
     """
     Get list of all supported languages.
@@ -23,6 +25,7 @@ def get_supported_languages():
     """
     return SUPPORTED_LANGUAGES.copy()
 
+@track_performance
 def is_language_supported(language):
     """
     Check if a language is supported.
@@ -36,6 +39,7 @@ def is_language_supported(language):
     return (language in SUPPORTED_LANGUAGES or 
             language in SUPPORTED_LANGUAGES.values())
 
+@track_performance
 def get_language_code(language):
     """
     Get language code for a given language name.
@@ -52,6 +56,7 @@ def get_language_code(language):
         return language
     return None
 
+@track_performance
 def translate_to_language(english_script, target_language, api_key, mode="code-mixed"):
     """
     Translate English script to target language using SarvamAI.
@@ -92,6 +97,7 @@ def translate_to_language(english_script, target_language, api_key, mode="code-m
     
     return ' '.join(translated_chunks)
 
+@track_performance
 def _translate_text(text, target_language_code, api_key, mode="code-mixed"):
     """Helper function to translate text using SarvamAI."""
     client = SarvamAI(api_subscription_key=api_key)
@@ -108,6 +114,7 @@ def _translate_text(text, target_language_code, api_key, mode="code-mixed"):
         print(f"Translation error: {str(e)}")
         return None
 
+@track_performance
 def _split_into_chunks(text, max_size):
     """
     Split text into chunks not exceeding max_size, respecting sentence boundaries.
@@ -159,18 +166,22 @@ def _split_into_chunks(text, max_size):
     return chunks
 
 # Convenience functions for specific languages
+@track_performance
 def translate_to_hindi(english_script, api_key):
     """Convenience function to translate to Hindi."""
     return translate_to_language(english_script, 'hindi', api_key)
 
+@track_performance
 def translate_to_bengali(english_script, api_key):
     """Convenience function to translate to Bengali."""
     return translate_to_language(english_script, 'bengali', api_key)
 
+@track_performance
 def translate_to_tamil(english_script, api_key):
     """Convenience function to translate to Tamil."""
     return translate_to_language(english_script, 'tamil', api_key)
 
+@track_performance
 def translate_to_telugu(english_script, api_key):
     """Convenience function to translate to Telugu."""
     return translate_to_language(english_script, 'telugu', api_key)

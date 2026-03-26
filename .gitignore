@@ -6,33 +6,31 @@ backend/app/*/__pycache__/
 *.py[cod]
 *$py.class
 backend/**/*.pyc
-# Ignore all Python bytecode files recursively
 **/*.py[cod]
 *$py.class
 backend/.env
 frontend/.env
 frontend/node_modules/
-
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
 .pnp.js
-
 # testing
 frontend/coverage
-
 # production
 frontend/build
-
 # misc
 .DS_Store
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+poster-service/uploads/
+poster-service/output/
+poster-service/logs/
+poster-service/*.log
+poster-service/pid-*.txt
+poster-service/.env

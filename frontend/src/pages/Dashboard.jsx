@@ -8,7 +8,7 @@ import {
 import Layout from '../components/common/Layout';
 import { useWorkflow } from '../contexts/WorkflowContext';
 import { apiService } from '../services/api';
-import toast from 'react-hot-toast';
+import toast from '../services/toastService';
 
 const ProjectCard = ({ project, onDelete, delay = 0 }) => {
   const getStatusIcon = (status) => {

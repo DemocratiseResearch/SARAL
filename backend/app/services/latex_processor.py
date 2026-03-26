@@ -2,7 +2,9 @@ import os
 import re
 from pathlib import Path
 from typing import List, Dict
+from app.utils.timing import track_performance
 
+@track_performance
 def find_tex_file(directory):
     """Find the main .tex file in a directory."""
     tex_files = []
@@ -27,6 +29,7 @@ def find_tex_file(directory):
     # Return the first .tex file found
     return tex_files[0]
 
+@track_performance
 def find_image_references(tex_file_path):
     """Find image references in LaTeX file."""
     image_refs = []
@@ -53,6 +56,7 @@ def find_image_references(tex_file_path):
     
     return list(set(image_refs))  # Remove duplicates
 
+@track_performance
 def find_image_files(directory, image_refs):
     """Find actual image files in the directory."""
     image_files = []
@@ -103,6 +107,7 @@ def find_image_files(directory, image_refs):
     
     return image_files
 
+@track_performance
 def convert_pdf_to_png(pdf_path, png_path):
     """Convert PDF file to PNG using pdf2image."""
     try:
@@ -122,6 +127,7 @@ def convert_pdf_to_png(pdf_path, png_path):
         print(f"Error during PDF to PNG conversion: {e}")
         return False
 
+@track_performance
 def extract_image_captions(tex_file_path):
     """Extract image captions from LaTeX file."""
     captions = {}
@@ -144,6 +150,7 @@ def extract_image_captions(tex_file_path):
     
     return captions
 
+@track_performance
 def create_placeholder_image():
     """Create a placeholder image if no images are found."""
     try:

@@ -6,21 +6,23 @@ import tarfile
 import gzip
 from bs4 import BeautifulSoup
 from pathlib import Path
+from app.utils.timing import track_performance
 
 class ArxivScraper:
     """Scraper for downloading TeX source files from arXiv papers."""
     
+    @track_performance
     def __init__(self, download_dir="temp/arxiv_sources"):
         self.download_dir = download_dir
         os.makedirs(download_dir, exist_ok=True)
-
+    @track_performance
     def extract_arxiv_id(self, url):
         """Extract the arXiv ID from a given URL."""
         match = re.search(r'arxiv\.org/(?:abs|pdf)/([0-9]+\.[0-9]+)(?:v[0-9]+)?', url)
         if match:
             return match.group(1)
         return None
-
+    @track_performance
     def download_source(self, url):
         """Download the TeX source file for a given arXiv paper URL."""
         arxiv_id = self.extract_arxiv_id(url)
@@ -86,7 +88,7 @@ class ArxivScraper:
         except Exception as e:
             print(f"Error during download/extraction: {e}")
             raise
-
+    @track_performance
     def get_paper_metadata(self, url):
         """Get metadata for the paper (title, authors, date)."""
         try:

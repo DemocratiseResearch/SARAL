@@ -1,12 +1,25 @@
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
+from app.services.voice_manager import voice_manager
 from .sarvam_sdk import SarvamTTS, SarvamTTSError
 from .language_service import get_language_code, is_language_supported
 import re
 import subprocess
 import grapheme  # Add this import for proper Unicode grapheme handling
+import time
+import json
+import aiohttp
+import asyncio
+from fastapi import HTTPException
+from pdf2image import convert_from_path
+from pydub import AudioSegment
+import shutil
+from app.utils.timing import track_performance
 
+sarvam_api_key = os.getenv("SARVAM_API_KEY")
+
+@track_performance
 def clean_script_for_tts_and_video(script_text):
     """Clean script text for TTS processing."""
     if not script_text or not script_text.strip():
@@ -20,6 +33,13 @@ def clean_script_for_tts_and_video(script_text):
 
     return script_text.strip()
 
+@track_performance
+def separate_numbers_from_text(text):
+    # Add space between Assamese/Unicode letters and numbers
+    return re.sub(r'([^\x00-\x7F])(\d)', r'\1 \2', 
+           re.sub(r'(\d)([^\x00-\x7F])', r'\1 \2', text))
+
+@track_performance
 def ensure_audio_is_generated(
     sarvam_api_key: str,
     language: str,
@@ -27,6 +47,7 @@ def ensure_audio_is_generated(
     title_intro_script: str,
     sections_scripts: Dict[str, str],
     voice_selections: Dict[str, str],
+    section_order: List[str],
     hinglish_iterations: int = 3,
     openai_api_key: Optional[str] = None,
     show_hindi_debug: bool = False
@@ -40,12 +61,21 @@ def ensure_audio_is_generated(
     if not sarvam_api_key or sarvam_api_key.strip() == "":
         raise ValueError("Sarvam API key is required")
 
-    voice = voice_selections.get(language, "meera")
-    print(f"Using voice: {voice}")
-    if voice == "meera":
-        voice = "vidya"
-    elif voice == "arjun":
-        voice = "karun"
+    #voice = voice_selections.get(language, "meera")
+    #print(f"Using voice: {voice}")
+    # if voice == "meera":
+    #     voice = "vidya"
+    # elif voice == "arjun":
+    #     voice = "karun"
+
+    #if voice == "meera" or voice == "vidya":
+    #    voice = "simran"
+    #elif voice == "arjun" or voice == "karun":
+    #    voice = "aditya"
+
+    requested_voice = voice_selections.get(language, "simran")
+    gender = "male" if requested_voice in ["aditya", "arjun", "karun", "shubh", "aayan"] else "female"
+    voice = voice_manager.get_next_voice(gender)
 
     # Initialize TTS client
     try:
@@ -85,7 +115,7 @@ def ensure_audio_is_generated(
                     print(f"✓ Title audio: {title_audio_path}")
 
         # Generate section audios
-        section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+        # section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
         
         for i, section_name in enumerate(section_order, start=1):
             if section_name in sections_scripts:
@@ -125,13 +155,14 @@ def ensure_audio_is_generated(
         raise
 
 
-
+@track_performance
 def ensure_hindi_audio_is_generated(
     sarvam_api_key: str,
     paper_id: str,
     title_intro_script: str,
     sections_scripts: Dict[str, str],
     voice_selections: Dict[str, str],
+    section_order: List[str],
     hinglish_iterations: int = 3,
     openai_api_key: Optional[str] = None,
     show_hindi_debug: bool = False
@@ -152,9 +183,17 @@ def ensure_hindi_audio_is_generated(
         raise ValueError("Sarvam API key is required")
 
     # Use appropriate voice for Hindi content
-    voice = voice_selections.get("Hindi", "vidya")
-    print(f"Using Hindi voice: {voice}")
+    #voice = voice_selections.get("Hindi", "ritu")
+    #if voice == "vidya":
+    #    voice = "simran"
+    #elif voice == "karun":
+    #    voice = "aditya"
+    #print(f"Using Hindi voice: {voice}")
 
+    requested_voice = voice_selections.get("Hindi", "simran")
+    gender = "male" if requested_voice in ["aditya", "arjun", "karun", "shubh", "aayan"] else "female"
+    voice = voice_manager.get_next_voice(gender)
+    print("sarvam_api_key", sarvam_api_key)
     # Initialize TTS client
     try:
         tts_client = SarvamTTS(api_key=sarvam_api_key)
@@ -172,6 +211,7 @@ def ensure_hindi_audio_is_generated(
     successful_generations = 0
     
     # Add a Hindi-specific chunking method to TTS client
+    @track_performance
     def chunk_hindi_text(text: str, max_chunk_length: int = 450) -> List[str]:
         """Create smaller chunks for Hindi text, respecting sentence boundaries and keeping grapheme clusters intact"""
         # First check if text is shorter than max length
@@ -296,7 +336,7 @@ def ensure_hindi_audio_is_generated(
                             print(f"⚠ Title Hindi audio (fallback): {title_audio_path}")
 
         # Generate section audios
-        section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+        # section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
         
         for i, section_name in enumerate(section_order, start=1):
             if section_name in sections_scripts:
@@ -387,6 +427,7 @@ def ensure_hindi_audio_is_generated(
         raise
 
 
+@track_performance
 def ensure_language_audio_is_generated(
     sarvam_api_key: str,
     language: str,
@@ -394,6 +435,7 @@ def ensure_language_audio_is_generated(
     title_intro_script: str,
     sections_scripts: Dict[str, str],
     voice_selections: Dict[str, str],
+    section_order: List[str],
     hinglish_iterations: int = 3,
     openai_api_key: Optional[str] = None,
     show_debug: bool = False
@@ -432,9 +474,17 @@ def ensure_language_audio_is_generated(
         raise ValueError("Sarvam API key is required")
 
     # Use appropriate voice for the language
-    voice = voice_selections.get(language, "vidya")
-    if show_debug:
-        print(f"Using voice for {language}: {voice}")
+    # voice = voice_selections.get(language, "simran")
+    # if voice == "vidya":
+    #     voice = "simran"
+    # elif voice == "karun":
+    #     voice = "aditya"
+    # if show_debug:
+    #     print(f"Using voice for {language}: {voice}")
+
+    requested_voice = voice_selections.get(language, "simran")
+    gender = "male" if requested_voice in ["aditya", "arjun", "karun", "shubh", "aayan"] else "female"
+    voice = voice_manager.get_next_voice(gender)
 
     # Initialize TTS client
     try:
@@ -462,6 +512,7 @@ def ensure_language_audio_is_generated(
         else:
             return 500  # Standard chunk size for other languages
     
+    @track_performance
     def chunk_text_by_language(text: str, language: str, max_chunk_length: int = None) -> List[str]:
         """Create chunks appropriate for the specific language"""
         if max_chunk_length is None:
@@ -550,7 +601,7 @@ def ensure_language_audio_is_generated(
                 chunks.append(current_chunk.strip())
             
             return chunks
-
+    @track_performance
     def generate_audio_from_chunks(chunks: List[str], language_code, base_filename: str) -> bool:
         """Generate audio from text chunks and combine them"""
         temp_dir = os.path.join(output_dir, "temp_chunks")
@@ -632,7 +683,7 @@ def ensure_language_audio_is_generated(
                     successful_generations += 1
 
         # Generate section audios
-        section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+        # section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
         
         for i, section_name in enumerate(section_order, start=1):
             if section_name in sections_scripts:
@@ -668,6 +719,7 @@ def ensure_language_audio_is_generated(
         raise
 
 
+@track_performance
 def test_sarvam_sdk(api_key: str, voice: str = "meera"):
     """Test function for SDK validation"""
     try:
@@ -676,3 +728,554 @@ def test_sarvam_sdk(api_key: str, voice: str = "meera"):
     except Exception as e:
         print(f"SDK test failed: {e}")
         return False
+
+
+
+
+@track_performance
+def sarvam_tts(text: str, language, voice: str, output_dir:str, audio_filename:str):
+    """Generate audio from text chunks and combine them"""
+    # Initialize TTS client
+    try:
+        print("in sarvam TTS")
+        show_debug = True
+        if not sarvam_api_key:
+            raise HTTPException(status_code=400, detail="SARVAM_API_KEY environment variable not set")
+        
+        # client = SarvamAI(api_subscription_key=sarvam_api_key)
+        tts_client = SarvamTTS(api_key=sarvam_api_key)
+        
+        if not tts_client.test_connection():
+            raise ValueError("Failed to connect to Sarvam API")
+        
+        if show_debug:
+            print("✓ Connected to Sarvam TTS API")
+        
+    except Exception as e:
+        print(f"TTS client initialization failed: {e}")
+        raise ValueError(f"Failed to initialize TTS client: {e}")
+
+    chunk_path = output_dir
+    # voice = "vidya"
+    speaker_name = ""
+    # Choose voice and language based on speaker and language preference
+    # if language.lower() == "hindi":
+    #     target_language_code = "hi-IN"
+        
+    # elif language.lower() == "tamil":
+    #     target_language_code = "ta-IN"
+       
+    # else:
+    #     target_language_code = "en-IN"
+        
+    if language.lower() == "hindi":
+        target_language_code = "hi-IN"
+        
+    elif language.lower() == "tamil":
+        target_language_code = "ta-IN"
+
+    elif language.lower() == "bengali":
+        target_language_code = "bn-IN"
+
+    elif language.lower() == "odia":
+        target_language_code = "od-IN"
+
+    elif language.lower() == "kannada":
+        target_language_code = "kn-IN"
+
+    elif language.lower() == "telugu":
+        target_language_code = "te-IN"
+
+    elif language.lower() == "punjabi":
+        target_language_code = "pa-IN"
+
+    elif language.lower() == "marathi":
+        target_language_code = "mr-IN"
+
+    elif language.lower() == "malayalam":
+        target_language_code = "ml-IN"
+
+    elif language.lower() == "gujarati":
+        target_language_code = "gu-IN"
+
+    else:
+        target_language_code = "en-IN"
+
+    try:
+        print("calling sarvam TTS")
+        audio_bytes = tts_client.synthesize_text(
+            text=text,
+            target_language=target_language_code,  # Use language code for TTS
+            voice=voice
+        )
+        # print("audio_bytes", audio_bytes)
+        if audio_bytes and len(audio_bytes) > 0:
+            with open(chunk_path, 'wb') as f:
+                f.write(audio_bytes)
+            # chunk_files.append(chunk_path)
+            if show_debug:
+                print(f"  ✓ Generated audio for chunk {audio_filename}")
+        else:
+            if show_debug:
+                print(f"  ⨯ No audio data returned for chunk {audio_filename}")
+    except Exception as e:
+        if show_debug:
+            print(f"  ⨯ Error generating audio for chunk {audio_filename}: {e}")
+
+    return chunk_path
+
+
+
+
+ 
+# ---------------------------
+# Bhashini TTS call 
+# ---------------------------
+@track_performance
+async def bhashini_tts(clean_text, gender, headers, api_url):
+    data = {"text": clean_text, "gender": gender}
+    # print("data", data)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, json=data, headers=headers, ssl=False) as response:
+            response_text = await response.text()
+            print("response", response)
+            if response.status == 200:
+                result = await response.json()
+                url = result.get("data", {}).get("s3_url", "")
+                print("url", url)
+                return url
+            else:
+                raise HTTPException(
+                    status_code=response.status,
+                    detail=f"TTS API error: {response.status} - {response_text}",
+                )
+
+
+# ---------------------------
+# Bhashini MT call 
+# ---------------------------
+@track_performance
+async def bhashini_mt(clean_text, headers, api_url):
+    data = {"input_text": clean_text}
+    # print("data", data)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, json=data, headers=headers, ssl=False) as response:
+            # print("response", response)
+            if response.status == 200:
+                result = await response.json()
+                # print("NMT Result: ",result)
+                return result.get("data", {}).get("output_text", "")
+            else:
+                error_text = await response.text()
+                print("Error response body:", error_text)
+
+                raise HTTPException(status_code=500, detail="Translation API error")
+
+
+# ---------------------------
+# File download helper 
+# ---------------------------
+@track_performance
+async def download_audio_file(url: str, save_path: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                with open(save_path, "wb") as f:
+                    f.write(await resp.read())
+                return save_path
+            else:
+                raise Exception(f"Failed to download audio. Status: {resp.status}")
+
+
+# ---------------------------
+# Single audio generation task
+# ---------------------------
+@track_performance
+async def generate_single_audio(
+    section_name: str,
+    script_text: str,
+    output_path: str,
+    headers: dict,
+    api_url: str,
+    gender: str = "male"
+):
+    """Generate audio for a single section"""
+    try:
+        if not script_text or not script_text.strip():
+            return None
+        print("script_text title_intro_script", script_text)
+        print(len(script_text.strip()))
+        print(f"Starting {section_name} audio generation...")
+        processed = separate_numbers_from_text(script_text)
+        print("processed", processed)
+        # cleaned_text = clean_script_for_tts_and_video(script_text)
+        # if not cleaned_text:
+        #     return None
+            
+        audio_url = await bhashini_tts(processed, gender, headers, api_url)
+        if audio_url:
+            await download_audio_file(audio_url, output_path)
+            print(f"✓ {section_name} audio completed: {output_path}")
+            return output_path
+        
+        return None
+        
+    except Exception as e:
+        print(f"✗ Error generating {section_name} audio: {e}")
+        return None
+
+
+# ---------------------------
+# Parallel audio generation
+# ---------------------------
+@track_performance
+async def ensure_audio_is_generated_bhashini(
+    language: str,
+    gender: str,
+    headers,
+    api_url: str,
+    paper_id: str,
+    title_intro_script: str,
+    sections_scripts: Dict[str, str],
+    section_order: str,
+
+):
+    """Generate audio files in two batches (3 + 3) with 5s gap"""
+    print("title_intro_script in parallel audio generation", title_intro_script)
+    output_dir = f"temp/audio/{paper_id}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(BASE_DIR, "models.json")
+
+    # Load model config
+    with open(MODEL_PATH, "r") as f:
+        data = json.load(f)
+
+    api_url_from_config = None
+    access_token = None
+    for item in data if isinstance(data, list) else []:
+        if item.get("model_type") == "tts" and item.get("source_language") == language:
+            api_url_from_config = item.get("api_url")
+            access_token = item.get("access_token")
+
+    if not api_url_from_config or not access_token:
+        raise ValueError("No valid TTS model found in models.json")
+
+    headers = {"access-token": access_token}
+    final_api_url = api_url or api_url_from_config
+
+    # Collect all tasks
+    tasks = []
+
+    if title_intro_script and title_intro_script.strip():
+        title_audio_path = os.path.join(output_dir, "00_title_introduction.wav")
+        tasks.append(
+            generate_single_audio(
+                "Title Introduction",
+                title_intro_script,
+                title_audio_path,
+                headers,
+                final_api_url,
+                gender
+            )
+        )
+
+    # section_order = ["Introduction", "Methodology", "Results", "Discussion", "Conclusion"]
+
+    for i, section_name in enumerate(section_order, start=1):
+        if section_name in sections_scripts:
+            script_text = sections_scripts[section_name]
+            if script_text and script_text.strip():
+                audio_path = os.path.join(output_dir, f"{i:02d}_{section_name.lower()}.wav")
+                tasks.append(
+                    generate_single_audio(
+                        section_name,
+                        script_text,
+                        audio_path,
+                        headers,
+                        final_api_url,
+                        gender
+                    )
+                )
+
+    if not tasks:
+        raise ValueError("No valid scripts found for audio generation")
+
+    print(f"Starting audio generation in 2 batches (max 3 at once)...")
+
+    # Run tasks in batches of 3
+    successful_files = []
+    failed_generations = []
+
+    batch_size = 4
+    for batch_index in range(0, len(tasks), batch_size):
+        batch = tasks[batch_index:batch_index + batch_size]
+        print(f"\n Starting batch {batch_index // batch_size + 1} ({len(batch)} tasks)...")
+
+        results = await asyncio.gather(*batch, return_exceptions=True)
+
+        # Handle results
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                failed_generations.append(f"Batch {batch_index // batch_size + 1}, Task {i}: {result}")
+            elif result is not None:
+                successful_files.append(result)
+
+        if batch_index + batch_size < len(tasks):
+            print(" Waiting 1 seconds before starting next batch...")
+            await asyncio.sleep(1)
+
+    if failed_generations:
+        print("\n⚠ Some audio generations failed:")
+        for failure in failed_generations:
+            print("  -", failure)
+
+    if not successful_files:
+        raise ValueError("No audio files were generated successfully")
+
+    print(f"\n Generated {len(successful_files)} audio files successfully.")
+    
+    return {
+        "audio_files": [Path(f).name for f in successful_files],
+        "successful_count": len(successful_files),
+        "failed_count": len(failed_generations)
+    }
+
+
+# ---------------------------
+# Alternative with concurrency limit
+# ---------------------------
+@track_performance
+async def ensure_audio_is_generated_bhashini_parallel_limited(
+    language: str,
+    gender: str,
+    headers,
+    api_url: str,
+    paper_id: str,
+    title_intro_script: str,
+    sections_scripts: Dict[str, str],
+    max_concurrent: int = 3  # Limit concurrent requests to avoid overwhelming the API
+):
+    """Generate audio files in parallel with concurrency limit"""
+
+    output_dir = f"temp/audio/{paper_id}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    # Load config (same as before)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(BASE_DIR, "models.json")
+
+    api_url_from_config = None
+    access_token = None
+    
+    with open(MODEL_PATH, "r") as f:
+        data = json.load(f)
+
+    if isinstance(data, list):
+        for item in data:
+            if (
+                item.get("model_type") == "tts"
+                and item.get("source_language") == "English"
+            ):
+                api_url_from_config = item.get("api_url")
+                access_token = item.get("access_token")
+
+    if not api_url_from_config or not access_token:
+        raise ValueError("No valid TTS model found in models.json")
+
+    headers = {"access-token": access_token}
+    final_api_url = api_url or api_url_from_config
+
+    # Create semaphore for limiting concurrent requests
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def generate_with_semaphore(section_name, script_text, output_path):
+        async with semaphore:
+            return await generate_single_audio(
+                section_name, script_text, output_path, headers, final_api_url, gender
+            )
+
+    # Prepare all tasks
+    tasks = []
+    
+    # Title audio task
+    if title_intro_script and title_intro_script.strip():
+        title_audio_path = os.path.join(output_dir, "00_title_introduction.wav")
+        tasks.append(
+            generate_with_semaphore(
+                "Title Introduction",
+                title_intro_script,
+                title_audio_path
+            )
+        )
+
+    # Section audio tasks
+    section_order = [
+        "Introduction",
+        "Methodology", 
+        "Results",
+        "Discussion",
+        "Conclusion",
+    ]
+
+    for i, section_name in enumerate(section_order, start=1):
+        if section_name in sections_scripts:
+            script_text = sections_scripts[section_name]
+            if script_text and script_text.strip():
+                audio_path = os.path.join(
+                    output_dir, f"{i:02d}_{section_name.lower()}.wav"
+                )
+                tasks.append(
+                    generate_with_semaphore(
+                        section_name,
+                        script_text,
+                        audio_path
+                    )
+                )
+
+    if not tasks:
+        raise ValueError("No valid scripts found for audio generation")
+
+    print(f"Starting parallel generation of {len(tasks)} audio files (max {max_concurrent} concurrent)...")
+    
+    # Execute all tasks in parallel with concurrency limit
+    start_time = time.time()
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    end_time = time.time()
+
+    # Process results (same as before)
+    successful_files = []
+    failed_generations = []
+
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            failed_generations.append(f"Task {i}: {result}")
+        elif result is not None:
+            successful_files.append(result)
+
+    if failed_generations:
+        print("Some audio generations failed:")
+        for failure in failed_generations:
+            print(f"  - {failure}")
+
+    if not successful_files:
+        raise ValueError("No audio files were generated successfully")
+
+    print(f"✓ Generated {len(successful_files)} audio files in {end_time - start_time:.2f} seconds")
+    
+    return {
+        "audio_files": [Path(f).name for f in successful_files],
+        "successful_count": len(successful_files),
+        "failed_count": len(failed_generations),
+        "generation_time": end_time - start_time
+    }
+
+
+# -------------------------------------------
+# Reels audio generation using Bhashini TTS
+# -------------------------------------------
+@track_performance
+async def generate_dialogue_audio_bhashini(
+    language: str,
+    paper_id: str,
+    dialogue_script: List[Dict[str, str]]   # expects a list of {"character": "...", "dialogue": "..."}
+):
+    """
+    Generates audio files for a dialogue script in parallel using Bhashini TTS.
+    
+    Args:
+        language (str): The target language (e.g., 'Hindi', 'English').
+        paper_id (str): The unique ID for the paper to create a dedicated folder.
+        dialogue_script (List[Dict[str, str]]): The structured dialogue script.
+    
+    Returns:
+        Dict: A dictionary containing the list of generated audio file names.
+    """
+    print("Starting dialogue audio generation for reel...")
+    output_dir = f"temp/audio/{paper_id}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(BASE_DIR, "models.json")
+    print("MODEL_PATH", MODEL_PATH)
+    api_url_from_config = None
+    access_token = None
+
+    try:
+        with open(MODEL_PATH, "r", encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Find the correct TTS model configuration from models.json
+        for item in data:
+            if item.get("model_type") == "tts" and item.get("source_language").lower() == language.lower():
+                api_url_from_config = item.get("api_url")
+                access_token = item.get("access_token")
+                print("api_url_from_config", api_url_from_config)
+                print("access_token", access_token)
+                break # Stop once we find the matching model
+    except Exception as e:
+        raise ValueError(f"Could not load or parse models.json: {e}")
+
+    if not api_url_from_config or not access_token:
+        raise ValueError(f"No valid TTS model found for language '{language}' in models.json")
+
+    headers = {"access-token": access_token}
+    
+    tasks = []
+    for index, turn in enumerate(dialogue_script):
+        print("turn", turn)
+        character = turn.get("character")
+        dialogue = turn.get("dialogue")
+
+        if not character or not dialogue or not dialogue.strip():
+            print(f"Skipping turn {index} due to missing character or dialogue.")
+            continue
+        
+        
+        # fixing the gender of the characters
+        if language == "english":
+            gender = "male"
+        else:
+            gender = "male" if character.upper() == "K" else "female"
+        # gender = "male"
+        
+        # Create a sequential, zero-padded filename for easy sorting
+        audio_filename = f"{index:02d}_{character}.wav"
+        output_path = os.path.join(output_dir, audio_filename)
+        
+        tasks.append(
+            generate_single_audio(
+                section_name=f"Turn {index} ({character})",
+                script_text=dialogue,
+                output_path=output_path,
+                headers=headers,
+                api_url=api_url_from_config,
+                gender=gender
+            )
+        )
+
+    if not tasks:
+        raise ValueError("Dialogue script empty/invalid. No audio to generate.")
+
+    print(f"Starting parallel generation of {len(tasks)} dialogue audio files...")
+    
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    successful_files = []
+    for result in results:
+        if isinstance(result, Exception):
+            print(f"A task failed with an exception: {result}")
+        elif result is not None:
+            successful_files.append(result)
+
+    if not successful_files:
+        raise ValueError("No audio files were generated successfully for the dialogue.")
+
+    print(f"Generated {len(successful_files)} audio files for the dialogue.")
+    
+    return {
+        "audio_files": [Path(f).name for f in successful_files]
+    }

@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 from app.services.auth_service import auth_service
 from app.auth.dependencies import get_current_user
+from app.firebase import db
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,21 +26,27 @@ class UserResponse(BaseModel):
 
 @router.post("/google/login", response_model=AuthResponse)
 async def google_login(request: GoogleLoginRequest):
-    """Authenticate with Google and return JWT token"""
+    """Authenticate with Google/Firebase and return access token and user info"""
+    print(f"DEBUG: google_login called with token: {request.token[:10]}...")
     try:
-        # Verify Google token
-        user_data = auth_service.verify_google_token(request.token)
+        # Verify Firebase token
+        user_data = auth_service.verify_firebase_token(request.token)
+        # Ensure user exists in Firestore
+        auth_service.get_or_create_user(user_data)
         
-        # Create JWT token
-        access_token = auth_service.create_access_token(user_data)
+        # Track login (only on actual login, not every API call)
+        try:
+            from app.services.firestore_helpers import increment_user_counter
+            increment_user_counter(user_data['id'], 'total_logins')
+        except Exception as e:
+            logger.warning(f"Failed to track login for user {user_data['id']}: {e}")
         
         logger.info(f"User authenticated: {user_data['email']}")
         
         return AuthResponse(
-            access_token=access_token,
+            access_token=request.token,
             user=user_data
         )
-        
     except HTTPException:
         raise
     except Exception as e:

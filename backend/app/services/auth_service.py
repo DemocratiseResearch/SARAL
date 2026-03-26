@@ -1,97 +1,126 @@
 # app/services/auth_service.py
 import os
-import jwt
-from datetime import datetime, timedelta
-from google.oauth2 import id_token
-from google.auth.transport import requests
-from fastapi import HTTPException, status
+import firebase_admin
+from firebase_admin import auth as firebase_auth
+from fastapi import HTTPException, status, Depends
 from typing import Dict, Optional
 import logging
 from dotenv import load_dotenv
+import jwt  # PyJWT – used only for the optional dev-token bypass
+from app.utils.timing import track_performance
+from app.firebase import db
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 class AuthService:
+    @track_performance
     def __init__(self):
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
         self.jwt_secret = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
         self.jwt_algorithm = "HS256"
-        self.token_expire_hours = 24
+        self.token_expire_days = 7  # Changed from hours to days
         
         if not self.google_client_id:
             logger.warning("GOOGLE_CLIENT_ID not configured")
-    
-    def verify_google_token(self, token: str) -> Dict:
-        """Verify Google ID token and extract user info"""
+    @track_performance
+    def verify_firebase_token(self, token: str) -> Dict:
+        """Verify Firebase ID token and extract user info"""
+        print("verifying")
         try:
-            idinfo = id_token.verify_oauth2_token(
-                token, requests.Request(), self.google_client_id
+            decoded_token = firebase_auth.verify_id_token(token)
+            uid = decoded_token['uid']
+            user_record = firebase_auth.get_user(uid)
+            
+            # Check if user is admin via ADMIN_EMAILS env var or Firebase custom claims
+            admin_emails = os.getenv('ADMIN_EMAILS', '').split(',')
+            admin_emails = [e.strip().lower() for e in admin_emails if e.strip()]
+            is_admin = (
+                (user_record.email and user_record.email.lower() in admin_emails) or
+                decoded_token.get('admin', False)
             )
             
-            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-                raise ValueError('Invalid token issuer')
-                
             return {
-                'id': idinfo['sub'],
-                'email': idinfo['email'],
-                'name': idinfo['name'],
-                'picture': idinfo.get('picture', ''),
-                'verified_email': idinfo.get('email_verified', False)
+                'id': user_record.uid,
+                'email': user_record.email,
+                'name': user_record.display_name,
+                'picture': user_record.photo_url,
+                'verified_email': user_record.email_verified,
+                'admin': is_admin
             }
         except Exception as e:
-            logger.error(f"Google token verification failed: {e}")
+            print(f"DEBUG: Firebase token verification failed: {e}")
+            logger.error(f"Firebase token verification failed: {e}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Google token"
+                detail="Invalid Firebase token"
             )
-    
-    def create_access_token(self, user_data: Dict) -> str:
-        """Create JWT access token"""
-        try:
-            expire = datetime.utcnow() + timedelta(hours=self.token_expire_hours)
-            payload = {
-                **user_data,
-                'exp': expire,
-                'iat': datetime.utcnow(),
-                'type': 'access_token'
-            }
-            
-            token = jwt.encode(payload, self.jwt_secret, algorithm=self.jwt_algorithm)
-            return token if isinstance(token, str) else token.decode('utf-8')
-            
-        except Exception as e:
-            logger.error(f"Token creation failed: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create access token"
-            )
-    
+
+    @track_performance
+    def get_or_create_user(self, user_data: dict) -> dict:
+        users_ref = db.collection('users')
+        user_doc = users_ref.document(user_data['id']).get()
+        if user_doc.exists:
+            return user_doc.to_dict()
+        new_user = {
+            'id': user_data['id'],
+            'email': user_data['email'],
+            'name': user_data.get('name', ''),
+            'picture': user_data.get('picture', ''),
+            'verified_email': user_data.get('verified_email', False)
+        }
+        users_ref.document(new_user['id']).set(new_user)
+        return new_user
+
+    # Firebase handles access tokens, so no need for custom JWT creation/verification
+    @track_performance
     def verify_access_token(self, token: str) -> Dict:
-        """Verify JWT access token and return user data"""
-        try:
-            payload = jwt.decode(
-                token, 
-                self.jwt_secret, 
-                algorithms=[self.jwt_algorithm]
-            )
-            
-            if payload.get('type') != 'access_token':
-                raise jwt.InvalidTokenError("Invalid token type")
-                
-            return payload
-            
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            )
-        except jwt.InvalidTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
+        """Verify token and return user data.
+
+        If ENABLE_DEV_TOKEN=true is set in the environment, a special long-lived
+        dev JWT (signed with JWT_SECRET, type='dev_token') is accepted without
+        hitting Firebase. All normal Firebase tokens are unaffected – they never
+        carry a 'type: dev_token' claim so they always fall through to the
+        standard Firebase verification path.
+        """
+        if os.getenv('ENABLE_DEV_TOKEN', 'false').lower() == 'true':
+            try:
+                # Peek at the payload WITHOUT verifying the signature first,
+                # just to check the token type.  This is safe because we fully
+                # verify with the secret in the next step if it looks like a
+                # dev token.
+                unverified = jwt.decode(
+                    token,
+                    options={"verify_signature": False},
+                    algorithms=[self.jwt_algorithm],
+                )
+                if unverified.get('type') == 'dev_token':
+                    # Hard-verify with our own secret (checks signature + expiry)
+                    payload = jwt.decode(
+                        token,
+                        self.jwt_secret,
+                        algorithms=[self.jwt_algorithm],
+                    )
+                    logger.info(
+                        f"Dev-token auth accepted for: {payload.get('email', 'unknown')}"
+                    )
+                    return payload
+            except jwt.ExpiredSignatureError:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Dev token has expired – regenerate it with generate_dev_token.py",
+                )
+            except jwt.InvalidTokenError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid dev token: {e}",
+                )
+            except Exception:
+                # Any other error (e.g. not a JWT at all) → let Firebase handle it
+                pass
+
+        return self.verify_firebase_token(token)
 
 # Global auth service instance
 auth_service = AuthService()

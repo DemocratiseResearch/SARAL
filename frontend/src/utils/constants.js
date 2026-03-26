@@ -140,5 +140,30 @@ export const TTS_VOICES = {
   TELUGU: {
     vidya: 'Female',
     karun: 'Male'
+  },
+  URDU: {
+    vidya: 'Female',
+  },
+  SANSKRIT: {
+    vidya: 'Female',
+  },
+  SANTALI: {
+    vidya: 'Female',
+  },
+  MANIPURI: {
+    vidya: 'Female',
+  },
+  ASSAMESE: {
+    vidya: 'Female',
+  },
+  BODO: {
+    vidya: 'Female',
+  },
+  DOGRI:{
+    vidya: 'Female',
+  },
+  MAITHILI:{
+    vidya: 'Female',
   }
 };
+

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { apiService } from '../services/api';
-import toast from 'react-hot-toast';
+import toast from '../services/toastService';
 
 export const useApi = () => {
   const [loading, setLoading] = useState(false);

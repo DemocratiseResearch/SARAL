@@ -1,5 +1,7 @@
 from sarvamai import SarvamAI
+from app.utils.timing import track_performance
 
+@track_performance
 def generate_hindi_script_with_google(english_script, api_key):
     """
     Generate a natural Hindi script with appropriate English words mixed in using SarvamAI.
@@ -33,6 +35,7 @@ def generate_hindi_script_with_google(english_script, api_key):
     
     return ' '.join(translated_chunks)
 
+@track_performance
 def _translate_text(text, api_key):
     """Helper function to translate text using SarvamAI."""
     client = SarvamAI(api_subscription_key=api_key)
@@ -49,6 +52,7 @@ def _translate_text(text, api_key):
         print(f"Translation error: {str(e)}")
         return None
 
+@track_performance
 def _split_into_chunks(text, max_size):
     """
     Split text into chunks not exceeding max_size, respecting sentence boundaries.

@@ -1,20 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { FiSave, FiEdit3, FiDownload, FiCheck } from 'react-icons/fi';
-import { useWorkflow } from '../../contexts/WorkflowContext';
-import { useApi } from '../../hooks/useApi';
-import { apiService } from '../../services/api';
-import toast from 'react-hot-toast';
-import LoadingSpinner from '../common/LoadingSpinner';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { FiSave, FiEdit3, FiDownload, FiCheck } from "react-icons/fi";
+import { useWorkflow } from "../../contexts/WorkflowContext";
+import { useApi } from "../../hooks/useApi";
+import { apiService } from "../../services/api";
+import toast from "../../services/toastService";
+import LoadingSpinner from "../common/LoadingSpinner";
+import Analytics from "../../lib/analytics";
 
-const MetadataField = ({ label, value, onChange, placeholder, required = false, multiline = false }) => (
+const MetadataField = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  required = false,
+  multiline = false,
+}) => (
   <div className="space-y-2">
     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
     {multiline ? (
       <textarea
-        value={value || ''}
+        value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900
                    border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100
@@ -25,7 +33,7 @@ const MetadataField = ({ label, value, onChange, placeholder, required = false, 
     ) : (
       <input
         type="text"
-        value={value || ''}
+        value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900
                    border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100
@@ -53,18 +61,21 @@ const MetadataEditor = () => {
   }, [editedMetadata, metadata]);
 
   const handleFieldChange = (field, value) => {
-    setEditedMetadata(prev => ({ ...prev, [field]: value }));
+    setEditedMetadata((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
     if (!paperId) return;
 
     try {
-      await execute(() => apiService.updatePaperMetadata(paperId, editedMetadata), {
-        successMessage: 'Metadata updated successfully!',
-        showSuccess: true
-      });
-      
+      await execute(
+        () => apiService.updatePaperMetadata(paperId, editedMetadata),
+        {
+          successMessage: "Metadata updated successfully!",
+          showSuccess: true,
+        },
+      );
+
       setMetadata(editedMetadata);
       setHasChanges(false);
     } catch (error) {
@@ -78,35 +89,53 @@ const MetadataEditor = () => {
     setDownloadLoading(true);
     try {
       const response = await apiService.downloadPaperPdf(paperId);
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
+
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', `${editedMetadata.title || 'research_paper'}.pdf`);
+      link.setAttribute(
+        "download",
+        `${editedMetadata.title || "research_paper"}.pdf`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      toast.success('Paper downloaded successfully!');
+
+      toast.success("Paper downloaded successfully!");
+      Analytics.track("Downloaded Paper PDF", {
+        timestamp: new Date().toISOString(),
+        paper_id: paperId,
+        file_name: `${editedMetadata.title || "research_paper"}.pdf`,
+      });
     } catch (error) {
       try {
         const sourceResponse = await apiService.downloadPaperSource(paperId);
-        const blob = new Blob([sourceResponse.data], { type: 'application/zip' });
+        const blob = new Blob([sourceResponse.data], {
+          type: "application/zip",
+        });
         const url = window.URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
+
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', `${editedMetadata.title || 'research_paper'}_source.zip`);
+        link.setAttribute(
+          "download",
+          `${editedMetadata.title || "research_paper"}_source.zip`,
+        );
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        
-        toast.success('Paper source files downloaded successfully!');
+
+        toast.success("Paper source files downloaded successfully!");
+        Analytics.track("Downloaded Paper Source", {
+          timestamp: new Date().toISOString(),
+          paper_id: paperId,
+          file_name: `${editedMetadata.title || "research_paper"}_source.zip`,
+        });
       } catch (sourceError) {
-        toast.error('Failed to download paper. The file may not be available.');
+        toast.error("Failed to download paper. The file may not be available.");
       }
     } finally {
       setDownloadLoading(false);
@@ -115,9 +144,13 @@ const MetadataEditor = () => {
 
   const handleContinue = () => {
     if (hasChanges) {
-      toast.error('Please save your changes before continuing');
+      toast.error("Please save your changes before continuing");
       return;
     }
+    Analytics.track("Continue to Scripts", {
+      timestamp: new Date().toISOString(),
+      paper_id: paperId,
+    });
     progressToNextStep();
   };
 
@@ -135,22 +168,22 @@ const MetadataEditor = () => {
 
   const metadataFields = [
     {
-      key: 'title',
-      label: 'Paper Title',
-      placeholder: 'Enter the paper title',
-      required: true
+      key: "title",
+      label: "Paper Title",
+      placeholder: "Enter the paper title",
+      required: true,
     },
     {
-      key: 'authors',
-      label: 'Authors',
-      placeholder: 'Enter author names (comma-separated)',
-      required: false
+      key: "authors",
+      label: "Authors",
+      placeholder: "Enter author names (comma-separated)",
+      required: false,
     },
     {
-      key: 'date',
-      label: 'Publication Date',
-      placeholder: 'Enter publication date',
-      required: false
+      key: "date",
+      label: "Publication Date",
+      placeholder: "Enter publication date",
+      required: false,
     },
   ];
 
@@ -169,7 +202,7 @@ const MetadataEditor = () => {
             Review and edit the paper information
           </p>
         </div>
-        
+
         <button
           onClick={handleDownloadPaper}
           disabled={downloadLoading}
@@ -282,12 +315,13 @@ const MetadataEditor = () => {
       {hasChanges && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
+          animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
           className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
         >
           <p className="text-sm text-orange-700 dark:text-orange-300">
-            You have unsaved changes. Please save before continuing to the next step.
+            You have unsaved changes. Please save before continuing to the next
+            step.
           </p>
         </motion.div>
       )}
