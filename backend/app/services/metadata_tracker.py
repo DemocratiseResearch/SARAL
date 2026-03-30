@@ -1,12 +1,3 @@
-"""
-Metadata Tracker Service
-
-Tracks paper processing metadata and stores in Firestore.
-Scans temp folders to get file information.
-
-BACKWARD COMPATIBLE - all parameters are optional,uses defaults if not provided.
-"""
-
 import os
 import logging
 from pathlib import Path
@@ -117,14 +108,6 @@ def track_paper_upload(
     title: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None
 ) -> bool:
-    """
-    Track paper upload to Firestore.
-    
-    BACKWARD COMPATIBLE:
-    - All parameters except paper_id are optional
-    - Won't fail if user is not logged in
-    - Uses defaults for missing data
-    """
     try:
         # Build paper metadata
         paper_metadata = {
@@ -191,19 +174,6 @@ def track_output_generation(
     user_id: Optional[str] = None,
     additional_data: Optional[Dict[str, Any]] = None
 ) -> bool:
-    """
-    Track when an output is generated (video, podcast, reels, etc.)
-    
-    Args:
-        paper_id: The paper UUID
-        output_type: 'video', 'podcast', 'reels', 'poster', 'slides', 'audio'
-        file_path: Path to the generated file
-        duration: Duration in seconds (for video/audio)
-        user_id: Optional user ID
-        additional_data: Any additional metadata
-    
-    BACKWARD COMPATIBLE - all params except paper_id and output_type are optional
-    """
     try:
         output_data = {
             'generated': True,
@@ -246,11 +216,6 @@ def track_output_generation(
 
 
 def update_paper_status(paper_id: str, status: str, error_message: Optional[str] = None) -> bool:
-    """
-    Update paper processing status.
-    
-    Status values: 'uploaded', 'processing', 'completed', 'failed', 'partial'
-    """
     try:
         update_data = {
             'status': status,

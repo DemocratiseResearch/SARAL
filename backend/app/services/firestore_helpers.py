@@ -378,19 +378,6 @@ def update_pipeline_step(
     started_at: Optional[datetime] = None,
     status: str = "completed",
 ) -> bool:
-    """
-    Record a pipeline step result in the ``paper_pipeline`` Firestore collection.
-
-    Parameters
-    ----------
-    paper_id:   The paper UUID.
-    step:       Stage name, e.g. ``"script_generation"``, ``"slides_generation"``,
-                ``"video_generation"``.
-    metadata:   Arbitrary key/value pairs to store alongside the step
-                (audience_level, language, template_type, video_path, …).
-    started_at: When the step began; used to compute ``duration_seconds``.
-    status:     ``"in_progress"``, ``"completed"``, or ``"failed"``.
-    """
     try:
         now = datetime.now()
         step_data: Dict[str, Any] = {
@@ -435,16 +422,6 @@ def mark_pipeline_failed(
     error: Exception,
     started_at: Optional[datetime] = None,
 ) -> bool:
-    """
-    Record a pipeline step failure, including the extracted root cause.
-
-    Parameters
-    ----------
-    paper_id:   The paper UUID.
-    step:       Stage name where the failure occurred.
-    error:      The exception that was raised.
-    started_at: When the step began; used to compute ``duration_seconds``.
-    """
     try:
         root_cause = _extract_root_cause(error)
         now = datetime.now()

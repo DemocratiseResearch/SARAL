@@ -13,8 +13,7 @@ import uvicorn
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, feedback, patents, reels, podcast, external_api, poster, analytics, business_brief
-from app.auth.google_auth import get_current_user, get_current_user_optional
+from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, feedback, patents, reels, podcast, external_api, poster, business_brief
 from app.workers import init_worker_pool, close_worker_pool
 ## Removed: from app.database import create_tables (no longer needed)
 
@@ -142,7 +141,6 @@ async def path_based_cors_middleware(request: Request, call_next):
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(f"Request: {request.method} {request.url}")
-    logger.info(f"Headers: {dict(request.headers)}")
     
     response = await call_next(request)
     
@@ -198,7 +196,6 @@ app.include_router(patents.router, prefix="/api/patents", tags=["patents"])
 app.include_router(reels.router, prefix="/api/reels", tags=["reels"])
 app.include_router(podcast.router, prefix="/api/podcast", tags=["podcast"])
 app.include_router(external_api.router, prefix="/api/external", tags=["External API"])
-app.include_router(analytics.router, prefix="/api", tags=["Analytics"])
 app.include_router(business_brief.router, prefix="/api/business-brief", tags=["Business Brief"])
 
 instrumentator = Instrumentator(
@@ -263,11 +260,6 @@ async def health_services_check():
             "error": str(e)
         }
 
-# Protected endpoints example
-@app.get("/api/user/profile")
-async def get_user_profile(current_user: dict = Depends(get_current_user)):
-    """Protected endpoint requiring authentication"""
-    return {"user": current_user}
 
 if __name__ == "__main__":
     import uvicorn

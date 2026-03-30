@@ -141,8 +141,6 @@ async def generate_business_brief(
             metadata={"sections_count": len(sections), "source_type": paper_info.get("source_type", "unknown")},
             started_at=_step_started_at, status="completed"
         )
-
-        # Track in paper_metadata.processing_outputs so analytics picks it up
         try:
             track_output_generation(
                 paper_id_str,

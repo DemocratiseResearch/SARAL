@@ -9,6 +9,7 @@ backend/**/*.pyc
 **/*.py[cod]
 *$py.class
 backend/.env
+backend/firebase_service_account.json
 frontend/.env
 frontend/node_modules/
 # dependencies
@@ -34,3 +35,5 @@ poster-service/logs/
 poster-service/*.log
 poster-service/pid-*.txt
 poster-service/.env
+backend/uv.lock
+backend/logs/

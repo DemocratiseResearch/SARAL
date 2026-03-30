@@ -1214,7 +1214,6 @@ async def generate_dialogue_audio_bhashini(
                 api_url_from_config = item.get("api_url")
                 access_token = item.get("access_token")
                 print("api_url_from_config", api_url_from_config)
-                print("access_token", access_token)
                 break # Stop once we find the matching model
     except Exception as e:
         raise ValueError(f"Could not load or parse models.json: {e}")

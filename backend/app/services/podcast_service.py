@@ -409,8 +409,6 @@ async def translate_dialogues_to_tamil(dialogue: str) -> str:
         # Disable SSL warnings when verification is disabled
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        # apiEndpoint = "https://canvas.iiit.ac.in/sandboxbeprod/check_model_status_and_infer/6872172f4f34535ffa89b90e"
-        # apiToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjhlYTNmMmRiOTNlM2JlYzkwMWZkODVkIiwicm9sZSI6Im1lZ2F0aG9uX3N0dWRlbnQifQ.uU9rXmgKjGgCPAZasrIp5x-G1NgScc-jlXP89sNVIEk"
         
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         MODEL_PATH = os.path.join(BASE_DIR, "models.json")

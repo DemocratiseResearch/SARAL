@@ -33,21 +33,12 @@ class AuthService:
             uid = decoded_token['uid']
             user_record = firebase_auth.get_user(uid)
             
-            # Check if user is admin via ADMIN_EMAILS env var or Firebase custom claims
-            admin_emails = os.getenv('ADMIN_EMAILS', '').split(',')
-            admin_emails = [e.strip().lower() for e in admin_emails if e.strip()]
-            is_admin = (
-                (user_record.email and user_record.email.lower() in admin_emails) or
-                decoded_token.get('admin', False)
-            )
-            
             return {
                 'id': user_record.uid,
                 'email': user_record.email,
                 'name': user_record.display_name,
                 'picture': user_record.photo_url,
                 'verified_email': user_record.email_verified,
-                'admin': is_admin
             }
         except Exception as e:
             print(f"DEBUG: Firebase token verification failed: {e}")
@@ -76,14 +67,6 @@ class AuthService:
     # Firebase handles access tokens, so no need for custom JWT creation/verification
     @track_performance
     def verify_access_token(self, token: str) -> Dict:
-        """Verify token and return user data.
-
-        If ENABLE_DEV_TOKEN=true is set in the environment, a special long-lived
-        dev JWT (signed with JWT_SECRET, type='dev_token') is accepted without
-        hitting Firebase. All normal Firebase tokens are unaffected – they never
-        carry a 'type: dev_token' claim so they always fall through to the
-        standard Firebase verification path.
-        """
         if os.getenv('ENABLE_DEV_TOKEN', 'false').lower() == 'true':
             try:
                 # Peek at the payload WITHOUT verifying the signature first,
