@@ -4,12 +4,33 @@ import { FiKey, FiSkipForward, FiInfo } from 'react-icons/fi';
 import { useWorkflow } from '../contexts/WorkflowContext';
 import ApiSetupForm from './ApiSetupForm';
 import Layout from '../components/common/Layout';
+import Analytics from '../lib/analytics';
 
 const ApiSetup = () => {
   const [showForm, setShowForm] = useState(false);
   const { progressToNextStep } = useWorkflow();
 
   const crumbs = [{ label: 'API Setup', href: '/api-setup' }];
+
+  const handleConfigureClick = () => {
+    try {
+      Analytics.track('Clicked Configure API Keys', {
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) { /* ignore analytics errors */ }
+
+    setShowForm(true);
+  };
+
+  const handleSkipClick = () => {
+    try {
+      Analytics.track('Skipped API Setup', {
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) { /* ignore analytics errors */ }
+
+    progressToNextStep();
+  };
 
   return (
     <Layout breadcrumbs={crumbs}>
@@ -18,8 +39,7 @@ const ApiSetup = () => {
           <ApiSetupForm />
         ) : (
           <>
-            {/* Strong banner */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 
@@ -33,16 +53,14 @@ const ApiSetup = () => {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </motion.div> */}
 
-            {/* setup card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-white dark:bg-neutral-800 rounded-xl p-6
                          border border-neutral-200 dark:border-neutral-700 space-y-6">
 
-              {/* icon section */}
               <div className="text-center">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-2xl 
                                flex items-center justify-center mx-auto mb-4">
@@ -53,10 +71,9 @@ const ApiSetup = () => {
                 </p>
               </div>
 
-              {/* action buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={() => setShowForm(true)}
+                  onClick={handleConfigureClick}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3
                              rounded-md bg-gray-900 hover:bg-gray-800
                              text-white font-medium transition-colors duration-150">
@@ -65,7 +82,7 @@ const ApiSetup = () => {
                 </button>
                 
                 <button
-                  onClick={progressToNextStep}
+                  onClick={handleSkipClick}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3
                              rounded-md border border-gray-300 dark:border-gray-600
                              bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800

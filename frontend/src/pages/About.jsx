@@ -1,21 +1,22 @@
+// src/pages/About.jsx - UPDATED
 import React from "react";
 import { motion } from 'framer-motion';
-import { FiLinkedin, FiMail, FiArrowLeft } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
-import ThemeToggle from '../components/common/ThemeToggle';
+import { FiLinkedin, FiMail } from 'react-icons/fi';
+import UnifiedHeader from '../components/common/UnifiedHeader';
 import sai_ganesh from "../images/sai-ganesh.jpg";
 import rahul_sundar from "../images/rahul-sundar.jpg";
+import akhila from "../images/akhila.jpg";
+import meghana from "../images/meghana.jpg";
+import sairam from "../images/sairam.jpg";
+import vishnu from "../images/vishnu.jpg";
+import arka from "../images/arka.jpeg";
+import samah from "../images/samah.jpeg";
 import pk from "../images/pk.jpg";
 import arihant from "../images/arihant.jpg";
-import vishnu from "../images/vishnu.jpg";
+import tejas from "../images/tejas.jpg";
+import ram from "../images/ram.png";
 import lakshmanan_nataraj from "../images/lakshmanan-nataraj.jpg";
 
-const LinkedInIcon = () => (
-  <FiLinkedin className="w-5 h-5" />
-  );
-
-const FALLBACK =
-'https://via.placeholder.com/96x96.png?text=👤';
 
 const TeamMember = ({ member, delay = 0 }) => (
   <motion.div
@@ -24,18 +25,20 @@ const TeamMember = ({ member, delay = 0 }) => (
     transition={{ duration: 0.15, delay }}
     className="card p-6 text-center hover:shadow-lg transition-shadow duration-150"
   >
-    <div className="w-24 h-24 mx-auto mb-4 rounded-2xl overflow-hidden
-      bg-neutral-100 dark:bg-neutral-800">
+    <div className="w-24 h-24 mx-auto mb-4 rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
       <img
         src={member.img}
         alt={member.name}
         referrerPolicy="no-referrer"
         loading="lazy"
-        // onError={(e) => {
-        //   e.currentTarget.src = FALLBACK;        // graceful fallback
-        // }}
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
         className="w-full h-full object-cover"
       />
+      {!member.img && (
+        <div className="text-lg font-semibold text-neutral-800 dark:text-white">
+          {member.name.split(' ').map(n => n[0]).slice(0,2).join('')}
+        </div>
+      )}
     </div>
 
     <h3 className="font-semibold text-neutral-900 dark:text-white mb-1">
@@ -45,20 +48,19 @@ const TeamMember = ({ member, delay = 0 }) => (
       {member.role}
     </p>
 
-    <a
-      href={member.linkedin}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 text-sm text-primary-600
-      dark:text-primary-400 hover:text-primary-700
-      dark:hover:text-primary-300 transition-colors duration-150"
-    >
-      <FiLinkedin className="w-5 h-5" />
-      LinkedIn
-    </a>
+    {member.linkedin && (
+      <a
+        href={member.linkedin}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors duration-150"
+      >
+        <FiLinkedin className="w-5 h-5" />
+        LinkedIn
+      </a>
+    )}
   </motion.div>
-  );
-
+);
 
 const TeamSection = ({ title, members, delay = 0 }) => (
   <motion.section
@@ -72,17 +74,58 @@ const TeamSection = ({ title, members, delay = 0 }) => (
     </h3>
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {members.map((member, index) => (
-        <TeamMember 
-          key={member.name} 
-          member={member} 
-          delay={delay + (index * 0.05)} 
-          />
-          ))}
+        <TeamMember
+          key={member.name}
+          member={member}
+          delay={delay + (index * 0.05)}
+        />
+      ))}
     </div>
   </motion.section>
-  );
+);
+
 
 const StackTamers = [
+  {
+    name: "Akhila Sri Manasa Venigalla",
+    role: "Technical Lead",
+    img: akhila,
+    linkedin: "https://www.linkedin.com/in/akhila-sri-manasa7896/",
+  },
+  {
+    name: "Meghana Tatavolu",
+    role: "Developer",
+    img: meghana,
+    linkedin: "https://www.linkedin.com/in/meghana-tatavolu/",
+  },
+  {
+    name: "Sairam Bonu",
+    role: "Developer",
+    img: sairam,
+    linkedin: "https://www.linkedin.com/in/sairam-bonu-779804238/",
+  },
+  {
+    name: "Tejas Agarwal",
+    role: "Developer",
+    img: tejas,
+    linkedin: "https://www.linkedin.com/in/tejasag0/",
+  },
+  {
+    name: "Arkaprava Gaine", 
+    role: "Developer",  
+    img: arka,
+    linkedin: "https://www.linkedin.com/in/arkagme/",
+  },
+  {
+    name: "Samah Syed",
+    role: "Developer",
+    img: samah,
+    linkedin: "https://www.linkedin.com/in/samah-syed/",
+  },
+
+];
+
+const PastDevelopers = [
   {
     name: "Imandi Sai Ganesh",
     role: "Developer",
@@ -100,6 +143,12 @@ const StackTamers = [
     role: "Developer",
     img: vishnu,
     linkedin: "https://www.linkedin.com/in/vishnu-sathwik-14117a257/",
+  },
+  {
+    name: "Ram",
+    role: "Developer",
+    img: ram,
+    linkedin: "https://www.linkedin.com/in/ram-from-tvl/",
   },
 ];
 
@@ -128,35 +177,10 @@ const PrincipalInvestigator = [
 ];
 
 export default function About() {
-  const navigate = useNavigate();
-
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 transition-colors duration-150">
-      {/* Header */}
-      <header className="border-b border-neutral-200 dark:border-neutral-700">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors duration-150"
-            >
-              <FiArrowLeft className="w-4 h-4" />
-              Back
-            </button>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center">
-                <span className="text-white dark:text-neutral-900 font-bold text-sm">SA</span>
-              </div>
-              <span className="font-semibold text-neutral-900 dark:text-white">
-                Saral AI
-              </span>
-            </div>
-            
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      {/* Unified Header */}
+      <UnifiedHeader />
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-6 py-12">
@@ -168,8 +192,9 @@ export default function About() {
           className="text-center mb-16"
         >
           <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-4">
-            About Saral AI
+            About SARAL AI
           </h1>
+
           <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-3xl mx-auto leading-relaxed">
             We democratize research by making academic workflows smoother, faster, and more accessible 
             through AI-integrated tools that transform complex papers into engaging video presentations.
@@ -204,23 +229,29 @@ export default function About() {
           >
             Our Team
           </motion.h2>
-          
-          <TeamSection 
-            title="Stack Tamers" 
-            members={StackTamers} 
+
+          <TeamSection
+            title="Stack Tamers"
+            members={StackTamers}
             delay={0.25}
           />
-          
-          <TeamSection 
-            title="Project Managers" 
-            members={ProjectManagers} 
+
+          <TeamSection
+            title="Project Managers"
+            members={ProjectManagers}
             delay={0.3}
           />
-          
-          <TeamSection 
-            title="Principal Investigator" 
-            members={PrincipalInvestigator} 
+
+          <TeamSection
+            title="Principal Investigator"
+            members={PrincipalInvestigator}
             delay={0.35}
+          />
+
+          <TeamSection
+            title="Past Developers"
+            members={PastDevelopers}
+            delay={0.4}
           />
         </section>
 
@@ -228,7 +259,7 @@ export default function About() {
         <motion.section
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.15, delay: 0.4 }}
+          transition={{ duration: 0.15, delay: 0.45 }}
           className="card p-8 text-center"
         >
           <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white mb-4">
@@ -238,7 +269,7 @@ export default function About() {
             Have questions about Saral AI or want to collaborate with us?
           </p>
           <a
-            href="mailto:democratise.research@gmail.com"
+            href="mailto:pk.guru@iiit.ac.in"
             className="btn-primary inline-flex items-center gap-2"
           >
             <FiMail className="w-4 h-4" />
@@ -247,5 +278,5 @@ export default function About() {
         </motion.section>
       </main>
     </div>
-    );
+  );
 }

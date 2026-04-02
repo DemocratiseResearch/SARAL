@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiAlertTriangle, FiRefreshCw, FiHome } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import Analytics from '../../lib/analytics';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -14,11 +15,31 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     this.setState({
-      error: error,
-      errorInfo: errorInfo
+      error,
+      errorInfo
     });
 
     console.error('Error caught by boundary:', error, errorInfo);
+
+    // Log to Mixpanel
+    try {
+      Analytics.track('FE React ErrorBoundary', {
+        message: error?.message || String(error),
+        stack: error?.stack || null,
+        componentStack: errorInfo?.componentStack || null,
+        path: window.location.pathname + window.location.search,
+        userAgent: navigator?.userAgent,
+      });
+    } catch (e) {
+      console.warn('Failed to track ErrorBoundary error', e);
+    }
+  }
+
+  // Reset boundary when resetKey changes (e.g. route change)
+  componentDidUpdate(prevProps) {
+    if (this.props.resetKey !== prevProps.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null, errorInfo: null });
+    }
   }
 
   handleReload = () => {
@@ -40,12 +61,10 @@ class ErrorBoundary extends React.Component {
             className="max-w-md w-full"
           >
             <div className="card p-8 text-center">
-              {/* Error Icon */}
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <FiAlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
               </div>
 
-              {/* Error Message */}
               <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white mb-3">
                 Something went wrong
               </h1>
@@ -53,8 +72,7 @@ class ErrorBoundary extends React.Component {
                 We're sorry, but something unexpected happened. Please try refreshing the page or return to the home page.
               </p>
 
-              {/* Error Details (Development Only) */}
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.MODE === 'development' && this.state.error && (
                 <details className="mb-6 text-left">
                   <summary className="cursor-pointer text-sm text-neutral-500 dark:text-neutral-400 mb-2 hover:text-neutral-700 dark:hover:text-neutral-300">
                     Error Details (Development Mode)
@@ -66,14 +84,13 @@ class ErrorBoundary extends React.Component {
                     <div>
                       <strong>Stack trace:</strong>
                       <pre className="whitespace-pre-wrap text-xs mt-1">
-                        {this.state.errorInfo.componentStack}
+                        {this.state.errorInfo?.componentStack}
                       </pre>
                     </div>
                   </div>
                 </details>
-                )}
+              )}
 
-              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={this.handleReload}
@@ -93,7 +110,7 @@ class ErrorBoundary extends React.Component {
             </div>
           </motion.div>
         </div>
-        );
+      );
     }
 
     return this.props.children;

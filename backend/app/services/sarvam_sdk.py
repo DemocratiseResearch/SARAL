@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 import requests
 import re
 import tempfile
+from app.utils.timing import track_performance
 
 class SarvamTTSError(Exception):
     """Custom exception for Sarvam TTS errors"""
@@ -17,21 +18,23 @@ class SarvamTTSError(Exception):
 class SarvamTTS:
     """Enhanced Sarvam TTS client aligned with working Streamlit implementation"""
     
+    @track_performance
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.sarvam.ai/text-to-speech"
         self.supported_voices = {
-            "anushka": "hi-IN",
-            "abhilash": "hi-IN",
-            "manisha": "hi-IN",
-            "vidya": "hi-IN",
-            "arya": "hi-IN",
-            "karun": "hi-IN",
-            "hitesh": "hi-IN"
+            "ishita": "hi-IN",
+            "shubh": "hi-IN",
+            "roopa": "hi-IN",
+            "kavya": "hi-IN",
+            "simran": "hi-IN",
+            "aditya": "hi-IN",
+            "aayan": "hi-IN"
         }
         self.supported_sample_rates = [8000, 16000, 22050, 24000]
         self.default_sample_rate = 22050
     
+    @track_performance
     def test_connection(self) -> bool:
         """Test API connection with minimal complexity"""
         try:
@@ -43,13 +46,13 @@ class SarvamTTS:
             test_data = {
                 "inputs": ["test"],
                 "target_language_code": "hi-IN",
-                "speaker": "vidya",
-                "pitch": 0,
+                "speaker": "simran",
+                #"pitch": 0,
                 "pace": 1.0,
-                "loudness": 1.5,
+                #"loudness": 1.5,
                 "speech_sample_rate": self.default_sample_rate,
                 "enable_preprocessing": True,
-                "model": "bulbul:v2"
+                "model": "bulbul:v3"
             }
             
             response = requests.post(self.base_url, headers=headers, json=test_data, timeout=30)
@@ -58,7 +61,8 @@ class SarvamTTS:
             print(f"Connection test failed: {e}")
             return False
     
-    def synthesize_text(self, text: str, target_language, voice: str = "meera", sample_rate: int = 22050) -> Optional[bytes]:
+    @track_performance
+    def synthesize_text(self, text: str, target_language, voice: str = "simran", sample_rate: int = 22050) -> Optional[bytes]:
         """Simplified synthesis method aligned with working Streamlit version"""
         try:
             if sample_rate not in self.supported_sample_rates:
@@ -72,16 +76,27 @@ class SarvamTTS:
             # target_language = self.supported_voices.get(voice, "hi-IN")
             print(f"Using voice: {voice}, target language: {target_language}, sample rate: {sample_rate}")
             
+            # data = {
+            #     "inputs": [text],
+            #     "target_language_code": target_language,
+            #     "speaker": voice,
+            #     "pitch": 0,
+            #     "pace": 1.0,
+            #     "loudness": 1.5,
+            #     "speech_sample_rate": sample_rate,
+            #     "enable_preprocessing": True,
+            #     "model": "bulbul:v2"
+            # }
+
+
             data = {
                 "inputs": [text],
                 "target_language_code": target_language,
                 "speaker": voice,
-                "pitch": 0,
                 "pace": 1.0,
-                "loudness": 1.5,
                 "speech_sample_rate": sample_rate,
                 "enable_preprocessing": True,
-                "model": "bulbul:v2"
+                "model": "bulbul:v3"
             }
             
             print(f"Making TTS request for {len(text)} characters...")
@@ -146,6 +161,7 @@ class SarvamTTS:
         except Exception as e:
             raise SarvamTTSError(f"Unexpected error: {e}")
     
+    @track_performance
     def synthesize_long_text(self, text: str, output_path: str, target_language, voice: str = "meera", 
                            max_chunk_length: int = 500, sample_rate: int = 22050) -> bool:
         """Simplified long text synthesis"""
@@ -200,6 +216,7 @@ class SarvamTTS:
             print(f"Error in long text synthesis: {e}")
             return False
     
+    @track_performance
     def _clean_text_for_tts(self, text: str) -> str:
         """Basic text cleaning"""
         if not text:
@@ -214,6 +231,7 @@ class SarvamTTS:
         
         return text.strip()
     
+    @track_performance
     def _split_text_into_chunks(self, text: str, max_length: int) -> List[str]:
         """Simple text chunking"""
         if len(text) <= max_length:
@@ -236,12 +254,14 @@ class SarvamTTS:
         
         return chunks
     
+    @track_performance
     def _combine_audio_simple(self, audio_segments: List[bytes]) -> bytes:
         """Simple audio combination - just concatenate the first segment"""
         # For simplicity, return the first segment
         # In a full implementation, you'd properly combine WAV files
         return audio_segments[0] if audio_segments else b''
     
+    @track_performance
     def get_available_voices(self) -> Dict[str, str]:
         """Get available voices"""
         return self.supported_voices

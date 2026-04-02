@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkflow } from '../../contexts/WorkflowContext';
-import toast from 'react-hot-toast';
+import toast from '../../services/toastService';
 
 const AuthGuard = ({ children }) => {
   const { isAuthenticated, isLoading, token } = useAuth();

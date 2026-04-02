@@ -18,7 +18,7 @@ security = HTTPBearer(auto_error=False)
 class GoogleAuthConfig:
     def __init__(self):
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
-        self.jwt_secret = os.getenv("JWT_SECRET", "your-default-secret-key-change-in-production")
+        self.jwt_secret = os.getenv("JWT_SECRET")
         self.jwt_algorithm = "HS256"
         
         # Verify PyJWT is properly installed
@@ -30,11 +30,13 @@ class GoogleAuthConfig:
             raise
         
         logger.info(f"Google Client ID configured: {'Yes' if self.google_client_id else 'No'}")
-        logger.info(f"JWT Secret configured: {'Yes' if self.jwt_secret != 'your-default-secret-key-change-in-production' else 'Using default'}")
+        logger.info(f"JWT Secret configured: {'Yes' if bool(self.jwt_secret) else 'No'}")
         logger.info(f"PyJWT version: {getattr(jwt, '__version__', 'Unknown')}")
         
         if not self.google_client_id:
             logger.warning("GOOGLE_CLIENT_ID environment variable is not set")
+        if not self.jwt_secret:
+            logger.warning("JWT_SECRET environment variable is not set")
 
 config = GoogleAuthConfig()
 
@@ -74,6 +76,12 @@ class AuthService:
         """Create JWT access token"""
         try:
             logger.info("Creating access token...")
+
+            if not config.jwt_secret:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="JWT_SECRET is not configured"
+                )
             
             # Verify jwt.encode is available
             if not hasattr(jwt, 'encode'):
@@ -115,6 +123,12 @@ class AuthService:
         """Verify JWT access token"""
         try:
             logger.info("Verifying access token...")
+
+            if not config.jwt_secret:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="JWT_SECRET is not configured"
+                )
             
             # Verify jwt.decode is available
             if not hasattr(jwt, 'decode'):
@@ -176,7 +190,7 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
     
     try:
         token = credentials.credentials
-        logger.info(f"Received token for verification: {token[:20]}..." if len(token) > 20 else token)
+        logger.info("Received token for verification")
         
         user_data = auth_service.verify_access_token(token)
         return user_data

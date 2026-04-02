@@ -1,73 +1,61 @@
-/* SlideCreation.jsx – Complete component with auto-generation and modern styling */
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+// src/pages/SlideCreation.jsx
+import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import {
-  FiSliders, FiDownload, FiEye, FiRefreshCw, FiImage,
-  FiArrowRight, FiChevronLeft, FiChevronRight
-} from 'react-icons/fi';
-import Layout           from '../components/common/Layout';
-import LoadingSpinner   from '../components/common/LoadingSpinner';
-import { useWorkflow }  from '../contexts/WorkflowContext';
-import { apiService }   from '../services/api';
-import { downloadBlob } from '../utils/helpers';
-import toast            from 'react-hot-toast';
+  FiSliders,
+  FiDownload,
+  FiArrowRight,
+  FiChevronLeft,
+  FiChevronRight,
+  FiArrowLeft,
+  FiAlertCircle,
+} from "react-icons/fi";
+import Layout from "../components/common/Layout";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import { useWorkflow } from "../contexts/WorkflowContext";
+import { apiService } from "../services/api";
+import { downloadBlob } from "../utils/helpers";
+import toast from "../services/toastService";
+import Analytics from "../lib/analytics";
 
-/* ─────────── minimal slide preview ─────────── */
 const SlidePreview = ({ slides, current, setCurrent }) => {
   if (!slides?.length) return null;
-
   return (
     <div className="space-y-3">
-      {/* main slide */}
-      <div className="
-        relative aspect-video
-        bg-white dark:bg-gray-900
-        border border-gray-300 dark:border-gray-700
-        rounded-md shadow-sm overflow-hidden
-      ">
+      <div className="relative aspect-video bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm overflow-hidden">
         <img
           src={slides[current]}
           alt={`Slide ${current + 1}`}
           className="w-full h-full object-contain"
         />
-
-        {/* nav arrows (fade when disabled) */}
         {slides.length > 1 && (
           <>
             <button
               onClick={() => setCurrent(Math.max(0, current - 1))}
               disabled={current === 0}
-              className="absolute inset-y-0 left-0 w-10 flex items-center justify-center
-                         text-white bg-gradient-to-r from-black/20 to-transparent
-                         hover:from-black/30 disabled:opacity-30 transition"
+              className="absolute inset-y-0 left-0 w-10 flex items-center justify-center text-white bg-gradient-to-r from-black/20 to-transparent hover:from-black/30 disabled:opacity-30 transition"
             >
               <FiChevronLeft className="w-5 h-5" />
             </button>
-
             <button
-              onClick={() => setCurrent(Math.min(slides.length - 1, current + 1))}
+              onClick={() =>
+                setCurrent(Math.min(slides.length - 1, current + 1))
+              }
               disabled={current === slides.length - 1}
-              className="absolute inset-y-0 right-0 w-10 flex items-center justify-center
-                         text-white bg-gradient-to-l from-black/20 to-transparent
-                         hover:from-black/30 disabled:opacity-30 transition"
+              className="absolute inset-y-0 right-0 w-10 flex items-center justify-center text-white bg-gradient-to-l from-black/20 to-transparent hover:from-black/30 disabled:opacity-30 transition"
             >
               <FiChevronRight className="w-5 h-5" />
             </button>
           </>
         )}
       </div>
-
-      {/* dot indicators */}
       {slides.length > 1 && (
         <div className="flex justify-center gap-2">
           {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrent(i)}
-              className={`w-2.5 h-2.5 rounded-full transition
-                          ${i === current
-                            ? 'bg-gray-900 dark:bg-gray-100'
-                            : 'bg-gray-400 hover:bg-gray-500 dark:bg-gray-600 dark:hover:bg-gray-500'}`}
+              className={`w-2.5 h-2.5 rounded-full transition ${i === current ? "bg-gray-900 dark:bg-gray-100" : "bg-gray-400 hover:bg-gray-500 dark:bg-gray-600 dark:hover:bg-gray-500"}`}
             />
           ))}
         </div>
@@ -76,51 +64,144 @@ const SlidePreview = ({ slides, current, setCurrent }) => {
   );
 };
 
-/* ─────────── preview container ─────────── */
-const PreviewCard = ({ slides, loading, current, setCurrent }) => (
-  <div className="
-    bg-white dark:bg-gray-900
-    border border-gray-300 dark:border-gray-700
-    rounded-md shadow-sm p-5
-  ">
-    <SlidePreview
-      slides={slides}
-      current={current}
-      setCurrent={setCurrent}
-    />
-  </div>
-);
-
-
-
-/* ─────────────────────────── main page ─────────────────────────── */
 const SlideCreation = () => {
   const { paperId, slides, setSlides, progressToNextStep } = useWorkflow();
-
   const [loading, setLoading] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [metadata, setMetadata] = useState(null);
   const [downPdf, setDownPdf] = useState(false);
   const [downLatex, setDownLatex] = useState(false);
+  const [downPpt, setDownPpt] = useState(false);
+  const [pptResp, setPptResp] = useState(null);
+  const [pptPath, setPptPath] = useState(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+  const [fetchingPdfBlob, setFetchingPdfBlob] = useState(false);
+  const [format, setFormat] = useState(() => {
+    const stored = sessionStorage.getItem("presentation_format");
+    return stored === "powerpoint" ? "powerpoint" : "beamer";
+  });
 
-  // Guard to prevent multiple auto-runs
   const autoGenerateRef = useRef(false);
 
-  /* helpers ------------------------------------------------------- */
-  const genSlides = async () => {
+  useEffect(() => {
+    const stored = sessionStorage.getItem("presentation_format");
+    setFormat(stored === "powerpoint" ? "powerpoint" : "beamer");
+    autoGenerateRef.current = false;
+  }, [paperId]);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("presentation_format");
+    setFormat(stored === "powerpoint" ? "powerpoint" : "beamer");
+  }, []);
+
+  useEffect(() => {
+    const nothingToShow =
+      format === "powerpoint" ? !pptPath : !slides || slides.length === 0;
     if (!paperId) return;
+    if (loading) return;
+    if (autoGenerateRef.current) return;
+    if (nothingToShow) {
+      autoGenerateRef.current = true;
+      genSlides();
+    }
+  }, [paperId, slides, loading, format, pptPath]);
+
+  useEffect(() => {
+    if (!paperId || format !== "powerpoint") return;
+    let cancelled = false;
+    let objectUrl = null;
+
+    const fetchPdfAsBlob = async () => {
+      setFetchingPdfBlob(true);
+      try {
+        const resp = await apiService.httpClient.get(
+          `/slides/${paperId}/view-pdf`,
+          {
+            responseType: "blob",
+          },
+        );
+        const blob = new Blob([resp.data], { type: "application/pdf" });
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) {
+          setPdfBlobUrl(objectUrl);
+        }
+      } catch (err) {
+        if (!cancelled) setPdfBlobUrl(null);
+      } finally {
+        if (!cancelled) setFetchingPdfBlob(false);
+      }
+    };
+
+    fetchPdfAsBlob();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [paperId, format]);
+
+  const genSlides = async (overrideFormat = null) => {
+    if (!paperId) return;
+    const useFormat = overrideFormat || format || "beamer";
+    const storedLanguage =
+      sessionStorage.getItem("slide_language") || undefined;
     setLoading(true);
     try {
-      await apiService.generateSlides(paperId);
-      const { data } = await apiService.getSlidePreview(paperId);
-      const urls = (data.images || []).map(img =>
-        apiService.getSlideImageUrl(paperId, img)
+      const genResp = await apiService.generateSlides(
+        paperId,
+        useFormat,
+        undefined,
+        storedLanguage,
       );
-      setSlides(urls);
-      setCurrentSlide(0);
-      toast.success(`${urls.length} slides generated`);
+      if (useFormat === "powerpoint") {
+        const data = genResp?.data ?? genResp;
+        setPptResp(data);
+        const serverPptPath =
+          data?.pptx_path ?? data?.ppt_path ?? data?.pdf_path ?? null;
+        if (serverPptPath) setPptPath(serverPptPath);
+        try {
+          const previewResp = await apiService.getSlidePreview(paperId);
+          const urls = (previewResp.data.images || []).map((img) =>
+            apiService.getSlideImageUrl(paperId, img),
+          );
+          setSlides(urls);
+          setCurrentSlide(0);
+        } catch (e) {
+          console.warn("No preview images for PPT flow", e);
+        }
+      } else {
+        const previewResp = await apiService.getSlidePreview(paperId);
+        const urls = (previewResp.data.images || []).map((img) =>
+          apiService.getSlideImageUrl(paperId, img),
+        );
+        setSlides(urls);
+        setCurrentSlide(0);
+        toast.success(
+          `${urls.length} slide${urls.length === 1 ? "" : "s"} generated`,
+        );
+      }
+      try {
+        Analytics.track("Slides Generation Succeeded", {
+          timestamp: new Date().toISOString(),
+          paper_id: paperId,
+          format: useFormat,
+          slides_generated: Array.isArray(slides) ? slides.length : undefined,
+        });
+      } catch (e) {}
     } catch (error) {
-      console.error('Slide generation failed:', error);
-      toast.error('Failed to generate slides');
+  console.error('Slide generation failed:', error);
+  const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to generate slides';
+  toast.error(errorMessage);
+      try {
+        Analytics.track("Slides Generation Failed", {
+          timestamp: new Date().toISOString(),
+          paper_id: paperId,
+          format: useFormat,
+          error_message: error?.message || String(error),
+        });
+      } catch (e) {}
     } finally {
       setLoading(false);
     }
@@ -130,12 +211,20 @@ const SlideCreation = () => {
     if (!paperId) return;
     setDownPdf(true);
     try {
-      const { data } = await apiService.downloadSlides(paperId);
-      downloadBlob(data, `slides_${paperId}.pdf`);
-      toast.success('PDF downloaded');
+      const resp = await apiService.downloadSlides(paperId);
+      downloadBlob(resp.data, `slides_${paperId}.pdf`);
+      toast.success("PDF downloaded");
+      try {
+        Analytics.track("Downloaded Slides PDF", {
+          timestamp: new Date().toISOString(),
+          paper_id: paperId,
+          file_name: `slides_${paperId}.pdf`,
+          format,
+        });
+      } catch (e) {}
     } catch (error) {
-      console.error('PDF download failed:', error);
-      toast.error('Failed to download PDF');
+      console.error("PDF download failed:", error);
+      toast.error("Failed to download PDF");
     } finally {
       setDownPdf(false);
     }
@@ -145,243 +234,250 @@ const SlideCreation = () => {
     if (!paperId) return;
     setDownLatex(true);
     try {
-      const { data } = await apiService.downloadLatexSource(paperId);
-      downloadBlob(data, `slides_${paperId}.tex`);
-      toast.success('LaTeX downloaded');
+      const resp = await apiService.downloadLatexSource(paperId);
+      downloadBlob(resp.data, `slides_${paperId}.tex`);
+      toast.success("LaTeX downloaded");
+      try {
+        Analytics.track("Downloaded LaTeX Source", {
+          timestamp: new Date().toISOString(),
+          paper_id: paperId,
+          file_name: `slides_${paperId}.tex`,
+          format,
+        });
+      } catch (e) {}
     } catch (error) {
-      console.error('LaTeX download failed:', error);
-      toast.error('Failed to download LaTeX');
+      console.error("LaTeX download failed:", error);
+      toast.error("Failed to download LaTeX");
     } finally {
       setDownLatex(false);
     }
   };
 
-  /* ───────────────────────── auto-trigger effect ───────────────────────── */
-  useEffect(() => {
-    const noSlidesYet = !slides || slides.length === 0;
-
-    if (
-      paperId &&                // we have a paper
-      noSlidesYet &&           // nothing to show
-      !loading &&              // not already running
-      !autoGenerateRef.current // hasn't fired before
-    ) {
-      autoGenerateRef.current = true; // lock
-      genSlides();                    // same helper used by the button
+  const dlPpt = async () => {
+    if (!paperId) return;
+    setDownPpt(true);
+    try {
+      const resp = await apiService.downloadPowerpoint(paperId);
+      downloadBlob(resp.data, `slides_${paperId}.pptx`);
+      toast.success("PPT downloaded");
+      try {
+        Analytics.track("Downloaded PPT", {
+          timestamp: new Date().toISOString(),
+          paper_id: paperId,
+          file_name: `slides_${paperId}.pptx`,
+          format,
+        });
+      } catch (e) {}
+    } catch (error) {
+      console.error("PPT download failed:", error);
+      toast.error("Failed to download PPT");
+    } finally {
+      setDownPpt(false);
     }
-  }, [paperId, slides, loading]);
+  };
 
-  /* route guard --------------------------------------------------- */
-  const crumbs = [{ label: 'Slide Creation', href: '/slide-creation' }];
+  useEffect(() => {
+    const noSlides = !slides || slides.length === 0;
+    if (
+      paperId &&
+      format === "powerpoint" &&
+      !loading &&
+      !autoGenerateRef.current
+    ) {
+      autoGenerateRef.current = true;
+      genSlides("powerpoint");
+    }
+  }, [paperId, format]);
+
+  const isPpt = format === "powerpoint";
+  const crumbs = [
+    {
+      label: isPpt ? "PowerPoint Creation" : "Slide Creation",
+      href: "/slide-creation",
+    },
+  ];
+
   if (!paperId) {
     return (
-      <Layout title="Slide Creation" breadcrumbs={crumbs}>
-        <EmptyState/>
+      <Layout title={crumbs[0].label} breadcrumbs={crumbs}>
+        <div className="max-w-4xl mx-auto space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-neutral-800 rounded-xl p-12 border border-neutral-200 dark:border-neutral-700 text-center"
+          >
+            <FiAlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No Slides Available
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Please generate slides first.
+            </p>
+            <button
+              onClick={() => window.history.back()}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-gray-900 hover:bg-gray-800 text-white font-medium transition-colors duration-150"
+            >
+              Go Back
+            </button>
+          </motion.div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Layout title="" breadcrumbs={crumbs}>
+        <div className="max-w-4xl mx-auto space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-neutral-800 rounded-xl p-12 border border-neutral-200 dark:border-neutral-700 flex flex-col items-center justify-center"
+          >
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-gray-600 dark:text-gray-400">
+              {isPpt ? "Generating PowerPoint..." : "Generating slides..."}
+            </p>
+          </motion.div>
+        </div>
       </Layout>
     );
   }
 
   return (
-    <Layout breadcrumbs={crumbs}>
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.15 }}
-        className="max-w-7xl mx-auto space-y-3"
-      >
-        {/* header */}
-        <Header
-          slides={slides}
-          loading={loading}
-          downPdf={downPdf}
-          downLatex={downLatex}
-          genSlides={genSlides}
-          dlPdf={dlPdf}
-          dlLatex={dlLatex}
-          toNext={progressToNextStep}
-        />
+    <Layout title="" breadcrumbs={crumbs}>
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        >
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              {isPpt ? "Generated PowerPoint" : "Generated Presentation Slides"}
+            </h2>
+            {metadata?.title && (
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                {metadata.title}
+              </p>
+            )}
+          </div>
 
-        {/* progress banner */}
-        {loading && <ProgressBanner />}
+          <button
+            onClick={() => progressToNextStep()}
+            className="flex items-center gap-2 px-6 py-3 rounded-md bg-gray-900 hover:bg-gray-800 text-white font-medium transition-colors duration-150"
+          >
+            <FiArrowRight className="w-5 h-5" /> Continue to Audio & Video
+          </button>
+        </motion.div>
 
-        {/* preview - only show if slides exist */}
-        {slides?.length > 0 && (
-          <PreviewCard
-            slides={slides}
-            loading={loading}
-            current={currentSlide}
-            setCurrent={setCurrentSlide}
-            regen={genSlides}
-          />
-        )}
+        {/* Preview Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-neutral-800 rounded-xl p-6 border border-neutral-200 dark:border-neutral-700 space-y-6"
+        >
+          {!isPpt && slides?.length > 0 ? (
+            <SlidePreview
+              slides={slides}
+              current={currentSlide}
+              setCurrent={setCurrentSlide}
+            />
+          ) : isPpt && fetchingPdfBlob ? (
+            <div className="aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg flex flex-col items-center justify-center gap-3">
+              <LoadingSpinner size="lg" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Please wait, fetching PDF preview...
+              </p>
+            </div>
+          ) : isPpt && pdfBlobUrl ? (
+            <div className="aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
+              <iframe
+                title="PPT PDF preview"
+                src={pdfBlobUrl}
+                style={{ width: "100%", height: "100%", border: 0 }}
+              />
+            </div>
+          ) : (
+            <div className="aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg flex items-center justify-center">
+              <p className="text-sm text-gray-500">Preview not available</p>
+            </div>
+          )}
 
-        {/* empty state - only show if no slides and not loading */}
-        {!slides?.length && !loading && (
-          <GeneratePrompt onGenerate={genSlides} loading={loading} />
-        )}
-      </motion.div>
+          {metadata && (
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
+              {metadata.authors && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">Authors:</span>{" "}
+                  {metadata.authors}
+                </p>
+              )}
+              {metadata.date && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">Date:</span> {metadata.date}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            {!isPpt ? (
+              <>
+                <button
+                  onClick={dlPdf}
+                  disabled={downPdf}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white font-medium transition-colors duration-150 disabled:cursor-not-allowed"
+                >
+                  {downPdf ? (
+                    <>
+                      <LoadingSpinner size="sm" /> Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <FiDownload className="w-5 h-5" /> Download PDF
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={dlLatex}
+                  disabled={downLatex}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white font-medium transition-colors duration-150 disabled:cursor-not-allowed"
+                >
+                  {downLatex ? (
+                    <>
+                      <LoadingSpinner size="sm" /> Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <FiDownload className="w-5 h-5" /> Download LaTeX
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={dlPpt}
+                disabled={downPpt}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white font-medium transition-colors duration-150 disabled:cursor-not-allowed"
+              >
+                {downPpt ? (
+                  <>
+                    <LoadingSpinner size="sm" /> Downloading...
+                  </>
+                ) : (
+                  <>
+                    <FiDownload className="w-5 h-5" /> Download PPT
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </motion.div>
+      </div>
     </Layout>
   );
 };
-
-/* ────────────────────── sub-components ─────────────────────── */
-
-const Header = ({
-  slides,
-  loading,
-  downPdf,
-  downLatex,
-  genSlides,
-  dlPdf,
-  dlLatex,
-  toNext
-}) => (
-  <div className="bg-white dark:bg-neutral-800 rounded-md p-5 border border-neutral-300 dark:border-neutral-600 shadow-sm">
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-      {/* title + subtitle */}
-      <div>
-        <h2 className="text-2xl font-sans font-semibold text-gray-900 dark:text-gray-100">
-          Create Presentation Slides
-        </h2>
-        <p className="font-sans text-neutral-600 dark:text-neutral-400">
-          Generate beautiful LaTeX slides from your scripts
-        </p>
-      </div>
-
-      {/* action buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {!slides?.length ? (
-          <PrimaryButton
-            onClick={genSlides}
-            disabled={loading}
-            icon={FiSliders}
-            loading={loading}
-          >
-            Generate Slides
-          </PrimaryButton>
-        ) : (
-          <>
-            <NeutralButton
-              onClick={dlPdf}
-              disabled={downPdf}
-              icon={FiDownload}
-              loading={downPdf}
-            >
-              Download PDF
-            </NeutralButton>
-            <NeutralButton
-              onClick={dlLatex}
-              disabled={downLatex}
-              icon={FiDownload}
-              loading={downLatex}
-            >
-              Download LaTeX
-            </NeutralButton>
-            <NeutralButton onClick={toNext} icon={FiArrowRight}>
-              Continue to Audio & Video
-            </NeutralButton>
-          </>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-/* button helpers – monochrome palette, system fonts */
-const PrimaryButton = ({ children, onClick, disabled, icon: Icon, loading }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className="
-      flex items-center justify-center px-6 py-3
-      bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400
-      text-white font-sans font-medium rounded-md
-      transition-colors duration-150
-    "
-  >
-    {loading ? (
-      <LoadingSpinner size="sm" className="mr-2" />
-    ) : (
-      <Icon className="w-5 h-5 mr-2" />
-    )}
-    {loading ? 'Working…' : children}
-  </button>
-);
-
-const NeutralButton = ({ children, onClick, disabled, icon: Icon, loading }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className="
-      flex items-center justify-center px-6 py-3
-      bg-gray-900 hover:bg-gray-600 disabled:bg-gray-400
-      text-white font-sans font-medium rounded-md
-      transition-colors duration-150
-    "
-  >
-    {loading ? (
-      <LoadingSpinner size="sm" className="mr-2" />
-    ) : (
-      <Icon className="w-5 h-5 mr-2" />
-    )}
-    {loading ? 'Downloading…' : children}
-  </button>
-);
-
-const ProgressBanner = () => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }} 
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl p-6"
-  >
-    <div className="flex items-center space-x-3">
-      <LoadingSpinner size="md"/>
-      <div>
-        <h3 className="text-lg font-heading font-semibold text-brand-800 dark:text-brand-200 mb-1">
-          Generating Slides…
-        </h3>
-        <p className="font-body text-brand-700 dark:text-brand-300 text-sm">
-          AI is converting your scripts into LaTeX slides. This may take a moment.
-        </p>
-      </div>
-    </div>
-  </motion.div>
-);
-
-const EmptyState = () => (
-  <div className="text-center py-12">
-    <FiSliders className="w-16 h-16 text-neutral-400 dark:text-neutral-500 mx-auto mb-4"/>
-    <h2 className="text-2xl font-heading font-semibold text-neutral-900 dark:text-white mb-2">
-      No Paper Selected
-    </h2>
-    <p className="font-body text-neutral-600 dark:text-neutral-400">
-      Please complete the script generation step first.
-    </p>
-  </div>
-);
-
-const GeneratePrompt = ({ onGenerate, loading }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }} 
-    animate={{ opacity: 1, y: 0 }}
-    className="text-center py-12 bg-neutral-50 dark:bg-neutral-800 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-600"
-  >
-    <FiSliders className="w-16 h-16 text-neutral-400 dark:text-neutral-500 mx-auto mb-4"/>
-    <h3 className="text-xl font-heading font-semibold text-neutral-900 dark:text-white mb-2">
-      Ready to Create Slides
-    </h3>
-    <p className="font-body text-neutral-600 dark:text-neutral-400 mb-6">
-      Generate professional LaTeX slides from your presentation scripts.
-    </p>
-    <PrimaryButton 
-      onClick={onGenerate} 
-      disabled={loading} 
-      icon={FiSliders} 
-      loading={loading}
-    >
-      Generate Slides
-    </PrimaryButton>
-  </motion.div>
-);
 
 export default SlideCreation;

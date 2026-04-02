@@ -4,7 +4,10 @@ from typing import List, Optional
 from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip, CompositeAudioClip
 import wave
 import subprocess
+from app.utils.timing import track_performance
+from app.utils import gpu_utils  # Import module instead of function
 
+@track_performance
 def validate_audio_file_for_video(audio_path: str) -> bool:
     """Validate audio file before using in video creation."""
     try:
@@ -41,6 +44,7 @@ def validate_audio_file_for_video(audio_path: str) -> bool:
         print(f"Error validating audio file {audio_path}: {e}")
         return False
 
+@track_performance
 def repair_audio_with_ffmpeg(audio_path: str) -> bool:
     """Repair corrupted audio file using FFmpeg."""
     try:
@@ -79,6 +83,7 @@ def repair_audio_with_ffmpeg(audio_path: str) -> bool:
         print(f"Error repairing audio: {e}")
         return False
 
+@track_performance
 def create_safe_audio_clip(audio_path: str) -> Optional[AudioFileClip]:
     """Safely create AudioFileClip with validation and repair attempts."""
     try:
@@ -124,6 +129,7 @@ def create_safe_audio_clip(audio_path: str) -> Optional[AudioFileClip]:
         print(f"Error creating audio clip for {audio_path}: {e}")
         return None
 
+@track_performance
 def create_video_with_audio(
     slide_images: List[str],
     audio_files: List[str],
@@ -131,8 +137,11 @@ def create_video_with_audio(
     output_file: str = "output_video.mp4"
 ) -> str:
     """Create video from slide images and audio files with improved error handling."""
+    video_clips = []
+    final_video = None
+    background_music = None
+    
     try:
-        video_clips = []
         successful_clips = 0
         
         # Filter out invalid audio files first
@@ -167,19 +176,30 @@ def create_video_with_audio(
             duration = audio_clip.duration
             print(f"Processing slide {i+1}: {os.path.basename(slide_path)} with duration {duration:.2f}s")
             
+            image_clip = None
             try:
                 # Create image clip with audio duration
                 image_clip = ImageClip(slide_path, duration=duration)
                 
-                # Set audio to image clip
+                # Set audio to image clip (audio_clip is now owned by image_clip)
                 image_clip = image_clip.set_audio(audio_clip)
                 video_clips.append(image_clip)
                 successful_clips += 1
                 
             except Exception as e:
                 print(f"Error processing slide {i+1}: {e}")
-                if audio_clip:
-                    audio_clip.close()
+                # CRITICAL: Clean up - if image_clip creation failed, close audio_clip
+                # If image_clip succeeded, it owns the audio_clip, so only close image_clip
+                if image_clip is not None:
+                    try:
+                        image_clip.close()
+                    except:
+                        pass
+                elif audio_clip is not None:
+                    try:
+                        audio_clip.close()
+                    except:
+                        pass
                 continue
         
         if not video_clips:
@@ -187,8 +207,18 @@ def create_video_with_audio(
         
         print(f"Successfully created {successful_clips} video clips")
         
-        # Concatenate all clips
+        # Concatenate all clips - this creates a NEW composite clip
         final_video = concatenate_videoclips(video_clips, method="compose")
+        
+        # IMPORTANT: Close individual clips immediately after concatenation
+        # The final_video now has its own references to the underlying data
+        print("Closing individual video clips after concatenation...")
+        for clip in video_clips:
+            try:
+                clip.close()
+            except Exception as e:
+                print(f"Warning: Error closing individual clip: {e}")
+        video_clips = []  # Clear the list
         
         # Add background music if provided
         if background_music_file and os.path.exists(background_music_file):
@@ -214,28 +244,110 @@ def create_video_with_audio(
                 
             except Exception as e:
                 print(f"Warning: Could not add background music: {e}")
+                # Clean up background music on error
+                if background_music is not None:
+                    try:
+                        background_music.close()
+                    except:
+                        pass
+                    background_music = None
         
         # Write the final video
         print(f"Writing video to: {output_file}")
-        final_video.write_videofile(
-            output_file,
-            fps=1,  # Low FPS for slide presentation
-            codec='libx264',
-            audio_codec='aac',
-            temp_audiofile='temp-audio.m4a',
-            remove_temp=True,
-            verbose=False,
-            logger=None
+
+        # Ensure dimensions are even (required by some codecs)
+        final_video = final_video.resize(
+            newsize=(
+                final_video.w // 2 * 2,
+                final_video.h // 2 * 2
+            )
         )
+
+        # Get GPU-aware encoding configuration (automatically uses NVIDIA GPU if available, falls back to CPU)
+        encoding_config = gpu_utils.get_video_encoding_config()
         
-        # Clean up clips
-        for clip in video_clips:
-            clip.close()
-        final_video.close()
+        # Try GPU encoding first, fallback to CPU if it fails
+        write_success = False
+        for attempt in [1, 2]:
+            try:
+                if attempt == 2:
+                    # Force CPU encoding on second attempt
+                    print("⚠️  GPU encoding failed, falling back to CPU encoding...")
+                    encoding_config = {
+                        "codec": "libx264",
+                        "preset": "medium",
+                        "threads": 4,
+                        "ffmpeg_params": [
+                            "-pix_fmt", "yuv420p",
+                            "-profile:v", "main",
+                            "-level", "3.1",
+                            "-movflags", "+faststart",
+                        ],
+                        "hardware": "CPU (fallback)",
+                    }
+                
+                # Write video file
+                final_video.write_videofile(
+                    output_file,
+                    fps=1,  
+                    codec=encoding_config["codec"],
+                    audio_codec='aac',
+                    temp_audiofile='temp-audio.m4a',
+                    remove_temp=True,
+                    preset=encoding_config.get("preset"),
+                    threads=encoding_config.get("threads"),
+                    ffmpeg_params=encoding_config["ffmpeg_params"],
+                    logger=None
+                )
+                write_success = True
+                break  # Success, exit loop
+                
+            except (IOError, OSError) as e:
+                error_msg = str(e)
+                # Check if it's an NVENC-specific error
+                if attempt == 1 and ('nvenc' in error_msg.lower() or 'encoder not found' in error_msg.lower()):
+                    print(f"GPU encoding error: {error_msg}")
+                    continue  # Try again with CPU
+                else:
+                    # Not a GPU error or already on second attempt, re-raise
+                    raise
+        
+        if not write_success:
+            raise RuntimeError("Failed to write video with both GPU and CPU encoding")
         
         print(f"Video created successfully: {output_file}")
         return output_file
         
     except Exception as e:
         print(f"Error creating video: {e}")
+        import traceback
+        traceback.print_exc()
         raise
+        
+    finally:
+        # CRITICAL: Always clean up resources in finally block to prevent leaks
+        print("Cleaning up all resources...")
+        
+        # Close individual clips if still in memory
+        if video_clips:
+            for clip in video_clips:
+                try:
+                    clip.close()
+                except Exception as e:
+                    print(f"Warning: Error closing clip: {e}")
+        
+        # Close background music
+        if background_music is not None:
+            try:
+                background_music.close()
+            except Exception as e:
+                print(f"Warning: Error closing background music: {e}")
+        
+        # Close final video
+        if final_video is not None:
+            try:
+                final_video.close()
+            except Exception as e:
+                print(f"Warning: Error closing final video: {e}")
+        
+        print("Resource cleanup complete")
