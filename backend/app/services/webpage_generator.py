@@ -2,6 +2,7 @@ import json
 import os
 import random
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -125,15 +126,15 @@ def _extract_resource_links(text: str) -> List[str]:
 
 @track_performance
 def _build_prompt(title: str, authors: str, text: str, links: List[str], image_urls: List[str], profile: Dict) -> str:
-        """Build prompt for Gemini to generate webpage HTML."""
-        figures_instruction = (
-                "No figure URLs available. Omit the figures section cleanly."
-                if not image_urls
-                else "Use every figure URL exactly once in the figures/gallery section. Do not use placeholder image URLs."
-        )
+    """Build prompt for Gemini to generate webpage HTML."""
+    figures_instruction = (
+        "No figure URLs available. Omit the figures section cleanly."
+        if not image_urls
+        else "Use every figure URL exactly once in the figures/gallery section. Do not use placeholder image URLs."
+    )
 
-        return f"""You are an award-winning web designer and technical writer.
-        Create ONE adaptive, presentation-ready research landing page as a single self-contained HTML document.
+    return f"""You are an award-winning web designer and technical writer.
+Create ONE adaptive, presentation-ready research landing page as a single self-contained HTML document.
 
 CRITICAL REQUIREMENTS:
 1. Return ONLY the HTML code - no markdown, no code fences, no explanation
@@ -232,10 +233,12 @@ def _validate_generated_html(html: str, image_urls: List[str], links: List[str])
     if image_urls:
         if "<img" not in lower:
             issues.append("No image tags found despite figure URLs being available")
-        required = image_urls[: min(2, len(image_urls))]
-        for url in required:
-            if url not in html:
+        for url in image_urls:
+            occurrences = html.count(url)
+            if occurrences == 0:
                 issues.append(f"Missing required figure URL: {url}")
+            elif occurrences > 1:
+                issues.append(f"Figure URL appears more than once: {url}")
 
     if links:
         has_resource = any(link in html for link in links)
@@ -371,7 +374,7 @@ def generate_variant(
         raise RuntimeError(f"Generated HTML did not pass quality checks: {issues}")
 
     # Save the HTML
-    variant_id = f"v{int(datetime.utcnow().timestamp())}_{variant_index}"
+    variant_id = f"v{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{uuid.uuid4().hex[:8]}"
     vpath = _variant_dir(paper_id) / f"{variant_id}.html"
     vpath.write_text(html, encoding="utf-8")
 

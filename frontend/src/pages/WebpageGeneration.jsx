@@ -21,11 +21,21 @@ const ViewportButton = ({ active, onClick, icon: Icon, label }) => (
   </button>
 );
 
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read preview asset"));
+    reader.readAsDataURL(blob);
+  });
+
 const WebpageGeneration = () => {
   const { paperId: ctxPaperId } = useWorkflow();
   const paperId = ctxPaperId;
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [viewport, setViewport] = useState("desktop");
 
   const crumbs = [{ label: "Webpage Generation", href: "/webpage-generation" }];
@@ -41,16 +51,64 @@ const WebpageGeneration = () => {
     try {
       const resp = await apiService.listWebpageVariants(paperId);
       const list = resp?.data || [];
-      if (!selected && list.length) setSelected(list[0]);
+      if (list.length) setSelected(list[0]);
     } catch (e) {
       console.warn("Failed to fetch variants", e);
     }
   };
 
   useEffect(() => {
+    setSelected(null);
+    setPreviewHtml("");
     loadLatestVariant();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPreview = async () => {
+      if (!paperId || !selected?.variant_id) {
+        setPreviewHtml("");
+        setPreviewLoading(false);
+        return;
+      }
+
+      setPreviewLoading(true);
+      try {
+        const resp = await apiService.getWebpagePreviewHtml(paperId, selected.variant_id);
+        let html = resp?.data || "";
+        const matches = [...html.matchAll(/(\/api\/webpage\/[^"'\s>]+\/asset\/[^"'\s>]+)/g)];
+        const uniqueUrls = [...new Set(matches.map((match) => match[1]))];
+
+        for (const url of uniqueUrls) {
+          const fileName = url.split("/").pop();
+          const assetResp = await apiService.getWebpagePreviewAsset(paperId, fileName);
+          const dataUrl = await blobToDataUrl(assetResp.data);
+          html = html.split(url).join(dataUrl);
+        }
+
+        if (!cancelled) {
+          setPreviewHtml(html);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPreviewHtml("");
+          toast.error("Failed to load preview.");
+        }
+      } finally {
+        if (!cancelled) {
+          setPreviewLoading(false);
+        }
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paperId, selected]);
 
   const generate = async () => {
     if (!paperId) {
@@ -60,7 +118,7 @@ const WebpageGeneration = () => {
 
     setLoading(true);
     try {
-      const resp = await apiService.generateWebpage(paperId, 1);
+      const resp = await apiService.generateWebpage(paperId);
       const created = resp?.data?.variants || [];
       if (!created.length) {
         toast.error("No variants were generated.");
@@ -154,13 +212,16 @@ const WebpageGeneration = () => {
             <div className="overflow-auto rounded-lg border border-gray-300 dark:border-neutral-700 p-2 bg-gray-50 dark:bg-neutral-900 flex justify-center">
               <iframe
                 title="webpage-preview"
-                src={apiService.getWebpagePreviewUrl(paperId, selected.variant_id)}
+                srcDoc={previewHtml || "<html><body></body></html>"}
                 style={frameStyle}
                 className="border rounded-md bg-white"
-                sandbox="allow-scripts allow-same-origin allow-popups"
+                sandbox="allow-same-origin"
               />
             </div>
           )}
+          {previewLoading ? (
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Loading preview assets...</p>
+          ) : null}
         </div>
       </div>
     </Layout>

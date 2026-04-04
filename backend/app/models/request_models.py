@@ -137,10 +137,6 @@ class BusinessBriefUpdateRequest(BaseModel):
     sections: Dict[str, str]
 
 
-class WebpageGenerateRequest(BaseModel):
-    variant_count: int = 1
-
-
 class WebpageVariant(BaseModel):
     variant_id: str
     theme: str

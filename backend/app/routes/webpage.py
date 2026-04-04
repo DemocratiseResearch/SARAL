@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.auth.dependencies import get_current_user
-from app.models.request_models import WebpageGenerateRequest, WebpageGenerateResponse, WebpageVariant
+from app.models.request_models import WebpageGenerateResponse, WebpageVariant
 from app.routes.api_keys import get_api_keys
 from app.services.storage_manager import storage_manager
 from app.services.webpage_generator import STYLE_PROFILES, clear_variants, generate_variant, list_variants, save_variant_meta
@@ -36,7 +36,6 @@ def _resolve_existing_path(raw_path: str | None) -> Path | None:
 @router.post("/{paper_id}/generate", response_model=WebpageGenerateResponse)
 async def generate_webpage(
     paper_id: str,
-    request: WebpageGenerateRequest,
     current_user: dict = Depends(get_current_user),
     api_keys: dict = Depends(get_api_keys),
 ):
