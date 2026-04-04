@@ -1177,6 +1177,32 @@ class BusinessBriefService {
   }
 }
 
+class WebpageService {
+  constructor(httpClient) {
+    this.http = httpClient;
+  }
+
+  async generate(paperId, variantCount = 1) {
+    return this.http.post(`/webpage/${paperId}/generate`, {
+      variant_count: variantCount,
+    });
+  }
+
+  async listVariants(paperId) {
+    return this.http.get(`/webpage/${paperId}/variants`);
+  }
+
+  getPreviewUrl(paperId, variantId) {
+    return `${API_CONFIG.baseURL}/api/webpage/${paperId}/preview/${variantId}`;
+  }
+
+  async downloadVariant(paperId, variantId) {
+    return this.http.get(`/webpage/${paperId}/download/${variantId}`, {
+      responseType: "blob",
+    });
+  }
+}
+
 class ApiService {
   constructor() {
     this.httpClient = new HttpClient();
@@ -1194,6 +1220,7 @@ class ApiService {
     this.reel = new ReelService(this.httpClient);
     this.poster = new PosterService(this.httpClient);
     this.businessBrief = new BusinessBriefService(this.httpClient);
+    this.webpage = new WebpageService(this.httpClient);
   }
 
   get interceptors() {
@@ -1334,6 +1361,13 @@ class ApiService {
     this.businessBrief.updateSections(paperId, sections);
   downloadBusinessBriefPdf = (paperId) =>
     this.businessBrief.downloadPdf(paperId);
+  generateWebpage = (paperId, variantCount) =>
+    this.webpage.generate(paperId, variantCount);
+  listWebpageVariants = (paperId) => this.webpage.listVariants(paperId);
+  getWebpagePreviewUrl = (paperId, variantId) =>
+    this.webpage.getPreviewUrl(paperId, variantId);
+  downloadWebpageVariant = (paperId, variantId) =>
+    this.webpage.downloadVariant(paperId, variantId);
 }
 
 export const apiService = new ApiService();

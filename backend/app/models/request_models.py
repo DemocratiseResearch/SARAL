@@ -135,3 +135,20 @@ class BusinessBriefResponse(BaseModel):
 
 class BusinessBriefUpdateRequest(BaseModel):
     sections: Dict[str, str]
+
+
+class WebpageGenerateRequest(BaseModel):
+    variant_count: int = 1
+
+
+class WebpageVariant(BaseModel):
+    variant_id: str
+    theme: str
+    preview_url: str
+    download_url: str
+    created_at: str
+
+
+class WebpageGenerateResponse(BaseModel):
+    paper_id: str
+    variants: List[WebpageVariant]

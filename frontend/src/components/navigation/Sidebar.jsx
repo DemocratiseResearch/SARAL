@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiKey, FiUpload, FiEdit3, FiSliders,
-  FiPlay, FiDownload, FiCheck, FiClock, FiLogOut, FiUser, FiZap
+  FiPlay, FiDownload, FiCheck, FiClock, FiLogOut, FiUser, FiZap, FiGlobe
 } from 'react-icons/fi';
 import { useWorkflow } from '../../contexts/WorkflowContext';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -68,6 +68,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { to: '/media-generation', icon: FiPlay, label: 'Media Generation', step: 5 },
     { to: '/poster', icon: FiZap, label: 'Poster Generation', step: 6 },
     { to: '/results', icon: FiDownload, label: 'Results', step: 7 },
+    { to: '/webpage-generation', icon: FiGlobe, label: 'Webpage Generation', step: 0 },
   ];
 
   const handleLinkClick = (step) => {

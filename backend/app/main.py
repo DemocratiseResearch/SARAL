@@ -13,7 +13,7 @@ import uvicorn
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, feedback, patents, reels, podcast, external_api, poster, business_brief
+from app.routes import api_keys, papers, scripts, slides, media, images, auth, papertovideo, youtube_upload, feedback, patents, reels, podcast, external_api, poster, business_brief, webpage
 from app.workers import init_worker_pool, close_worker_pool
 ## Removed: from app.database import create_tables (no longer needed)
 
@@ -31,7 +31,7 @@ os.environ["MKL_NUM_THREADS"] = "8"
 temp_dirs = [
     "temp/arxiv_sources", "temp/images", "temp/title_slides",
     "temp/videos", "temp/audio", "temp/latex_template",
-    "temp/slides", "temp/scripts"
+    "temp/slides", "temp/scripts", "temp/webpages"
 ]
 
 for dir_path in temp_dirs:
@@ -197,6 +197,7 @@ app.include_router(reels.router, prefix="/api/reels", tags=["reels"])
 app.include_router(podcast.router, prefix="/api/podcast", tags=["podcast"])
 app.include_router(external_api.router, prefix="/api/external", tags=["External API"])
 app.include_router(business_brief.router, prefix="/api/business-brief", tags=["Business Brief"])
+app.include_router(webpage.router, prefix="/api/webpage", tags=["Webpage"])
 
 instrumentator = Instrumentator(
     should_group_status_codes=True,
