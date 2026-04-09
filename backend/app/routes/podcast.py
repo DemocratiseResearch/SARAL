@@ -16,6 +16,7 @@ import json
 from app.services.podcast_service import extract_text_from_pdf, clean_text, generate_podcast_with_gemini, translate_dialogues_to_hindi
 from app.services.podcast_service import translate_dialogues_to_tamil, get_audio_clips, combine_audio_clips, combine_with_ffmpeg, bhashini_translate_dialogues
 from app.services.podcast_service import simple_binary_concat, cleanup_temp_files, get_audio_file_info, save_dialogue_to_file, extract_speakers_and_content
+from app.services.podcast_service import generate_podcast_cover, generate_podcast_video
 from app.services.script_generator import extract_text_from_file
 from app.services.arxiv_scraper import ArxivScraper
 from app.services.latex_processor import find_tex_file, find_image_references, find_image_files
@@ -342,8 +343,34 @@ def generate_podcast_background(temp_pdf_path: str = None, language: str = "engl
                 )
             except Exception as e:
                 print(f"[WARNING] Failed to track output generation: {e}")
-            
-            
+
+            # Generate podcast video (cover image + audio → MP4)
+            video_path = None
+            try:
+                update_podcast_job_status(
+                    paper_id=paper_id,
+                    status="processing",
+                    language=language,
+                    stage="generating video"
+                )
+
+                # Extract a rough title from the first line of the paper text
+                paper_title = paper_text.split("\n")[0].strip()[:200] or "Research Paper"
+                paper_abstract = paper_text[:500]
+
+                print("[THREAD] Generating podcast cover image...")
+                cover_image_path = generate_podcast_cover(paper_title, paper_abstract, paper_id)
+
+                print("[THREAD] Generating podcast video...")
+                video_path = generate_podcast_video(
+                    str(combined_audio_path), cover_image_path, paper_id
+                )
+                print(f"[THREAD] Podcast video ready: {video_path}")
+            except Exception as ve:
+                print(f"[WARNING] Video generation failed (audio-only podcast will still be available): {ve}")
+                import traceback as _tb
+                _tb.print_exc()
+
             # Update status to completed
             update_podcast_job_status(
                 paper_id=paper_id,
@@ -359,6 +386,8 @@ def generate_podcast_background(temp_pdf_path: str = None, language: str = "engl
                 combined_audio_path=str(combined_audio_path),  # Convert to string
                 audio_filename=os.path.basename(combined_audio_path),
                 audio_info=audio_info,
+                video_path=str(video_path) if video_path else None,
+                video_filename=os.path.basename(video_path) if video_path else None,
                 completed_at=datetime.utcnow().isoformat()
             )
             
@@ -514,6 +543,9 @@ async def get_podcast_status(paper_id: str):
         response["audio_filename"] = status.get("audio_filename")
         response["audio_info"] = status.get("audio_info")
         response["download_url"] = f"/download_podcast/{paper_id}"
+        if status.get("video_path"):
+            response["video_filename"] = status.get("video_filename")
+            response["video_download_url"] = f"/download_podcast_video/{paper_id}"
     
     if status.get("status") == "failed":
         response["error_message"] = status.get("error_message")
@@ -572,6 +604,29 @@ async def stream_podcast_audio(paper_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error streaming audio file: {str(e)}")
+
+
+@router.get("/download_podcast_video/{paper_id}")
+async def download_podcast_video(paper_id: str):
+    """Download generated podcast video (MP4) file."""
+    try:
+        output_filename = "podcast_video.mp4"
+        output_dir = Path(f"temp/podcast/{paper_id}")
+        file_path = output_dir / output_filename
+
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Video file not found. The podcast may only have audio.")
+
+        return FileResponse(
+            path=file_path,
+            media_type="video/mp4",
+            filename=f"podcast_{paper_id}.mp4"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error serving video file: {str(e)}")
 
 
 @router.post("/get_podcast_from_arxiv")

@@ -6,9 +6,11 @@ import fitz  # PyMuPDF for PDF text extraction
 import re
 import google.generativeai as genai
 from sarvamai import SarvamAI
+import subprocess
 import tempfile
 import uuid
 import shutil
+import base64
 from pathlib import Path
 from app.auth.dependencies import get_current_user
 import json
@@ -971,6 +973,157 @@ async def get_audio_file_info(combined_file_path: str) -> dict:
 
     except Exception as e:
         return {"error": f"Error getting file info: {str(e)}"}
+
+
+@track_performance
+def generate_podcast_cover(paper_title: str, paper_abstract: str, paper_id: str) -> str:
+    """Generate a cover image for the podcast video using Gemini Imagen REST API.
+
+    Falls back to an FFmpeg-generated gradient with title text if image generation fails.
+    Returns the path to the generated PNG image.
+    """
+    import requests as _requests
+
+    images_dir = os.path.join("temp", "images")
+    os.makedirs(images_dir, exist_ok=True)
+    cover_path = os.path.join(images_dir, f"podcast_cover_{paper_id}.png")
+
+    try:
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if not gemini_api_key:
+            raise ValueError("GEMINI_API_KEY not set")
+
+        prompt = (
+            f"Abstract scientific illustration representing: {paper_title}. "
+            "Style: modern, minimal, dark background, no text. 16:9 landscape."
+        )
+
+        # Use Gemini generateContent with image output via REST API
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            "gemini-2.5-flash-image:generateContent"
+            f"?key={gemini_api_key}"
+        )
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+        }
+
+        resp = _requests.post(url, json=payload, timeout=60)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # Extract image from response parts
+        candidates = data.get("candidates", [])
+        if candidates:
+            for part in candidates[0].get("content", {}).get("parts", []):
+                if "inlineData" in part:
+                    image_bytes = base64.b64decode(part["inlineData"]["data"])
+                    with open(cover_path, "wb") as f:
+                        f.write(image_bytes)
+                    print(f"Generated podcast cover image: {cover_path}")
+                    return cover_path
+
+        raise ValueError("No image data in Gemini API response")
+
+    except Exception as e:
+        print(f"Gemini image generation failed: {e}. Creating fallback cover.")
+        return _create_fallback_cover(paper_title, cover_path)
+
+
+def _create_fallback_cover(paper_title: str, cover_path: str) -> str:
+    """Create a dark background with the paper title overlaid as white centered text using FFmpeg."""
+    import platform
+
+    # Truncate title for display (max ~80 chars to fit on screen)
+    display_title = paper_title[:80] + "..." if len(paper_title) > 80 else paper_title
+    # Escape special characters for FFmpeg drawtext
+    display_title = display_title.replace("'", "'\\''").replace(":", "\\:").replace("%", "%%")
+
+    # Resolve font path (Windows needs explicit path; Linux/Mac use fontconfig)
+    if platform.system() == "Windows":
+        font_opt = "fontfile='C\\:/Windows/Fonts/arial.ttf':"
+    else:
+        font_opt = ""
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi",
+        "-i", "color=c=#1a1a2e:s=1920x1080:d=1",
+        "-vf", (
+            f"drawtext=text='{display_title}'"
+            f":{font_opt}fontsize=48:fontcolor=white"
+            ":x=(w-text_w)/2:y=(h-text_h)/2"
+            ":shadowcolor=black:shadowx=2:shadowy=2"
+            ",format=yuv420p"
+        ),
+        "-frames:v", "1",
+        "-update", "1",
+        cover_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0 and os.path.exists(cover_path):
+            print(f"Created fallback cover image with title: {cover_path}")
+            return cover_path
+    except Exception as e:
+        print(f"FFmpeg drawtext fallback failed: {e}")
+
+    # Last-resort: plain dark image via FFmpeg color source (no text)
+    cmd_simple = [
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", "color=c=#1a1a2e:s=1920x1080:d=1",
+        "-frames:v", "1",
+        "-update", "1",
+        cover_path,
+    ]
+    try:
+        subprocess.run(cmd_simple, capture_output=True, text=True, timeout=15)
+    except Exception:
+        pass
+
+    if os.path.exists(cover_path):
+        print(f"✅ Created simple fallback cover: {cover_path}")
+        return cover_path
+
+    raise RuntimeError("Failed to generate any cover image")
+
+
+@track_performance
+def generate_podcast_video(audio_path: str, cover_image_path: str, paper_id: str) -> str:
+    """Combine a cover image and podcast audio into an MP4 video using FFmpeg.
+
+    Uses -loop 1 on the image input and -tune stillimage for efficient encoding.
+    Output resolution: 1920x1080.
+    """
+    output_dir = os.path.join("temp", "podcast", paper_id)
+    os.makedirs(output_dir, exist_ok=True)
+    video_path = os.path.join(output_dir, "podcast_video.mp4")
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1",
+        "-i", cover_image_path,
+        "-i", audio_path,
+        "-c:v", "libx264",
+        "-tune", "stillimage",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+        "-shortest",
+        "-movflags", "+faststart",
+        video_path,
+    ]
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+    if result.returncode != 0:
+        raise RuntimeError(f"FFmpeg video generation failed: {result.stderr}")
+
+    print(f"🎬 Podcast video created: {video_path}")
+    return video_path
+
 
 @track_performance
 async def save_dialogue_to_file(dialogue: str, paper_id: str = None) -> str:
