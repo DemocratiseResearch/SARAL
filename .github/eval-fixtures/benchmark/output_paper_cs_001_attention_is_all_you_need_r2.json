@@ -1,0 +1,41 @@
+{
+  "source_type": "paper",
+  "sections": {
+    "Introduction": {
+      "script": "The paper proposes the Transformer as an attention-based architecture for sequence transduction without relying on recurrence or convolution.",
+      "bullet_points": [
+        "It is introduced mainly in the context of machine translation.",
+        "The design is motivated by better parallel training and easier long-range dependency modeling."
+      ]
+    },
+    "Methodology": {
+      "script": "The model uses stacked encoder and decoder layers built from multi-head attention, feed-forward networks, residual connections, and layer normalization. Positional encodings are added because the model has no recurrence.",
+      "bullet_points": [
+        "Scaled dot-product attention computes weights using queries, keys, and values.",
+        "Masked self-attention in the decoder blocks access to future target tokens.",
+        "Multiple attention heads learn different relations in parallel."
+      ]
+    },
+    "Results": {
+      "script": "The Transformer delivers strong translation results on WMT 2014 English-to-German and English-to-French benchmarks while also reducing training cost compared with earlier recurrent systems.",
+      "bullet_points": [
+        "The base model reports 27.3 BLEU on English-to-German.",
+        "The big model reports 28.4 BLEU on English-to-German.",
+        "The big model reports 41.8 BLEU on English-to-French."
+      ]
+    },
+    "Discussion": {
+      "script": "The paper argues that self-attention shortens the path between tokens and makes optimization more hardware-friendly because all positions can be processed in parallel.",
+      "bullet_points": [
+        "Attention heads exhibit different learned behaviors.",
+        "The model is presented as a general sequence modeling architecture, not only a translation system."
+      ]
+    },
+    "Conclusion": {
+      "script": "The work shows that attention alone can be enough for high-quality sequence modeling and establishes the Transformer as a strong alternative to recurrent models.",
+      "bullet_points": [
+        "The paper becomes a foundation for many later NLP systems."
+      ]
+    }
+  }
+}

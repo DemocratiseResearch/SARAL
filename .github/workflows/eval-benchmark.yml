@@ -1,0 +1,134 @@
+name: Eval Benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark-eval:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install workflow-only dependencies
+        run: python -m pip install --upgrade pip && pip install scikit-learn
+
+      - name: Run weekly benchmark evaluation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          import re
+          from collections import defaultdict
+          from pathlib import Path
+          from sklearn.feature_extraction.text import TfidfVectorizer
+
+          manifest_path = Path(".github/eval-fixtures/benchmark/manifest.jsonl")
+          out_dir = Path(".github/eval-artifacts/benchmark")
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          def normalize(text):
+              return re.sub(r"\s+", " ", text).strip()
+
+          def split_sentences(text):
+              text = normalize(text)
+              if not text:
+                  return []
+              return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+
+          def chunk_source(text):
+              return [normalize(part) for part in re.split(r"\n\s*\n", text) if normalize(part)]
+
+          def flatten_claims(output):
+              claims = []
+              for section in output.get("sections", {}).values():
+                  script = normalize(str(section.get("script", "")))
+                  bullets = [normalize(str(item)) for item in section.get("bullet_points", []) if normalize(str(item))]
+                  claims.extend([sentence for sentence in split_sentences(script) if len(sentence.split()) >= 4])
+                  claims.extend([bullet for bullet in bullets if len(bullet.split()) >= 3])
+              return claims
+
+          def population_stdev(values):
+              if len(values) < 2:
+                  return 0.0
+              mean = sum(values) / len(values)
+              return math.sqrt(sum((value - mean) ** 2 for value in values) / len(values))
+
+          rows = []
+          for raw in manifest_path.read_text(encoding="utf-8").splitlines():
+              if not raw.strip():
+                  continue
+              row = json.loads(raw)
+              source_text = Path(row["source_text_path"]).read_text(encoding="utf-8")
+              output = json.loads(Path(row["output_json_path"]).read_text(encoding="utf-8"))
+              claims = flatten_claims(output)
+              chunks = chunk_source(source_text)
+
+              vec = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
+              matrix = vec.fit_transform(claims + chunks)
+              claim_matrix = matrix[: len(claims)]
+              chunk_matrix = matrix[len(claims) :]
+              similarity = claim_matrix @ chunk_matrix.T
+              best_claim_scores = similarity.max(axis=1).toarray().ravel()
+              best_chunk_scores = similarity.max(axis=0).toarray().ravel()
+
+              rows.append({
+                  "paper_id": row["paper_id"],
+                  "run_id": row["run_id"],
+                  "domain": row["domain"],
+                  "support_rate": round(sum(score >= 0.35 for score in best_claim_scores) / max(1, len(best_claim_scores)), 4),
+                  "hallucination_rate": round(sum(score < 0.20 for score in best_claim_scores) / max(1, len(best_claim_scores)), 4),
+                  "source_coverage_proxy": round(sum(score >= 0.20 for score in best_chunk_scores) / max(1, len(best_chunk_scores)), 4),
+              })
+
+          grouped = defaultdict(list)
+          for row in rows:
+              grouped[row["paper_id"]].append(row)
+
+          variance = []
+          for paper_id, items in grouped.items():
+              support_values = [item["support_rate"] for item in items]
+              hallucination_values = [item["hallucination_rate"] for item in items]
+              variance.append({
+                  "paper_id": paper_id,
+                  "runs": len(items),
+                  "support_rate_mean": round(sum(support_values) / len(support_values), 4),
+                  "support_rate_stdev": round(population_stdev(support_values), 4),
+                  "hallucination_rate_mean": round(sum(hallucination_values) / len(hallucination_values), 4),
+                  "hallucination_rate_stdev": round(population_stdev(hallucination_values), 4),
+              })
+
+          overall = {
+              "runs": len(rows),
+              "support_rate_mean": round(sum(item["support_rate"] for item in rows) / len(rows), 4),
+              "hallucination_rate_mean": round(sum(item["hallucination_rate"] for item in rows) / len(rows), 4),
+              "source_coverage_proxy_mean": round(sum(item["source_coverage_proxy"] for item in rows) / len(rows), 4),
+          }
+
+          (out_dir / "eval_per_run.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
+          (out_dir / "variance_summary.json").write_text(json.dumps(variance, indent=2), encoding="utf-8")
+          (out_dir / "summary.json").write_text(json.dumps(overall, indent=2), encoding="utf-8")
+
+          print(json.dumps(overall, indent=2))
+          print(json.dumps(variance, indent=2))
+
+          if overall["support_rate_mean"] < 0.72:
+              raise SystemExit("Benchmark failed: support_rate_mean below 0.72")
+          if overall["hallucination_rate_mean"] > 0.12:
+              raise SystemExit("Benchmark failed: hallucination_rate_mean above 0.12")
+          if overall["source_coverage_proxy_mean"] < 0.65:
+              raise SystemExit("Benchmark failed: source_coverage_proxy_mean below 0.65")
+          PY
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-benchmark-artifacts
+          path: .github/eval-artifacts/benchmark

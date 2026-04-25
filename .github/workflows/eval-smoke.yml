@@ -1,0 +1,128 @@
+name: Eval Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-eval:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install workflow-only dependencies
+        run: python -m pip install --upgrade pip && pip install scikit-learn
+
+      - name: Run smoke evaluation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          from sklearn.feature_extraction.text import TfidfVectorizer
+
+          manifest_path = Path(".github/eval-fixtures/smoke/manifest.jsonl")
+          out_dir = Path(".github/eval-artifacts/smoke")
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          def normalize(text):
+              return re.sub(r"\s+", " ", text).strip()
+
+          def split_sentences(text):
+              text = normalize(text)
+              if not text:
+                  return []
+              return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+
+          def chunk_source(text):
+              chunks = [normalize(part) for part in re.split(r"\n\s*\n", text) if normalize(part)]
+              return chunks
+
+          def flatten_claims(output):
+              claims = []
+              for section in output.get("sections", {}).values():
+                  script = normalize(str(section.get("script", "")))
+                  bullets = [normalize(str(item)) for item in section.get("bullet_points", []) if normalize(str(item))]
+                  claims.extend([sentence for sentence in split_sentences(script) if len(sentence.split()) >= 4])
+                  claims.extend([bullet for bullet in bullets if len(bullet.split()) >= 3])
+              return claims
+
+          rows = []
+          for raw in manifest_path.read_text(encoding="utf-8").splitlines():
+              if not raw.strip():
+                  continue
+              row = json.loads(raw)
+              for key in ("paper_id", "run_id", "domain", "source_text_path", "output_json_path"):
+                  if key not in row:
+                      raise SystemExit(f"Manifest missing required key: {key}")
+
+              source_path = Path(row["source_text_path"])
+              output_path = Path(row["output_json_path"])
+              if not source_path.exists() or not output_path.exists():
+                  raise SystemExit(f"Fixture path missing: {source_path} or {output_path}")
+
+              source_text = source_path.read_text(encoding="utf-8")
+              output = json.loads(output_path.read_text(encoding="utf-8"))
+              claims = flatten_claims(output)
+              chunks = chunk_source(source_text)
+              texts = claims + chunks
+
+              vec = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
+              matrix = vec.fit_transform(texts)
+              claim_matrix = matrix[: len(claims)]
+              chunk_matrix = matrix[len(claims) :]
+              similarity = claim_matrix @ chunk_matrix.T
+              best_claim_scores = similarity.max(axis=1).toarray().ravel()
+              best_chunk_scores = similarity.max(axis=0).toarray().ravel()
+
+              support_rate = sum(score >= 0.35 for score in best_claim_scores) / max(1, len(best_claim_scores))
+              hallucination_rate = sum(score < 0.20 for score in best_claim_scores) / max(1, len(best_claim_scores))
+              coverage_rate = sum(score >= 0.20 for score in best_chunk_scores) / max(1, len(best_chunk_scores))
+
+              rows.append({
+                  "paper_id": row["paper_id"],
+                  "run_id": row["run_id"],
+                  "domain": row["domain"],
+                  "claim_count": len(claims),
+                  "chunk_count": len(chunks),
+                  "support_rate": round(support_rate, 4),
+                  "hallucination_rate": round(hallucination_rate, 4),
+                  "source_coverage_proxy": round(coverage_rate, 4),
+              })
+
+          support_mean = sum(item["support_rate"] for item in rows) / len(rows)
+          hallucination_mean = sum(item["hallucination_rate"] for item in rows) / len(rows)
+          coverage_mean = sum(item["source_coverage_proxy"] for item in rows) / len(rows)
+
+          summary = {
+              "runs": len(rows),
+              "support_rate_mean": round(support_mean, 4),
+              "hallucination_rate_mean": round(hallucination_mean, 4),
+              "source_coverage_proxy_mean": round(coverage_mean, 4),
+          }
+
+          (out_dir / "eval_per_run.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
+          (out_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+          print(json.dumps(summary, indent=2))
+
+          if support_mean < 0.70:
+              raise SystemExit("Smoke eval failed: support_rate_mean below 0.70")
+          if hallucination_mean > 0.15:
+              raise SystemExit("Smoke eval failed: hallucination_rate_mean above 0.15")
+          if coverage_mean < 0.60:
+              raise SystemExit("Smoke eval failed: source_coverage_proxy_mean below 0.60")
+          PY
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-smoke-artifacts
+          path: .github/eval-artifacts/smoke

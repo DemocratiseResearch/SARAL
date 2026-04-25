@@ -1,0 +1,35 @@
+{
+  "source_type": "paper",
+  "sections": {
+    "Introduction": {
+      "script": "BERT is a bidirectional transformer model designed for language representation learning.",
+      "bullet_points": [
+        "It uses context from both sides of a token."
+      ]
+    },
+    "Methodology": {
+      "script": "The model is pre-trained using masked language modeling and next sentence prediction, then fine-tuned for downstream tasks.",
+      "bullet_points": [
+        "Large unlabeled corpora are used before task-specific fine-tuning."
+      ]
+    },
+    "Results": {
+      "script": "The paper reports strong results on benchmarks such as GLUE and SQuAD.",
+      "bullet_points": [
+        "Bidirectional pre-training improves multiple NLP benchmarks."
+      ]
+    },
+    "Discussion": {
+      "script": "The approach reduces the need for heavily customized architectures for each task.",
+      "bullet_points": [
+        "Minimal task-specific changes are needed during fine-tuning."
+      ]
+    },
+    "Conclusion": {
+      "script": "The paper presents bidirectional pre-training as a strong base for language understanding.",
+      "bullet_points": [
+        "BERT established a new standard for transfer learning in NLP."
+      ]
+    }
+  }
+}

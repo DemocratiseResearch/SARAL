@@ -1,0 +1,37 @@
+{
+  "source_type": "paper",
+  "sections": {
+    "Introduction": {
+      "script": "The paper introduces the Transformer as a sequence model built around attention instead of recurrence or convolution.",
+      "bullet_points": [
+        "The goal is efficient sequence transduction such as machine translation."
+      ]
+    },
+    "Methodology": {
+      "script": "The architecture uses stacked encoder and decoder layers with multi-head self-attention, feed-forward networks, residual connections, and positional encodings.",
+      "bullet_points": [
+        "Scaled dot-product attention is the core operation.",
+        "Positional encodings provide token order information."
+      ]
+    },
+    "Results": {
+      "script": "The Transformer reports strong BLEU scores on WMT 2014 English-to-German and English-to-French translation tasks.",
+      "bullet_points": [
+        "The base model reaches 27.3 BLEU on English-to-German.",
+        "The big model reaches 28.4 BLEU on English-to-German and 41.8 BLEU on English-to-French."
+      ]
+    },
+    "Discussion": {
+      "script": "The paper argues that attention-based modeling improves parallelization and handles long-range dependencies effectively.",
+      "bullet_points": [
+        "Removing recurrence reduces training bottlenecks."
+      ]
+    },
+    "Conclusion": {
+      "script": "The work shows that attention alone can support state-of-the-art sequence modeling and becomes a foundation for later architectures.",
+      "bullet_points": [
+        "The Transformer changes how sequence models are designed."
+      ]
+    }
+  }
+}

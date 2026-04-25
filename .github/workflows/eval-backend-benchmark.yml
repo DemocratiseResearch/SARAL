@@ -1,0 +1,95 @@
+name: Eval Backend Benchmark
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  backend-benchmark:
+    runs-on: ubuntu-latest
+    env:
+      EXTERNAL_APP_API_KEY: ${{ secrets.EXTERNAL_APP_API_KEY }}
+      RESXIV_GEMINI_API_KEY: ${{ secrets.RESXIV_GEMINI_API_KEY }}
+      BACKEND_BASE_URL: http://127.0.0.1:8000
+      BACKEND_EVAL_MANIFEST: .github/eval-fixtures/backend/benchmark_manifest.jsonl
+      ARTIFACT_SUBDIR: backend-benchmark
+      MIN_SUPPORT_RATE_MEAN: "0.68"
+      MAX_HALLUCINATION_RATE_MEAN: "0.18"
+      MIN_SOURCE_COVERAGE_PROXY_MEAN: "0.55"
+      MIN_DELTA_SUPPORT_RATE_MEAN: "-0.08"
+      MAX_DELTA_HALLUCINATION_RATE_MEAN: "0.08"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          missing=0
+          for key in EXTERNAL_APP_API_KEY RESXIV_GEMINI_API_KEY FIREBASE_SERVICE_ACCOUNT_JSON; do
+            if [ -z "${!key}" ]; then
+              echo "Missing required secret: $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Write Firebase service account file
+        shell: bash
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > backend/firebase_service_account.json
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Start backend server
+        working-directory: backend
+        shell: bash
+        run: |
+          nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > ../backend-server.log 2>&1 &
+
+      - name: Wait for backend health
+        shell: bash
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Backend failed to become healthy"
+          cat backend-server.log || true
+          exit 1
+
+      - name: Run backend benchmark generation and evaluation
+        working-directory: backend
+        run: uv run python ../.github/scripts/run_backend_benchmark.py
+
+      - name: Upload backend benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-backend-benchmark-artifacts
+          path: |
+            .github/eval-artifacts/backend-benchmark
+            backend-server.log

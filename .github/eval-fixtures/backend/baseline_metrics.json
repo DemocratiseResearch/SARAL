@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "source": "backend/temp/eval_reports_followup/multidomain_20260319/variance_summary.json",
+  "paper_ids": [
+    "paper_cs_001_attention_is_all_you_need",
+    "paper_cs_002_bert"
+  ],
+  "per_paper": {
+    "paper_cs_001_attention_is_all_you_need": {
+      "runs": 3,
+      "support_rate_mean": 0.6677,
+      "hallucination_rate_mean": 0.0911,
+      "source_coverage_proxy_mean": 0.8833,
+      "bullet_redundancy_rate_mean": 0.0
+    },
+    "paper_cs_002_bert": {
+      "runs": 3,
+      "support_rate_mean": 0.7059,
+      "hallucination_rate_mean": 0.1109,
+      "source_coverage_proxy_mean": 0.8821,
+      "bullet_redundancy_rate_mean": 0.0018
+    }
+  },
+  "overall": {
+    "runs": 6,
+    "support_rate_mean": 0.6868,
+    "hallucination_rate_mean": 0.101,
+    "source_coverage_proxy_mean": 0.8827
+  }
+}
