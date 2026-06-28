@@ -1,0 +1,55 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Lint (ESLint)
+        run: bun run lint
+
+      - name: Typecheck (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Build Next.js
+        run: bun run build
+        env:
+          # Dummy variables to allow the build to pass if Next.js checks for them at build time
+          NEXT_PUBLIC_FIREBASE_API_KEY: dummy
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: dummy
+          NEXT_PUBLIC_FIREBASE_APP_ID: dummy
+          NEXT_PUBLIC_GATEWAY: http://localhost:8080
