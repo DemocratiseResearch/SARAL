@@ -1,0 +1,25 @@
+info:
+  name: User - Update API Keys
+  type: http
+  seq: 16
+
+http:
+  method: PUT
+  url: http://localhost:8080/api/user/keys
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  body:
+    type: json
+    data: |-
+      {
+        "gemini_key": "AIza...",
+        "sarvam_key": "your_sarvam_api_key"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

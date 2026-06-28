@@ -1,0 +1,16 @@
+[project]
+name = "saral-ffmpeg-worker"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "saral-shared",
+    "google-cloud-storage==2.18.0",
+    "redis==5.2.1",
+    "httpx==0.28.1",
+    "python-dotenv==1.0.1",
+    "Pillow==11.2.1",
+    "playwright==1.49.1",
+]
+
+[tool.uv.sources]
+saral-shared = { path = "../shared", editable = true }

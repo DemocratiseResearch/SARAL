@@ -1,0 +1,28 @@
+info:
+  name: PaperToPodcast - Retry Run
+  type: http
+  seq: 63
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertopodcast/:run_id/retry
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "from_step": "script_gen"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

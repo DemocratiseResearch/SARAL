@@ -1,0 +1,22 @@
+info:
+  name: PatentToVideo - Get Slides
+  type: http
+  seq: 89
+
+http:
+  method: GET
+  url: http://localhost:8080/api/patenttovideo/:run_id/slides
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

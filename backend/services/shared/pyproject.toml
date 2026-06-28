@@ -1,0 +1,17 @@
+[project]
+name = "saral-shared"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "google-cloud-storage==2.18.0",
+    "google-api-core>=2.19.0",
+    "asyncpg==0.31.0",
+    "httpx==0.28.1",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["saral_shared*"]

@@ -1,0 +1,27 @@
+info:
+  name: Webhook - Worker Update
+  type: http
+  seq: 109
+
+http:
+  method: POST
+  url: http://localhost:8080/webhooks/worker/:service
+  params:
+    - name: service
+      value: script-gen
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "run_id": "your-run-id-here",
+        "status": "completed",
+        "step": "script_gen",
+        "payload": {}
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

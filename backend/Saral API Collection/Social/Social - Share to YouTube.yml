@@ -1,0 +1,30 @@
+info:
+  name: Social - Share to YouTube
+  type: http
+  seq: 97
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertovideo/:run_id/share/youtube
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "My Research Paper Video",
+        "description": "Generated from research paper.",
+        "tags": ["research", "AI", "science"]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

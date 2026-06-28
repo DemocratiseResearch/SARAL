@@ -1,0 +1,29 @@
+info:
+  name: Social - Share to LinkedIn
+  type: http
+  seq: 98
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertovideo/:run_id/share/linkedin
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "My Research Paper",
+        "description": "Check out this video summary of my research paper."
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

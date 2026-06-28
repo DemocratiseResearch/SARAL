@@ -1,0 +1,25 @@
+info:
+  name: Papers - Ingest from ArXiv
+  type: http
+  seq: 80
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papers/arxiv
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  body:
+    type: json
+    data: |-
+      {
+        "arxiv_id": "2301.07041",
+        "language": "english"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

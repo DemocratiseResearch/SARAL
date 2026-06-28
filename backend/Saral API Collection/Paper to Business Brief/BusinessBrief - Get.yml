@@ -1,0 +1,22 @@
+info:
+  name: BusinessBrief - Get
+  type: http
+  seq: 76
+
+http:
+  method: GET
+  url: http://localhost:8080/api/paper/:paper_id/business-brief
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: paper_id
+      value: your-paper-id-here
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,25 @@
+info:
+  name: PaperToPodcast - Start
+  type: http
+  seq: 56
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertopodcast/start
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  body:
+    type: json
+    data: |-
+      {
+        "paper_id": "your-paper-id-here",
+        "language": "english"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

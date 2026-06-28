@@ -1,0 +1,20 @@
+[project]
+name = "saral-latex-worker"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "saral-shared",
+    "google-cloud-storage==2.18.0",
+    "redis==5.2.1",
+    "httpx==0.28.1",
+    "python-dotenv==1.0.1",
+    "pdf2image==1.17.0",
+    "pillow>=10.0.0",
+    "python-pptx>=1.0.0",
+    "google-generativeai>=0.8.5",
+    "google-genai>=1.0.0",
+    "reportlab>=4.0.0",
+]
+
+[tool.uv.sources]
+saral-shared = { path = "../shared", editable = true }
