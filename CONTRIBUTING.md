@@ -2,7 +2,7 @@
 
 Thank you for your interest in SARAL — an AI-powered pipeline that transforms academic papers into video presentations, podcasts, posters, and business briefs.
 
-This document outlines how to contribute, report issues, and work with the codebase. For local-dev instructions, see [SETUP.md](SETUP.md).
+This document outlines how to contribute, report issues, and work with the codebase. For local-dev instructions, see [README.md](README.md).
 
 ---
 
@@ -47,7 +47,7 @@ If you discover a security vulnerability, **do not** open a public issue. Instea
 
 ## Development Setup
 
-See the complete [SETUP.md](SETUP.md) guide. In short:
+See the complete [README.md](README.md) for full setup instructions. In short:
 
 1. Install the toolchain (Go ≥ 1.25, Python 3.11, Node ≥ 20, Docker).
 2. Start infrastructure: `docker compose -f backend/docker-compose.yml up -d`.
@@ -64,20 +64,24 @@ saral/
 │   ├── gateway/                 Go REST API + orchestrator (port 8080)
 │   ├── services/
 │   │   ├── pdf-parser/          Python — PDF text/image extraction
-│   │   ├── beamer/              Python — LaTeX slides + posters
-│   │   ├── ffmpeg-job/          Python — video stitching
-│   │   ├── script-gen/          Go — Gemini / OpenRouter script generation
+│   │   ├── beamer/              Python — LaTeX slides + posters (2 processes)
+│   │   ├── ffmpeg-job/          Python — video/podcast/reel stitching
+│   │   ├── script-gen/          Go — Gemini / Vertex / OpenRouter script generation
 │   │   ├── audio-gen/           Go — TTS via Sarvam / Bhashini / Gemini
 │   │   └── shared/              Python shared library (saral_shared)
 │   ├── migrations/              SQL migrations (apply in order)
+│   ├── Saral API Collection/    Bruno/Postman API collection files
 │   ├── docker-compose.yml       Postgres + Redis + fake-GCS
 │   ├── Procfile.dev             Overmind process definitions
-│   └── .env.shared              Shared config for all workers
+│   ├── .env.shared              Shared config for all workers
+│   ├── ROUTES.md                Full API reference
+│   └── ARCHITECTURE.md          System design & data flow
 └── frontend/
     ├── app/                     Next.js 16 App Router pages
     ├── components/              shadcn UI, dashboard, modals, etc.
     ├── lib/                     API client, zustand stores, Firebase, types
-    └── .env.local               Firebase web config
+    ├── .env.example             Template — copy to .env.local
+    └── .env.local               Local config (gitignored)
 ```
 
 ---
@@ -88,7 +92,7 @@ saral/
 - **One change per branch** — keep pull requests focused on a single concern.
 - **Draft PRs early** — open a draft PR as soon as you start; mark it ready when CI passes and review is requested.
 - **UI changes require screenshots** — attach before/after screenshots or a screen recording to the PR description.
-- **Update docs** — if your change touches configuration, env vars, or endpoints, update [SETUP.md](SETUP.md) or the relevant `backend/` docs.
+- **Update docs** — if your change touches configuration, env vars, or endpoints, update [README.md](README.md) or the relevant `backend/` docs (`ROUTES.md`, `ARCHITECTURE.md`).
 
 ---
 
@@ -141,7 +145,7 @@ Automated tests are currently sparse. We expect contributors to:
 
 - Add **unit tests** for new Go/Python logic (place them in `*_test.go` / `test_*.py` files alongside the source).
 - Add **integration tests** for new pipeline steps or API endpoints.
-- **Manually smoke-test** your changes using the `curl` upload-and-stream flow described in [SETUP.md §2.8](SETUP.md#28-verify).
+- **Manually smoke-test** your changes using the `curl` upload-and-stream flow described in [README.md § Verify](README.md#8-verify).
 
 All tests must pass before a PR is merged.
 
@@ -173,7 +177,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 feat(gateway): add /api/user/keys endpoint for per-user API keys
 fix(script-gen): handle OpenRouter 402 insufficient credits
-docs(SETUP): add OpenRouter provider section
+docs(readme): add OpenRouter provider section
 ```
 
 ---
@@ -190,7 +194,7 @@ Before opening or marking a PR as ready:
 - [ ] Manual smoke test completed (upload a paper, watch the pipeline).
 - [ ] No secrets committed (verify with `git diff --cached`).
 - [ ] UI changes include screenshots / screen recording.
-- [ ] Corresponding docs updated (`SETUP.md`, `ROUTES.md`, etc.).
+- [ ] Corresponding docs updated (`README.md`, `ROUTES.md`, `ARCHITECTURE.md`, etc.).
 
 ---
 
