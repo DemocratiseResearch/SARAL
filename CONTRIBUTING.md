@@ -217,7 +217,6 @@ Before opening or marking a PR as ready:
 | `help wanted` | Maintainers seek community help |
 | `area:backend` | Gateway, workers, infra |
 | `area:frontend` | Next.js app, UI, design |
-| `area:infra` | CI/CD, Docker, deployment |
 
 ---
 

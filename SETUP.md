@@ -181,7 +181,7 @@ The `script-gen` worker is LLM-agnostic. Pick a backend via `LLM_PROVIDER` in `b
 
 | Mode | When to use | Required env vars |
 |---|---|---|
-| `vertex` *(default)* | Existing GCP deployments; uses Vertex AI Gemini | `GCP_PROJECT_ID`, ADC |
+| `vertex` *(default)* | `GCP_PROJECT_ID`, ADC |
 | `gemini_api` | Quick Gemini access via direct API key | `GEMINI_API_KEY` |
 | `openrouter` | Any model on OpenRouter (free tier, GPT, Claude, Llama, etc.) | `OPENROUTER_API_KEY` (+ optional model overrides) |
 
@@ -468,7 +468,7 @@ redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
 | `KEYS_ENCRYPTION_KEY` | yes | Encrypts per-user API keys stored in `users` table |
 | `GEMINI_MODEL` | no | Override default Gemini model |
 | `SARAL_ADMIN_UIDS` | no | Comma-separated admin Firebase UIDs |
-| `GCP_PROJECT_ID`, `GCP_REGION` | prod only | Cloud Run deployment |
+| `GCP_PROJECT_ID`, `GCP_REGION` | prod only 
 | `YOUTUBE_*`, `LINKEDIN_*`, `DASHBOARD_WEBHOOK_*` | no | Integrations (blank locally) |
 
 ### `frontend/.env.local`

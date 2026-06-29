@@ -239,7 +239,7 @@ The `script-gen` worker supports three LLM backends. Set `LLM_PROVIDER` in `back
 
 | Mode | Use case | Required env vars |
 |---|---|---|
-| `vertex` (default) | Existing GCP deployments | `GCP_PROJECT_ID`, ADC |
+| `vertex` (default) | `GCP_PROJECT_ID`, ADC |
 | `gemini_api` | Direct Gemini API key | `GEMINI_API_KEY` |
 | `openrouter` | Any model on OpenRouter (GPT, Claude, Llama, Gemini, free tier) | `OPENROUTER_API_KEY` |
 
