@@ -32,7 +32,12 @@ saral/
     └── .env.local               Local config (gitignored)
 ```
 
-**Architecture in one sentence:** The Next.js frontend (port 3000) talks to the Go gateway (port 8080). The gateway authenticates via Firebase, stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams. Seven workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE. Primary pipeline: `pdf_extract → script_gen → [user confirms] → beamer_compile ∥ audio_gen → ffmpeg_stitch → video.mp4`.
+**Architecture overview:** 
+- The Next.js frontend (port 3000) talks to the Go gateway (port 8080).
+- The gateway authenticates via Firebase, stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams.
+- Seven workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE.
+- Primary pipeline: `pdf_extract → script_gen → [user confirms] → beamer_compile ∥ audio_gen → ffmpeg_stitch → video.mp4`.
+For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
 
 ---
 
@@ -475,4 +480,4 @@ Open `http://localhost:3000`.
 - **Update this guide** if you add a new local dependency or setup step.
 - **Run linters before pushing:** `go vet ./...`, `ruff check .`, `bun run lint`, `npx tsc --noEmit`.
 - For full contribution guidelines, code of conduct, and PR checklist, see [CONTRIBUTING.md](CONTRIBUTING.md).
-- For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) and [backend/ROUTES.md](backend/ROUTES.md).
+- For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
