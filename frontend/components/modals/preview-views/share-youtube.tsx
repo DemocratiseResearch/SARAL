@@ -16,7 +16,6 @@ import {
 import { YouTubeIcon } from "@/components/icons/preview-modal-icons";
 import { getSocialStatus, getYouTubeAuthUrl, shareToYouTube } from "@/lib/api";
 import type { Artifact } from "@/lib/artifact-store";
-import { GA_EVENTS, trackGAEvent } from "@/lib/gtag";
 import { ShareHeader } from "./share-header";
 import type { ShareState } from "./shared";
 import Link from "next/link";
@@ -131,7 +130,6 @@ export function YouTubeShare({
       );
       setResultUrl(result.url);
       setShareState("success");
-      trackGAEvent(GA_EVENTS.SHARE_YOUTUBE, { artifact_type: artifact.type });
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Upload failed");
       setShareState("error");

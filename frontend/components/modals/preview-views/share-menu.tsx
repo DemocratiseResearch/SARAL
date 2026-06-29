@@ -8,7 +8,6 @@ import {
   YouTubeIcon,
 } from "@/components/icons/preview-modal-icons";
 import { ARTIFACT_LABELS, type ArtifactType } from "@/lib/artifact-store";
-import { GA_EVENTS, trackGAEvent } from "@/lib/gtag";
 import { ShareHeader } from "./share-header";
 
 const YOUTUBE_TYPES: ReadonlySet<ArtifactType> = new Set([
@@ -53,9 +52,6 @@ export function ShareMenu({
           {showYouTube && (
             <button
               onClick={() => {
-                trackGAEvent(GA_EVENTS.OPEN_SHARE_YOUTUBE, {
-                  artifact_type: artifactType,
-                });
                 onOpenYouTube();
               }}
               className="w-full flex items-center gap-4 p-4 rounded-lg border border-pill-border hover:cursor-pointer dark:border-darkcardborder hover:border-red-200 hover:bg-red-50 dark:hover:border-red-200 dark:hover:bg-red-400 transition-all text-left group"
@@ -80,9 +76,6 @@ export function ShareMenu({
 
           <button
             onClick={() => {
-              trackGAEvent(GA_EVENTS.OPEN_SHARE_LINKEDIN, {
-                artifact_type: artifactType,
-              });
               onOpenLinkedIn();
             }}
             className="w-full flex items-center gap-4 p-4 rounded-lg border border-pill-border hover:cursor-pointer dark:border-darkcardborder hover:border-blue-200 hover:bg-blue-50 dark:hover:border-blue-200 dark:hover:bg-sky-900 transition-all text-left group"

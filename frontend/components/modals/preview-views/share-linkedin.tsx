@@ -20,7 +20,6 @@ import {
   shareToLinkedIn,
 } from "@/lib/api";
 import type { Artifact } from "@/lib/artifact-store";
-import { GA_EVENTS, trackGAEvent } from "@/lib/gtag";
 import { ShareHeader } from "./share-header";
 import type { ShareState } from "./shared";
 import Link from "next/link";
@@ -136,7 +135,6 @@ export function LinkedInShare({
       );
       setResultUrl(result.url);
       setShareState("success");
-      trackGAEvent(GA_EVENTS.SHARE_LINKEDIN, { artifact_type: artifact.type });
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Upload failed");
       setShareState("error");

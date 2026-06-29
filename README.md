@@ -1,6 +1,6 @@
 # SARAL: Simplified And Automated Research Amplification and Learning
 
-SARAL is a full-stack application that transforms research papers (LaTeX or arXiv) into AI-generated video presentations, podcasts, posters, and business briefs. It leverages a Go gateway orchestrator, six specialized workers, and a Next.js 16 frontend with Firebase authentication to deliver a seamless pipeline from paper upload to downloadable media.
+SARAL is a full-stack application that transforms research papers (PDF, arXiv, BioRxiv, patents) into AI-generated video presentations, podcasts, posters, reels, slides, and business briefs. It leverages a Go gateway orchestrator, seven workers across five services, and a Next.js 16 frontend with Firebase authentication to deliver a seamless pipeline from document upload to downloadable media.
 
 ```
 saral/
@@ -9,13 +9,14 @@ saral/
 │   ├── services/
 │   │   ├── pdf-parser/          Python worker — PDF text/image extraction
 │   │   ├── beamer/              Python worker — LaTeX slides + posters (2 processes)
-│   │   ├── ffmpeg-job/          Python worker — video stitching
+│   │   ├── ffmpeg-job/          Python worker — video/podcast/reel stitching
 │   │   ├── script-gen/          Go worker — LLM script generation
 │   │   ├── audio-gen/           Go worker — TTS via Sarvam / Bhashini / Gemini
 │   │   └── shared/              Python shared library (saral_shared)
-│   ├── migrations/              Plain SQL, applied with psql
+│   ├── migrations/              Plain SQL migrations (apply in order)
+│   ├── Saral API Collection/    Bruno/Postman API collection files
 │   ├── docker-compose.yml       Postgres + Redis + fake-GCS
-│   ├── Procfile.dev             overmind process definitions
+│   ├── Procfile.dev             Overmind process definitions
 │   ├── .env.shared              Shared config for all workers
 │   ├── ROUTES.md                Full API reference
 │   └── ARCHITECTURE.md          System design & data flow
@@ -23,11 +24,11 @@ saral/
     ├── app/                     Next.js 16 App Router pages
     ├── components/              shadcn UI, dashboard, modals, landing, auth
     ├── lib/                     API client, zustand stores, Firebase, types
-    ├── CLAUDE.md                Design-system rules — read before UI work
-    └── .env.local               Firebase web config
+    ├── .env.example             Template — copy to .env.local
+    └── .env.local               Local config (gitignored)
 ```
 
-**Architecture in one sentence:** The Next.js frontend (port 3000) talks to the Go gateway (port 8080). The gateway authenticates via Firebase, stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams. Six workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE. Pipeline: `pdf_extract → script_gen → [user confirms script] → beamer_compile ∥ audio_gen → ffmpeg_stitch → video.mp4`.
+**Architecture in one sentence:** The Next.js frontend (port 3000) talks to the Go gateway (port 8080). The gateway authenticates via Firebase, stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams. Seven workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE. Primary pipeline: `pdf_extract → script_gen → [user confirms] → beamer_compile ∥ audio_gen → ffmpeg_stitch → video.mp4`.
 
 ---
 
@@ -360,6 +361,10 @@ NEXT_PUBLIC_FIREBASE_APP_ID=<appId>
 
 # Gateway URL (defaults to http://localhost:8080 if unset)
 NEXT_PUBLIC_GATEWAY=http://localhost:8080
+
+# Canonical site URL — used for sitemaps and OG tags (leave blank locally)
+NEXT_PUBLIC_SITE_URL=
+
 ```
 
 Restart the dev server after changing `.env.local`.
@@ -466,4 +471,4 @@ Open `http://localhost:3000`.
 - **Update this guide** if you add a new local dependency or setup step.
 - **Run linters before pushing:** `go vet ./...`, `ruff check .`, `bun run lint`, `npx tsc --noEmit`.
 - For full contribution guidelines, code of conduct, and PR checklist, see [CONTRIBUTING.md](CONTRIBUTING.md).
-- For the deeper architecture guide, env-var reference, and route catalog, see [SETUP.md](SETUP.md), [backend/ROUTES.md](backend/ROUTES.md), and [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
+- For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) and [backend/ROUTES.md](backend/ROUTES.md).
