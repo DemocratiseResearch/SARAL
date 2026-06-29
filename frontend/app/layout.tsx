@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Manrope } from "next/font/google";
-import { GA_MEASUREMENT_ID } from "@/lib/gtag";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ThemedToaster } from "@/components/themed-toaster";
@@ -126,20 +124,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={manrope.variable} suppressHydrationWarning>
       <body className="bg-linen dark:bg-saral-dark font-sans antialiased overflow-x-hidden">
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="ga-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag() {
-              dataLayer.push(arguments);
-            }
-            gtag("js", new Date());
-            gtag("config", "${GA_MEASUREMENT_ID}");
-          `}
-        </Script>
         <ThemeProvider>
           {/* Fixed bottom-left peach glow blob — purely decorative; hidden in dark */}
           <div

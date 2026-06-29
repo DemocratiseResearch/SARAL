@@ -28,7 +28,6 @@ import {
 } from "@/lib/artifact-store";
 import { usePaperStore } from "@/lib/paper-store";
 import { useStartArtifactGeneration } from "@/lib/use-start-artifact-generation";
-import { GA_EVENTS, trackGAEvent } from "@/lib/gtag";
 import {
   ARTIFACT_TAB_ITEMS,
   ArtifactEntriesGrid,
@@ -100,17 +99,6 @@ function emptyStateCardLabel(type: EmptyStateArtifactType): string {
   if (type === "x-linkedin") return "LinkedIn/X post";
   return ARTIFACT_LABELS[type];
 }
-
-/** GA event fired when a generate button for a given artifact type is clicked. */
-const ARTIFACT_GA_EVENT: Record<ArtifactType, string> = {
-  video: GA_EVENTS.ONE_CLICK_VIDEO,
-  podcast: GA_EVENTS.ONE_CLICK_PODCAST,
-  poster: GA_EVENTS.ONE_CLICK_POSTER,
-  reel: GA_EVENTS.CUSTOM_REEL_GENERATION,
-  "business-brief": GA_EVENTS.BUSINESS_BRIEF,
-  presentation: GA_EVENTS.ONE_CLICK_PRESENTATION,
-  "x-linkedin": GA_EVENTS.SOCIAL_POST,
-};
 
 const TAB_ICONS: Record<ArtifactType, ReactNode> = {
   video: <Video className="size-4 shrink-0" strokeWidth={2} />,
@@ -253,11 +241,6 @@ export default function PaperArtifactsPanel({
     if (!el) return;
     const delta = Math.min(200, Math.round(el.clientWidth * 0.65)) * direction;
     el.scrollBy({ left: delta, behavior: "smooth" });
-  };
-
-  const startArtifactTracked = (type: ArtifactType) => {
-    trackGAEvent(ARTIFACT_GA_EVENT[type]);
-    startArtifact(type);
   };
 
   const artifactMatchesPaper = (a: Artifact) =>
@@ -495,7 +478,7 @@ export default function PaperArtifactsPanel({
                           key={type}
                           type="button"
                           variant="outline"
-                          onClick={() => startArtifactTracked(type)}
+                          onClick={() => startArtifact(type)}
                           className={cn(
                             "h-auto min-h-28 cursor-pointer flex-col gap-3 rounded-xl border border-pill-border bg-linen dark:bg-carddarkbg px-3 py-4 font-sans text-left shadow-none transition-[background-color,box-shadow,border-color,transform] duration-200",
                             "hover:border-saral-forest/25 hover:bg-saral-forest/20 hover:shadow-md",
@@ -563,7 +546,7 @@ export default function PaperArtifactsPanel({
                   {hasAny && (
                     <Button
                       type="button"
-                      onClick={() => startArtifactTracked(type)}
+                      onClick={() => startArtifact(type)}
                       className="h-11 shrink-0 rounded-xl bg-saral-forest px-4 font-sans text-sm font-semibold text-white hover:bg-saral-forest/90 sm:h-11 sm:px-5"
                     >
                       <span className="sm:hidden">Generate</span>
@@ -596,7 +579,7 @@ export default function PaperArtifactsPanel({
                       <Button
                         type="button"
                         size="lg"
-                        onClick={() => startArtifactTracked(type)}
+                        onClick={() => startArtifact(type)}
                         className="h-12 rounded-xl bg-saral-forest px-8 font-sans text-[15px] font-semibold text-white hover:bg-saral-forest/90"
                       >
                         {copy.generateVerb}

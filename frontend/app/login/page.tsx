@@ -17,7 +17,6 @@ import {
 } from "firebase/auth";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { useAuthStore } from "@/lib/auth-store";
-import { GA_EVENTS, trackGAEvent } from "@/lib/gtag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -83,13 +82,6 @@ const PROVIDERS: ProviderConfig[] = [
     icon: <ZohoIcon />,
   },
 ];
-
-const PROVIDER_SIGN_IN_EVENT: Record<string, string> = {
-  google: GA_EVENTS.SIGN_IN_GOOGLE,
-  github: GA_EVENTS.SIGN_IN_GITHUB,
-  microsoft: GA_EVENTS.SIGN_IN_MICROSOFT,
-  zoho: GA_EVENTS.SIGN_IN_ZOHO,
-};
 
 const OAUTH_BUTTON_CLASS =
   "flex h-12 w-full min-w-0 items-center cursor-pointer justify-center gap-2 rounded-[13px] border border-[rgba(209,207,201,0.9)] dark:border-darkcardborder bg-white dark:bg-white/5 px-1.5 font-sans text-[12px] font-bold text-ink dark:text-white transition-colors hover:bg-[#F2F1EE] dark:hover:bg-white/10 sm:px-2 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-50";
@@ -165,8 +157,6 @@ export default function LoginPage() {
 
     try {
       const result = await signInWithPopup(auth, config.provider);
-      const signInEvent = PROVIDER_SIGN_IN_EVENT[config.id];
-      if (signInEvent) trackGAEvent(signInEvent);
       await finishLogin(result.user);
     } catch (err: unknown) {
       const authErr = err as AuthError;
@@ -219,14 +209,6 @@ export default function LoginPage() {
           );
 
           const existingResult = await signInWithPopup(auth, existingProvider);
-
-          const existingProviderKey =
-            existingProviderId === "oidc.zoho"
-              ? "zoho"
-              : existingProviderId.replace(".com", "");
-          const existingSignInEvent =
-            PROVIDER_SIGN_IN_EVENT[existingProviderKey];
-          if (existingSignInEvent) trackGAEvent(existingSignInEvent);
 
           await linkWithCredential(existingResult.user, pendingCredential);
 

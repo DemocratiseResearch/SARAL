@@ -32,25 +32,7 @@ import {
 } from "@/lib/api";
 import { fetchBriefPdf } from "@/lib/business-brief-pdf-cache";
 import { languageDisplayName } from "@/lib/languages";
-import { GA_EVENTS, trackGAEvent } from "@/lib/gtag";
 
-/** GA event per type for the card Download button (types without a download event are omitted). */
-const DOWNLOAD_GA_EVENT: Partial<Record<ArtifactType, string>> = {
-  video: GA_EVENTS.DOWNLOAD_VIDEO,
-  podcast: GA_EVENTS.DOWNLOAD_PODCAST,
-  reel: GA_EVENTS.DOWNLOAD_REEL,
-  poster: GA_EVENTS.DOWNLOAD_POSTER,
-  "business-brief": GA_EVENTS.DOWNLOAD_BUSINESS_BRIEF,
-  presentation: GA_EVENTS.DOWNLOAD_PRESENTATION,
-};
-
-/** GA event per type for the card Edit button (editable types only). */
-const EDIT_GA_EVENT: Partial<Record<ArtifactType, string>> = {
-  video: GA_EVENTS.EDIT_VIDEO,
-  presentation: GA_EVENTS.EDIT_PRESENTATION,
-  podcast: GA_EVENTS.EDIT_PODCAST,
-  reel: GA_EVENTS.EDIT_REEL,
-};
 
 
 import type {
@@ -220,9 +202,6 @@ function ArtifactCard({
   const handleDownload = async () => {
     if (!canDownloadOrShare) return;
 
-    const downloadEvent = DOWNLOAD_GA_EVENT[artifact.type];
-    if (downloadEvent) trackGAEvent(downloadEvent);
-
     const triggerBlobDownload = (url: string, filename: string) => {
       const a = document.createElement("a");
       a.href = url;
@@ -289,8 +268,6 @@ function ArtifactCard({
 
   const handleEdit = () => {
     if (!isEditable) return;
-    const editEvent = EDIT_GA_EVENT[artifact.type];
-    if (editEvent) trackGAEvent(editEvent);
     if (artifact.type === "business-brief") {
       openPreviewModal(artifact.id);
     } else if (artifact.type === "podcast") {
