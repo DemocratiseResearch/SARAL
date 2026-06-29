@@ -1,0 +1,29 @@
+info:
+  name: PaperToVideo - Trigger Twitter Draft
+  type: http
+  seq: 36
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertovideo/:run_id/social/twitter
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "My Research Paper",
+        "description": "A brief description of the paper."
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

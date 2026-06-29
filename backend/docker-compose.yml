@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: saral
+      POSTGRES_USER: saral_app
+      POSTGRES_PASSWORD: localpassword
+    ports:
+      - "5433:5432" # 5433 on host → 5432 inside container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saral_app -d saral"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379" # 6380 on host → 6379 inside container
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  fake-gcs:
+    image: fsouza/fake-gcs-server:latest
+    ports:
+      - "4443:4443"
+    command:
+      - "-scheme=http"
+      - "-port=4443"
+      - "-public-host=localhost:4443"
+    volumes:
+      - fake_gcs_data:/storage
+
+  fake-gcs-init:
+    image: curlimages/curl:latest
+    depends_on:
+      - fake-gcs
+    restart: on-failure:5
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until curl -sf "http://fake-gcs:4443/storage/v1/b" -o /dev/null 2>&1; do
+          printf 'Waiting for fake-gcs-server...\n'
+          sleep 2
+        done
+        curl -sf -X POST "http://fake-gcs:4443/storage/v1/b" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"saral-artifacts-local"}' || true
+        printf '\nBucket saral-artifacts-local is ready\n'
+
+volumes:
+  postgres_data:
+  fake_gcs_data:

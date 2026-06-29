@@ -1,0 +1,21 @@
+info:
+  name: Auth - Email Sign In
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: http://localhost:8080/auth/email/signin
+  body:
+    type: json
+    data: |-
+      {
+        "email": "user@example.com",
+        "password": "securepassword"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,20 @@
+info:
+  name: Auth - Google OAuth
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: http://localhost:8080/auth/oauth/google
+  body:
+    type: json
+    data: |-
+      {
+        "access_token": "google_access_token_here"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

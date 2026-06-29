@@ -1,0 +1,38 @@
+info:
+  name: PaperToSlides - Update Script
+  type: http
+  seq: 42
+
+http:
+  method: PUT
+  url: http://localhost:8080/api/papertoslides/:run_id/script
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "audience_level": "intermediate",
+        "run_id": "your-run-id-here",
+        "sections": [
+          {
+            "id": "section-1",
+            "title": "Introduction",
+            "bullets": ["Point 1", "Point 2"],
+            "narration": "Narration text here.",
+            "summary": "Summary text here."
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

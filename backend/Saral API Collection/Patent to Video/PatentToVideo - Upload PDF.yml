@@ -1,0 +1,24 @@
+info:
+  name: PatentToVideo - Upload PDF
+  type: http
+  seq: 81
+
+http:
+  method: POST
+  url: http://localhost:8080/api/patenttovideo/upload
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  body:
+    type: multipart-form
+    data:
+      - name: pdf
+        type: file
+        value: []
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

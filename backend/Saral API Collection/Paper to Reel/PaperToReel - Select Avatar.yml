@@ -1,0 +1,28 @@
+info:
+  name: PaperToReel - Select Avatar
+  type: http
+  seq: 70
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertoreel/:run_id/avatars
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "avatar_id": "avatar-uuid-here"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,30 @@
+info:
+  name: PaperToVideo - Confirm Script
+  type: http
+  seq: 25
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertovideo/:run_id/script/confirm
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  params:
+    - name: run_id
+      value: your-run-id-here
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "output_format": "beamer_pdf",
+        "voice_gender": "male",
+        "language": "english"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

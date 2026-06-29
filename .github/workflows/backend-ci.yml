@@ -1,0 +1,90 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  go-checks:
+    name: Go Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Run go vet (Linter fallback for Go 1.25)
+        working-directory: backend/gateway
+        run: go vet ./...
+
+      - name: Check Go Modules & Build Gateway
+        working-directory: ./backend/gateway
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum || (echo "go.mod/go.sum is not tidy" && exit 1)
+          go build ./...
+
+      - name: Build Go Workers (Script-Gen)
+        working-directory: ./backend/services/script-gen
+        run: |
+          go mod tidy
+          go build ./...
+
+      - name: Build Go Workers (Audio-Gen)
+        working-directory: ./backend/services/audio-gen
+        run: |
+          go mod tidy
+          go build ./...
+
+  python-checks:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Check PDF Parser
+        working-directory: ./backend/services/pdf-parser
+        run: |
+          uv sync
+          uv tool run ruff check .
+
+      - name: Check Beamer
+        working-directory: ./backend/services/beamer
+        run: |
+          uv sync
+          uv tool run ruff check .
+
+      - name: Check FFmpeg Job
+        working-directory: ./backend/services/ffmpeg-job
+        run: |
+          uv sync
+          uv tool run ruff check .

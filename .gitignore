@@ -1,39 +1,51 @@
-backend/temp/
-backend/.venv/
-backend/*.pyc
-backend/app/__pycache__/
-backend/app/*/__pycache__/
-*.py[cod]
-*$py.class
-backend/**/*.pyc
-**/*.py[cod]
-*$py.class
-backend/.env
-backend/firebase_service_account.json
-frontend/.env
-frontend/node_modules/
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-# testing
-frontend/coverage
-# production
-frontend/build
-# misc
+# ─── OS & IDE ───
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.pem
+
+# ─── Environment & Secrets ───
+.env*
+!.env.example
+portugese.env
+portuguese.env
+firebase-service-account.json
+firebase_service_account.json
+*firebase*.json
+backend/gateway/*firebase*.json
+backend/services/audio-gen/models.json
+
+# ─── Backend (Python & Go) ───
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+*.egg/
+dist/
+build/
+backend/gateway/tmp/
+backend/services/*/tmp/
+
+# ─── Frontend (Node & Next.js) ───
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+coverage/
+.next/
+out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-poster-service/uploads/
-poster-service/output/
-poster-service/logs/
-poster-service/*.log
-poster-service/pid-*.txt
-poster-service/.env
-backend/uv.lock
-backend/logs/
+.pnpm-debug.log*
+.vercel/
+*.tsbuildinfo
+next-env.d.ts

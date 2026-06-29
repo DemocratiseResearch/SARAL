@@ -1,0 +1,7 @@
+gateway:         cd gateway && go run .
+pdf-parser:      cd services/pdf-parser && .venv/bin/python worker.py
+latex-worker:    cd services/beamer && .venv/bin/python worker.py
+poster-worker:   cd services/beamer && .venv/bin/python poster_worker.py
+ffmpeg-worker:   cd services/ffmpeg-job && .venv/bin/python job.py
+script-gen:      cd services/script-gen && go run .
+audio-gen:       cd services/audio-gen && go run .

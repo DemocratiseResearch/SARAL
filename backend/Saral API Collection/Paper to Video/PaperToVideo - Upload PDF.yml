@@ -1,0 +1,24 @@
+info:
+  name: PaperToVideo - Upload PDF
+  type: http
+  seq: 18
+
+http:
+  method: POST
+  url: http://localhost:8080/api/papertovideo/upload
+  headers:
+    - name: X-User-ID
+      value: testuser1
+  body:
+    type: multipart-form
+    data:
+      - name: pdf
+        type: file
+        value: []
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
