@@ -1,7 +1,5 @@
 # SARAL Backend — Architecture & Overview
 
-> Full API route reference: [ROUTES.md](ROUTES.md)
-
 ## System Architecture
 
 ```
