@@ -35,7 +35,7 @@ We are committed to fostering a welcoming and respectful community. Harassment, 
 
 - **Bug reports / feature requests** — open a [GitHub Issue](https://github.com/anomalyco/saral/issues).
 - **Quick questions** — start a [GitHub Discussion](https://github.com/anomalyco/saral/discussions).
-- **Internal maintainers** — reach out on the IIIT Hyderabad SARAL team channel.
+- **Internal maintainers** — reach out to our [team of maintainers](https://saral.democratiseresearch.in/about) for any code maintenance related queries. 
 
 ---
 
