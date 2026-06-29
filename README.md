@@ -1,6 +1,10 @@
-# SARAL: Simplified And Automated Research Amplification and Learning
+# SARAL AI: Simplified And Automated Research Amplification and Learning
 
-SARAL is a full-stack application that transforms research papers (PDF, arXiv, BioRxiv, patents) into AI-generated video presentations, podcasts, posters, reels, slides, and business briefs. It leverages a Go gateway orchestrator, seven workers across five services, and a Next.js 16 frontend with Firebase authentication to deliver a seamless pipeline from document upload to downloadable media.
+<a href="https://saral.democratiseresearch.in">SARAL AI</a> is a full-stack application that transforms research papers (PDF, arXiv, BioRxiv, patents) into AI-generated video presentations, podcasts, posters, reels, slides, and business briefs. It leverages a Go gateway orchestrator, seven workers across five services, and a Next.js 16 frontend with Firebase authentication to deliver a seamless pipeline from document upload to downloadable media. 
+
+Developed at <a href="https://precog.iiit.ac.in">Precog Labs, IIIT Hyderabad</a>, this national initiative by the <a href="anrfonline.in">Anusandhan National Research Foundation (ANRF)</a> aims to democratize knowledge and improve how research is consumed.
+Recognized by <a href="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2251627&reg=48&lang=2">Indian Ministry of Science and Technology</a>, featured on <a href="https://www.nature.com/articles/d44151-026-00069-x">Nature article</a>, and <a href="https://www.youtube.com/watch?v=R1UON2PQrRs">Analytics India Magazine (AIM)</a>. 
+
 
 ```
 saral/
