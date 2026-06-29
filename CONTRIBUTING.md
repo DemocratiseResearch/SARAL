@@ -1,6 +1,6 @@
-# Contributing to SARAL
+# Contributing to SARAL AI
 
-Thank you for your interest in SARAL — an AI-powered pipeline that transforms academic papers into video presentations, podcasts, posters, and business briefs.
+Thank you for your interest in SARAL AI, a full stack platform that transforms academic papers into video presentations, podcasts, posters, business briefs and more left to the imagination of the OSS community to help democratise research to the masses.
 
 This document outlines how to contribute, report issues, and work with the codebase. For local-dev instructions, see [README.md](README.md).
 
@@ -74,7 +74,6 @@ saral/
 │   ├── docker-compose.yml       Postgres + Redis + fake-GCS
 │   ├── Procfile.dev             Overmind process definitions
 │   ├── .env.shared              Shared config for all workers
-│   ├── ROUTES.md                Full API reference
 │   └── ARCHITECTURE.md          System design & data flow
 └── frontend/
     ├── app/                     Next.js 16 App Router pages
