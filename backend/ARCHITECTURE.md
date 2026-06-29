@@ -1,4 +1,4 @@
-# SARAL Backend — Architecture & Overview
+# SARAL AI Backend — Architecture & Overview
 
 ## System Architecture
 
