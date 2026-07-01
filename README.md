@@ -39,13 +39,49 @@ saral/
     └── .env.local               ← you create (Firebase web config)
 ```
 
-**Architecture overview:** 
+**Architecture & User Flow:** 
 - The Next.js frontend (port 3000) talks to the Go gateway (port 8080).
-- The gateway authenticates via Firebase, stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams.
+- The gateway authenticates via Firebase (optional locally), stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams.
 - Seven workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE.
-- Primary pipeline: `pdf_extract → script_gen → [user confirms] → beamer_compile ∥ audio_gen → ffmpeg_stitch → video.mp4`.
 
-For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
+```mermaid
+flowchart TD
+    User([User]) -->|Uploads Paper PDF| UI[Next.js Frontend]
+    UI -->|API POST /upload| Gateway[Go Gateway API]
+    Gateway -->|Save File| Storage[(Storage: GCS / fake-GCS)]
+    Gateway -->|Enqueue Task| Redis[Redis Streams]
+    
+    subgraph Workers
+        PDF[pdf-parser]
+        Script[script-gen]
+        Audio[audio-gen]
+        Beamer[beamer_compile]
+        FFmpeg[ffmpeg_stitch]
+    end
+    
+    Redis -->|1. Parse| PDF
+    PDF -->|Webhook| Gateway
+    
+    Gateway -->|2. Generate| Script
+    Script -->|Webhook| Gateway
+    
+    Gateway -.->|3. Pause for human review| UI
+    UI -->|Confirm Script| Gateway
+    
+    Gateway -->|4. Parallel Processing| Audio
+    Gateway -->|4. Parallel Processing| Beamer
+    
+    Audio -->|Webhook| Gateway
+    Beamer -->|Webhook| Gateway
+    
+    Gateway -->|5. Stitch Media| FFmpeg
+    FFmpeg -->|Webhook| Gateway
+    
+    Gateway -->|SSE Progress| UI
+    UI -->|Download video.mp4| User
+```
+
+For the deeper architecture guide, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
 
 ---
 
@@ -146,10 +182,7 @@ node --version        # ≥ 20
 |---|---|---|
 | Gemini API key | https://aistudio.google.com/app/apikey | script-gen, audio-gen, gateway |
 | OpenRouter API key | https://openrouter.ai/keys | script-gen (when `LLM_PROVIDER=openrouter`) |
-| Sarvam API key | https://www.sarvam.ai/ (request access) | audio-gen (TTS) |
-| Firebase project | https://console.firebase.google.com — create a project, enable **Authentication** (Email/Password + Google) | gateway + frontend |
-| Firebase service account JSON | Firebase Console → Project Settings → **Service accounts** → *Generate new private key* | gateway |
-| Firebase web config | Firebase Console → Project Settings → **General** → Your apps → Web app | frontend `.env.local`, gateway `FIREBASE_WEB_API_KEY` |
+| Sarvam API key | https://dashboard.sarvam.ai | audio-gen (TTS) |
 
 ---
 
@@ -268,13 +301,6 @@ STORAGE_BUCKET=saral-artifacts-local
 STORAGE_EMULATOR_HOST=http://localhost:4443
 FRONTEND_BASE_URL=http://localhost:3000
 
-# ── Firebase ────────────────────────────────────────────────────
-FIREBASE_PROJECT_ID=<your-firebase-project-id>
-FIREBASE_CREDENTIALS_FILE=./firebase-service-account.json
-# Web API key (Console → Project Settings → General) — needed for
-# email/password signup + Google OAuth flows:
-FIREBASE_WEB_API_KEY=<your-firebase-web-api-key>
-
 # ── GCP (prod only — blank locally) ────────────────────────────
 GCP_PROJECT_ID=
 GCP_REGION=asia-south1
@@ -294,7 +320,6 @@ YOUTUBE_REDIRECT_URI=
 
 | File | What | How |
 |---|---|---|
-| `gateway/firebase-service-account.json` | Firebase Admin credentials | Download real key from Firebase Console → Service accounts. A placeholder will fail with *"no private key data found"*. |
 | `gateway/internal/auth/common_passwords.txt` | SecLists 10k list, embedded at compile time | If missing: `curl -s https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt -o gateway/internal/auth/common_passwords.txt` |
 | `services/audio-gen/models.json` | Bhashini model registry | A stub file containing just `[]` is fine when `TRANSLATION_PROVIDER=sarvam`. Real Bhashini credentials only needed for the 10 extended Indic languages. |
 
@@ -383,11 +408,9 @@ NEXT_PUBLIC_GATEWAY=http://localhost:8080
 ### 3.2 Install & run
 
 ```bash
-npm install     # postinstall copies pdfjs worker → public/pdfjs/
-npm run dev     # → http://localhost:3000
+bun install     # postinstall copies pdfjs worker → public/pdfjs/
+bun run dev     # → http://localhost:3000
 ```
-
-(bun also works: `bun install && bun dev` — a `bun.lock` is checked in.)
 
 ### 3.3 Frontend stack cheat-sheet
 
@@ -413,7 +436,7 @@ cd saral/backend && docker compose up -d
 cd saral/backend && overmind start -f Procfile.dev
 
 # Terminal 3 — frontend
-cd saral/frontend && npm run dev
+cd saral/frontend && bun run dev
 ```
 
 | Task | Command |
@@ -543,7 +566,6 @@ redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
 
 ## 8. Further Reading
 
-- [backend/ROUTES.md](backend/ROUTES.md) — every endpoint with copy-paste curl/Postman examples
 - [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) — system diagrams, data flow, scaling
 - [backend/AUTH_ENDPOINTS.md](backend/AUTH_ENDPOINTS.md) — auth contract details
 - [backend/Saral Overhaul API Collection/](backend/Saral%20Overhaul%20API%20Collection/) — importable API collection
