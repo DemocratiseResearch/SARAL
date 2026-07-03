@@ -183,6 +183,8 @@ node --version        # ≥ 20
 | Gemini API key | https://aistudio.google.com/app/apikey | script-gen, audio-gen, gateway |
 | OpenRouter API key | https://openrouter.ai/keys | script-gen (when `LLM_PROVIDER=openrouter`) |
 | Sarvam API key | https://dashboard.sarvam.ai | audio-gen (TTS) |
+| LinkedIn API keys | https://www.linkedin.com/developers/apps — create an app, request 'Share on LinkedIn' and 'Sign In with LinkedIn' | gateway (social publishing) |
+| YouTube API keys | https://console.cloud.google.com/apis/credentials — create OAuth 2.0 Client IDs, enable YouTube Data API v3 | gateway (social publishing) |
 
 ---
 
