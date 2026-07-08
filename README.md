@@ -6,102 +6,144 @@ Developed at <a href="https://precog.iiit.ac.in">Precog Labs, IIIT Hyderabad</a>
 Recognized by <a href="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2251627&reg=48&lang=2">Indian Ministry of Science and Technology</a>, featured on <a href="https://www.nature.com/articles/d44151-026-00069-x">Nature article</a>, and <a href="https://www.youtube.com/watch?v=R1UON2PQrRs">Analytics India Magazine (AIM)</a>. 
 
 
+
+
+
+
+## Repository Layout
+
 ```
 saral/
 ├── backend/
 │   ├── gateway/                 Go REST API + orchestrator (port 8080)
+│   │   ├── internal/            auth, pipeline, db, sse, gemini, sarvam, …
+│   │   ├── .env                 ← you create (gateway-only config)
+│   │   └── firebase-service-account.json   ← you download (secret)
 │   ├── services/
 │   │   ├── pdf-parser/          Python worker — PDF text/image extraction
 │   │   ├── beamer/              Python worker — LaTeX slides + posters (2 processes)
-│   │   ├── ffmpeg-job/          Python worker — video/podcast/reel stitching
-│   │   ├── script-gen/          Go worker — LLM script generation
-│   │   ├── audio-gen/           Go worker — TTS via Sarvam / Bhashini / Gemini
-│   │   └── shared/              Python shared library (saral_shared)
-│   ├── migrations/              Plain SQL migrations (apply in order)
-│   ├── Saral API Collection/    Bruno/Postman API collection files
+│   │   ├── ffmpeg-job/          Python worker — video stitching
+│   │   ├── script-gen/          Go worker — Gemini script generation
+│   │   ├── audio-gen/           Go worker — Sarvam/Bhashini TTS
+│   │   └── shared/              Python shared lib (saral_shared)
+│   ├── migrations/              Plain SQL, applied with psql
 │   ├── docker-compose.yml       Postgres + Redis + fake-GCS
-│   ├── Procfile.dev             Overmind process definitions
-│   ├── .env.shared              Shared config for all workers
+│   ├── Procfile.dev             overmind process definitions
+│   ├── .env.shared              ← you create (shared by ALL workers)
 │   ├── ROUTES.md                Full API reference
 │   └── ARCHITECTURE.md          System design & data flow
 └── frontend/
     ├── app/                     Next.js 16 App Router pages
-    ├── components/              shadcn UI, dashboard, modals, landing, auth
-    ├── lib/                     API client, zustand stores, Firebase, types
-    ├── .env.example             Template — copy to .env.local
-    └── .env.local               Local config (gitignored)
+    ├── components/              ui (shadcn), dashboard, modals, landing, auth
+    ├── lib/                     api client, zustand stores, firebase, types
+    └── .env.local               ← you create (Firebase web config)
 ```
 
-**Architecture overview:** 
+**Architecture & User Flow:** 
 - The Next.js frontend (port 3000) talks to the Go gateway (port 8080).
-- The gateway authenticates via Firebase, stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams.
+- The gateway authenticates via Firebase (optional locally), stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams.
 - Seven workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE.
-- Primary pipeline: `pdf_extract → script_gen → [user confirms] → beamer_compile ∥ audio_gen → ffmpeg_stitch → video.mp4`.
-For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
+
+```mermaid
+flowchart TD
+    User([User]) -->|Uploads Paper PDF| UI[Next.js Frontend]
+    UI -->|API POST /upload| Gateway[Go Gateway API]
+    Gateway -->|Save File| Storage[(Storage: GCS / fake-GCS)]
+    Gateway -->|Enqueue Task| Redis[Redis Streams]
+    
+    subgraph Workers
+        PDF[pdf-parser]
+        Script[script-gen]
+        Audio[audio-gen]
+        Beamer[beamer_compile]
+        FFmpeg[ffmpeg_stitch]
+    end
+    
+    Redis -->|1. Parse| PDF
+    PDF -->|Webhook| Gateway
+    
+    Gateway -->|2. Generate| Script
+    Script -->|Webhook| Gateway
+    
+    Gateway -.->|3. Pause for human review| UI
+    UI -->|Confirm Script| Gateway
+    
+    Gateway -->|4. Parallel Processing| Audio
+    Gateway -->|4. Parallel Processing| Beamer
+    
+    Audio -->|Webhook| Gateway
+    Beamer -->|Webhook| Gateway
+    
+    Gateway -->|5. Stitch Media| FFmpeg
+    FFmpeg -->|Webhook| Gateway
+    
+    Gateway -->|SSE Progress| UI
+    UI -->|Download video.mp4| User
+```
+
+For the deeper architecture guide, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
 
 ---
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
-- [Repository Setup](#repository-setup)
-- [Backend Setup](#backend-setup)
-- [Frontend Setup](#frontend-setup)
-- [Running the Full Stack](#running-the-full-stack)
-- [Quick Smoke Test](#quick-smoke-test)
-- [Troubleshooting](#troubleshooting)
-- [Notes for Contributors](#notes-for-contributors)
+- [Repository Layout](#repository-layout)
+- [1. Prerequisites](#1-prerequisites)
+- [2. Backend Setup](#2-backend-setup)
+- [3. Frontend Setup](#3-frontend-setup)
+- [4. Daily Workflow](#4-daily-workflow)
+- [5. Ports Reference](#5-ports-reference)
+- [6. Troubleshooting](#6-troubleshooting)
+- [7. Environment Variable Reference](#7-environment-variable-reference)
+- [8. Further Reading](#8-further-reading)
+- [9. Notes for Contributors](#9-notes-for-contributors)
 
 ---
 
-## Prerequisites
+## 1. Prerequisites
 
-Before anything else, make sure you have these installed:
+### Step 1: Install Package Managers & Core Setup
 
-- **Git**
-- **Docker Desktop** — for Postgres, Redis, and fake-GCS containers
-- **Node.js** (active LTS, **Node 20+**) — comes bundled with `npm`
-- **Python 3.11.x** — required by the Python workers
-- **Go** (recommended **1.25+**) — required for gateway, script-gen, and audio-gen
-- **overmind** — process manager: `brew install overmind`
-- **A modern browser** (Google Chrome recommended)
+**macOS:**
+- Ensure you have [Homebrew](https://brew.sh/) installed.
 
-Quick version checks:
-
+**Windows (WSL2):**
+> You must use **WSL2** (Windows Subsystem for Linux). Do not try to run `overmind` or `poppler` on native Windows. 
+1. Open PowerShell as Administrator and run `wsl --install`. 
+2. Open your new `Ubuntu` terminal and install Homebrew for Linux:
 ```bash
-node --version
-npm --version
-python3.11 --version
-go version
-docker compose version
-overmind --version
+# 1. Install Homebrew for Linux
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 2. Add Homebrew to your PATH
+(echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> ~/.bashrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+# 3. Install GCC (required by Homebrew on Linux)
+sudo apt-get update && sudo apt-get install -y build-essential
 ```
 
-**Windows users:** You must use **WSL2** (Windows Subsystem for Linux). Do not try to run `overmind` or `poppler` on native Windows.
+**Linux (Ubuntu/Debian):**
+Follow the same Homebrew installation block as WSL2 above, OR use your native package manager for the dependencies below.
 
 ---
 
-## Repository Setup
+### Step 2: Install Core Dependencies
+
+Once Homebrew is available (macOS, Linux, or WSL2):
 
 ```bash
-git clone <your-repository-url>
-cd saral
+# Core toolchain
+brew install go python@3.11 uv overmind redis postgresql node
+
+# Worker system dependencies
+brew install ffmpeg poppler            # ffmpeg-job + beamer (pdf2image)
 ```
 
----
+### Step 3: Install LaTeX (for Beamer)
 
-## Backend Setup
-
-All commands from `saral/backend/`.
-
-### 1. Install System Dependencies
-
-#### macOS
-
+**macOS:**
 ```bash
-brew install go python@3.11 uv overmind ffmpeg poppler redis postgresql node
-
-# LaTeX + Beamer (choose one):
 # Option A (full distribution):
 brew install --cask mactex-no-gui
 sudo tlmgr update --self
@@ -114,53 +156,65 @@ sudo tlmgr update --self
 sudo tlmgr install beamer collection-latexrecommended collection-fontsrecommended xetex latexmk
 ```
 
-Persist TeX path if using BasicTeX:
-
+**Windows (WSL2) & Linux:**
 ```bash
-echo 'export PATH="/Library/TeX/texbin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-recommended
 ```
 
-#### Linux (Ubuntu/Debian)
+### Step 4: Docker & Verify
 
+Install [Docker Desktop](https://docker.com) (enable WSL2 integration on Windows).
+
+Verify everything is ready:
 ```bash
-sudo apt update
-sudo apt install -y \
-  ffmpeg poppler-utils \
-  redis-server postgresql-client \
-  texlive-xetex texlive-fonts-recommended \
-  texlive-latex-recommended texlive-latex-extra latexmk
-
-sudo systemctl enable redis-server
-sudo systemctl start redis-server
+go version            # ≥ 1.25
+python3.11 --version  # 3.11.x
+docker compose version
+overmind --version
+xelatex --version     # after terminal restart
+ffmpeg -version
+node --version        # ≥ 20
 ```
 
-Install Go, Node, Docker, and overmind following their official guides.
+### API keys you need
 
-#### Windows (WSL2)
+| Key | Where to get it | Used by |
+|---|---|---|
+| Gemini API key | https://aistudio.google.com/app/apikey | script-gen, audio-gen, gateway |
+| OpenRouter API key | https://openrouter.ai/keys | script-gen (when `LLM_PROVIDER=openrouter`) |
+| Sarvam API key | https://dashboard.sarvam.ai | audio-gen (TTS) |
+| LinkedIn API keys | https://www.linkedin.com/developers/apps — create an app, request 'Share on LinkedIn' and 'Sign In with LinkedIn' | gateway (social publishing) |
+| YouTube API keys | https://console.cloud.google.com/apis/credentials — create OAuth 2.0 Client IDs, enable YouTube Data API v3 | gateway (social publishing) |
 
-Open PowerShell as Administrator and install WSL2:
+---
 
-```powershell
-wsl --install -d Ubuntu
-```
+## 2. Backend Setup
 
-Reboot if prompted, then open Ubuntu and follow the Linux steps above.
+All commands from `saral/backend/`.
 
-### 2. Start Infrastructure
+### 2.1 Start infrastructure
 
 ```bash
 docker compose up -d
 docker compose ps     # wait for postgres + redis → "healthy"
 ```
 
+> **Docker Permission Denied Error (WSL/Linux)?**
+> If you get `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock`, you can either run the commands with `sudo` (e.g. `sudo docker compose up -d`), or permanently fix it by adding your user to the docker group:
+> ```bash
+> sudo usermod -aG docker $USER
+> newgrp docker
+> ```
+
 This starts (host ports):
 
-| Container | Host port | Notes |
+| Container | Host port | Credentials / notes |
 |---|---|---|
-| Postgres 15 | 5433 | user `saral_app`, password `localpassword`, db `saral` |
-| Redis 7 | 6380 | Job streams |
-| fake-GCS | 4443 | Bucket `saral-artifacts-local` auto-created |
+| postgres:15-alpine | **5433** | user `saral_app`, password **`localpassword`**, db `saral`. `init.sql` auto-applies on first boot. |
+| redis:7-alpine | **6380** | job streams |
+| fake-gcs-server | **4443** | bucket `saral-artifacts-local` auto-created by the `fake-gcs-init` container |
+
+> The DB password is `localpassword` (defined in docker-compose.yml). The old `backend/SETUP.md` says `saral_pass` — that is wrong.
 
 Health checks:
 
@@ -170,9 +224,9 @@ redis-cli -p 6380 ping                                  # PONG
 curl -s http://localhost:4443/storage/v1/b | head -5    # JSON
 ```
 
-### 3. Apply Numbered Migrations
+### 2.2 Apply numbered migrations
 
-`init.sql` is applied automatically by the container on first boot. Apply the numbered migrations manually, in order:
+`init.sql` is applied automatically by the container. The numbered ones are **not** — apply manually, in order:
 
 ```bash
 for f in migrations/0*.sql; do
@@ -181,13 +235,11 @@ for f in migrations/0*.sql; do
 done
 ```
 
-Verify: `psql "postgresql://saral_app:localpassword@localhost:5433/saral" -c "\dt"` should list `users`, `papers`, `pipeline_runs`, `pipeline_steps`, `artifacts`, and more.
+Verify: `psql "postgresql://saral_app:localpassword@localhost:5433/saral" -c "\dt"` → should list `users`, `papers`, `pipeline_runs`, `pipeline_steps`, `artifacts`, plus podcast/reel/slides/social/patent tables.
 
-### 4. Create Environment Files
+### 2.3 Create `backend/.env.shared`
 
-#### `backend/.env.shared`
-
-Loaded by all six workers:
+Loaded by **all six workers** (Python workers via `load_dotenv(../../.env.shared)`, Go workers via `godotenv.Load("../../.env.shared")`). The gateway does **not** read this file.
 
 ```env
 # ── Infrastructure (matches docker-compose.yml) ─────────────────
@@ -201,58 +253,31 @@ STORAGE_EMULATOR_HOST=http://localhost:4443
 GATEWAY_WEBHOOK_URL=http://localhost:8080
 FRONTEND_BASE_URL=http://localhost:3000
 
-# ── External APIs (pipeline fails without these) ────────────────
-GEMINI_API_KEY=<your-gemini-key>          # script-gen + audio-gen
-SARVAM_API_KEY=<your-sarvam-key>          # audio-gen (TTS)
+# ── External APIs (REQUIRED — pipeline dies without these) ─────
+GEMINI_API_KEY=<your-gemini-key>          # script_gen step fails if missing
+SARVAM_API_KEY=<your-sarvam-key>          # audio_gen step fails if missing
 GCP_PROJECT_ID=<your-gcp-project-id>
 
-# ── Translation ─────────────────────────────────────────────────
+# ── Translation (sarvam is the local-dev default) ──────────────
 TRANSLATION_PROVIDER=sarvam
 
-# ── Social publishing (leave blank locally) ─────────────────────
+# ── Social publishing (optional — leave blank locally) ─────────
 LINKEDIN_CLIENT_ID=
 LINKEDIN_CLIENT_SECRET=
 LINKEDIN_REDIRECT_URI=
 ```
 
-#### `backend/gateway/.env`
+### 2.3.1 Choosing an LLM provider (script-gen)
 
-Loaded only by the gateway:
+The `script-gen` worker is LLM-agnostic. Pick a backend via `LLM_PROVIDER` in `backend/.env.shared`:
 
-```env
-ENV=local
-PORT=8080
-DATABASE_URL=postgresql://saral_app:localpassword@localhost:5433/saral
-REDIS_URL=redis://localhost:6380
-STORAGE_BUCKET=saral-artifacts-local
-STORAGE_EMULATOR_HOST=http://localhost:4443
-FRONTEND_BASE_URL=http://localhost:3000
-
-# ── Firebase ────────────────────────────────────────────────────
-FIREBASE_PROJECT_ID=<your-firebase-project-id>
-FIREBASE_CREDENTIALS_FILE=./firebase-service-account.json
-FIREBASE_WEB_API_KEY=<your-firebase-web-api-key>
-
-# ── Per-user API key encryption ─────────────────────────────────
-KEYS_ENCRYPTION_KEY=<random-32-byte-base64>   # generate: openssl rand -base64 32
-
-# ── GCP (prod only) ───────────────────────────────────────────────
-GCP_PROJECT_ID=
-GCP_REGION=asia-south1
-SARVAM_API_KEY=<your-sarvam-key>
-```
-
-#### Choosing an LLM Provider
-
-The `script-gen` worker supports three LLM backends. Set `LLM_PROVIDER` in `backend/.env.shared`:
-
-| Mode | Use case | Required env vars |
+| Mode | When to use | Required env vars |
 |---|---|---|
-| `vertex` (default) | `GCP_PROJECT_ID`, ADC |
-| `gemini_api` | Direct Gemini API key | `GEMINI_API_KEY` |
-| `openrouter` | Any model on OpenRouter (GPT, Claude, Llama, Gemini, free tier) | `OPENROUTER_API_KEY` |
+| `vertex` *(default)* | Existing GCP deployments; uses Vertex AI Gemini | `GCP_PROJECT_ID`, ADC |
+| `gemini_api` | Quick Gemini access via direct API key | `GEMINI_API_KEY` |
+| `openrouter` | Any model on OpenRouter (free tier, GPT, Claude, Llama, etc.) | `OPENROUTER_API_KEY` (+ optional model overrides) |
 
-Example for OpenRouter:
+Example `openrouter` block (uncomment in `.env.shared` and fill in your own key):
 
 ```env
 LLM_PROVIDER=openrouter
@@ -263,23 +288,51 @@ OPENROUTER_SITE_URL=http://localhost:3000
 OPENROUTER_SITE_NAME="Saral Dev"
 ```
 
-Any OpenRouter model slug works for the two model variables.
+Any OpenRouter model slug works for `OPENROUTER_FLASH_MODEL` and `OPENROUTER_PRO_MODEL`. The `HTTP-Referer` (`OPENROUTER_SITE_URL`) and `X-Title` (`OPENROUTER_SITE_NAME`) headers are recommended by OpenRouter for rankings and attribution.
 
-### 5. Place Required Secret Files
+### 2.4 Create `backend/gateway/.env`
 
-| File | Location | How |
+Loaded only by the gateway (its working directory is `gateway/`, so relative paths resolve from there):
+
+```env
+ENV=local
+PORT=8080
+DATABASE_URL=postgresql://saral_app:localpassword@localhost:5433/saral
+REDIS_URL=redis://localhost:6380
+STORAGE_BUCKET=saral-artifacts-local
+STORAGE_EMULATOR_HOST=http://localhost:4443
+FRONTEND_BASE_URL=http://localhost:3000
+
+# ── GCP (prod only — blank locally) ────────────────────────────
+GCP_PROJECT_ID=
+GCP_REGION=asia-south1
+
+# ── Per-user API key encryption (users table stores encrypted
+#    gemini/sarvam keys) — generate: openssl rand -base64 32 ────
+KEYS_ENCRYPTION_KEY=<random-32-byte-base64>
+
+# ── Optional social integrations — blank locally ───────────────
+SARVAM_API_KEY=<your-sarvam-key>
+YOUTUBE_CLIENT_ID=
+YOUTUBE_CLIENT_SECRET=
+YOUTUBE_REDIRECT_URI=
+```
+
+### 2.5 Place required secret/data files
+
+| File | What | How |
 |---|---|---|
-| Firebase service account | `gateway/firebase-service-account.json` | Download from Firebase Console → Service accounts |
-| Common passwords | `gateway/internal/auth/common_passwords.txt` | `curl -s https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt -o gateway/internal/auth/common_passwords.txt` |
-| Audio-gen models | `services/audio-gen/models.json` | A stub `[]` is fine when `TRANSLATION_PROVIDER=sarvam` |
+| `gateway/internal/auth/common_passwords.txt` | SecLists 10k list, embedded at compile time | If missing: `curl -s https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt -o gateway/internal/auth/common_passwords.txt` |
+| `services/audio-gen/models.json` | Bhashini model registry | A stub file containing just `[]` is fine when `TRANSLATION_PROVIDER=sarvam`. Real Bhashini credentials only needed for the 10 extended Indic languages. |
 
-### 6. Install Dependencies
+### 2.6 Install dependencies
 
 ```bash
 # Go gateway
 cd gateway && go mod tidy && cd ..
 
-# Python workers (4 services)
+# Python workers — ONLY these four are Python (script-gen & audio-gen are Go)
+# UV_LINK_MODE=copy prevents permission errors on WSL/Windows cross-filesystem mounts
 export UV_LINK_MODE=copy
 for svc in pdf-parser beamer ffmpeg-job shared; do
   cd services/$svc
@@ -290,27 +343,29 @@ done
 
 The Go workers (`script-gen`, `audio-gen`) need no install step — `go run` resolves modules on first start.
 
-### 7. Start Everything
+### 2.7 Start everything
 
 ```bash
 overmind start -f Procfile.dev
 ```
 
+> ** WSL Error: `bind: operation not supported`?**
+> Overmind uses Unix sockets, which Windows file systems (`/mnt/c/`) do not natively support. You must tell Overmind to place its socket file on the Linux side (like `/tmp/`):
+> ```bash
+> OVERMIND_SOCKET=/tmp/overmind.sock overmind start -f Procfile.dev
+> ```
+
 Seven processes start: `gateway`, `pdf-parser`, `latex-worker`, `poster-worker`, `ffmpeg-worker`, `script-gen`, `audio-gen`.
 
-**WSL users:** If you get `bind: operation not supported`, run:
+> Overmind kills **all** processes if **any** one crashes. When reading crash logs, find the **first** `Exited with code 1` — everything after it showing `KeyboardInterrupt` / `signal: interrupt` is collateral, not a real error.
 
-```bash
-OVERMIND_SOCKET=/tmp/overmind.sock overmind start -f Procfile.dev
-```
-
-### 8. Verify
+### 2.8 Verify
 
 ```bash
 curl http://localhost:8080/health
 # → {"success":true,"data":{"status":"ok"},...}
 
-# Upload a test paper (local auth bypass — no Firebase needed):
+# Upload a test paper using the local auth bypass (no Firebase needed):
 curl -X POST http://localhost:8080/api/papertovideo/upload \
   -H "X-User-ID: testuser1" \
   -F "pdf=@/path/to/paper.pdf"
@@ -319,46 +374,24 @@ curl -X POST http://localhost:8080/api/papertovideo/upload \
 curl -N http://localhost:8080/api/papertovideo/<run_id>/stream -H "X-User-ID: testuser1"
 ```
 
-The pipeline pauses after `script_gen` for human review. Confirm to continue:
+The pipeline **pauses after `script_gen`** for human review — confirm to continue:
 
 ```bash
 curl -X POST http://localhost:8080/api/papertovideo/<run_id>/script/confirm \
   -H "X-User-ID: testuser1" -H "Content-Type: application/json" -d '{}'
 ```
 
+Full endpoint walkthrough: [backend/ROUTES.md](backend/ROUTES.md).
+
 ---
 
-## Frontend Setup
+## 3. Frontend Setup
 
 All commands from `saral/frontend/`.
 
-### 1. Install Node.js
+### 3.1 Create `frontend/.env.local`
 
-Skip this if you already have Node 20+:
-
-#### macOS
-
-```bash
-brew install node
-```
-
-#### Linux
-
-```bash
-sudo apt update && sudo apt install -y nodejs npm
-```
-
-### 2. Install Frontend Dependencies
-
-```bash
-npm install     # postinstall copies pdfjs worker → public/pdfjs/
-```
-
-(bun also works: `bun install` — a `bun.lock` is checked in.)
-
-### 3. Configure Frontend Environment
-
-Create `frontend/.env.local` (values from Firebase Console → Project Settings → General → Your apps → Web app):
+Values from Firebase Console → Project Settings → **General** → Your apps → Web app (create a web app if none exists):
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=<apiKey>
@@ -368,116 +401,184 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<project>.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<senderId>
 NEXT_PUBLIC_FIREBASE_APP_ID=<appId>
 
-# Gateway URL (defaults to http://localhost:8080 if unset)
+# Gateway URL (this is also the default if unset)
 NEXT_PUBLIC_GATEWAY=http://localhost:8080
-
-# Canonical site URL — used for sitemaps and OG tags (leave blank locally)
-NEXT_PUBLIC_SITE_URL=
-
 ```
 
-Restart the dev server after changing `.env.local`.
+`NEXT_PUBLIC_*` vars are inlined at build time — **restart the dev server after changing them**.
 
-### 4. Start the Frontend Dev Server
+### 3.2 Install & run
 
 ```bash
-npm run dev     # → http://localhost:3000
+bun install     # postinstall copies pdfjs worker → public/pdfjs/
+bun run dev     # → http://localhost:3000
 ```
 
-### Frontend Useful Commands
+### 3.3 Frontend stack cheat-sheet
 
-```bash
-npm run dev         # start local development server
-npm run build       # create production build
-npm run lint        # run ESLint
-npx tsc --noEmit    # TypeScript type-check
-```
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 App Router, React 19, TypeScript |
+| Styling | Tailwind v4, tokens in `app/globals.css` `@theme inline` |
+| Components | shadcn (`components/ui/`) — add via `npx shadcn@latest add <name>` |
+| State | zustand: `lib/auth-store.ts`, `lib/paper-store.ts`, `lib/artifact-store.ts` |
+| API client | `lib/api.ts` (all gateway calls), types in `lib/types.ts` |
+| Auth | Firebase client SDK (`lib/firebase.ts`); guard in `app/dashboard/layout.tsx` |
+| Theming | next-themes via `context/ThemeContext.tsx` (light default, class-based dark) |
 
 ---
 
-## Running the Full Stack
-
-Once everything is configured, run these in separate terminals:
-
-**Terminal 1 — Infrastructure (once; survives reboots until `docker compose down`):**
+## 4. Daily Workflow
 
 ```bash
-cd backend && docker compose up -d
+# Terminal 1 — infra (once; survives reboots until `docker compose down`)
+cd saral/backend && docker compose up -d
+
+# Terminal 2 — backend services
+cd saral/backend && overmind start -f Procfile.dev
+
+# Terminal 3 — frontend
+cd saral/frontend && bun run dev
 ```
-
-**Terminal 2 — Backend services:**
-
-```bash
-cd backend && overmind start -f Procfile.dev
-```
-
-**Terminal 3 — Frontend:**
-
-```bash
-cd frontend && npm run dev
-```
-
-Open `http://localhost:3000`.
 
 | Task | Command |
 |---|---|
 | Logs for one service | `overmind connect gateway` (Ctrl+B, D to detach) |
 | Restart one service | `overmind restart latex-worker` |
-| Stop backend | `overmind kill` |
+| Stop backend services | `overmind kill` |
 | Stop infra (keep data) | `docker compose down` |
-| Stop infra (wipe data) | `docker compose down -v` (re-apply numbered migrations) |
-
-### Quick Smoke Test
-
-- [ ] App opens at `http://localhost:3000`
-- [ ] `http://localhost:8080/health` returns `{"success":true,...}`
-- [ ] `redis-cli -p 6380 ping` returns `PONG`
-- [ ] Frontend loads without build errors
-- [ ] Login page renders
-- [ ] After valid login, protected routes are accessible
-- [ ] API keys page appears and accepts a Gemini / OpenRouter key
+| Stop infra (wipe data) | `docker compose down -v` (numbered migrations must be re-applied after) |
 
 ---
 
-## Troubleshooting
+## 5. Ports Reference
 
-### Backend
+| Service | Port | What |
+|---|---|---|
+| Frontend (Next.js) | 3000 | Web UI |
+| Gateway (Go/Gin) | 8080 | REST API + SSE |
+| PostgreSQL | 5433 | State (container 5432) |
+| Redis | 6380 | Job streams (container 6379) |
+| fake-GCS | 4443 | Artifact storage emulator |
 
-| Problem | Fix |
+---
+
+## 6. Troubleshooting
+
+### Backend won't start
+
+| Error | Fix |
 |---|---|
-| `python3.11: command not found` | Install Python 3.11: `brew install python@3.11` (macOS) or `sudo apt install python3.11` (Ubuntu) |
-| `pattern common_passwords.txt: no matching files found` | Download SecLists file (see step 5 above) |
-| `Firebase init failed: cannot read credentials file` | Service-account JSON missing at path in `FIREBASE_CREDENTIALS_FILE` |
+| `pattern common_passwords.txt: no matching files found` | Download SecLists file → `gateway/internal/auth/common_passwords.txt` (see §2.5) |
+| `bhashini registry: read models.json: no such file` | Create `services/audio-gen/models.json` with `[]` (see §2.5) |
+| `Firebase init failed: cannot read credentials file` | Service-account JSON missing at path in `FIREBASE_CREDENTIALS_FILE` (relative to `gateway/`) |
 | `Firebase init failed: no private key data found` | The JSON is a placeholder — download the real key from Firebase Console |
-| `dial tcp [::1]:6380: connect: connection refused` | Infra not running — `docker compose ps` must show `0.0.0.0:6380->6379`. If not: `docker compose down && docker compose up -d` from `backend/` |
-| `go vet` fails | Run `go mod tidy` first |
-| Python `ModuleNotFoundError` | Recreate that worker's venv — only 4 Python services exist; `uv sync` in Go workers errors (harmless) |
-| `xelatex failed` / blank slides | Install TeX distribution (`brew install --cask basictex`) and restart terminal |
-| `ffmpeg-worker` fails | `brew install ffmpeg` |
-| `pdf2image` / poppler errors | `brew install poppler` |
-| `script_gen` fails | `GEMINI_API_KEY` missing/invalid (or `OPENROUTER_API_KEY` when using `LLM_PROVIDER=openrouter`) |
-| `audio_gen` fails | `SARVAM_API_KEY` missing/invalid |
-| Pipeline "stuck" after `script_gen` | Intentional human-review pause — `POST /script/confirm` |
+| `dial tcp [::1]:6380: connect: connection refused` | Infra not running or ports unbound: `docker compose ps` must show `0.0.0.0:6380->6379`. If not: `docker compose down && docker compose up -d` **from `backend/`** |
+| Python `ModuleNotFoundError` | Recreate that worker's venv (§2.6). Note: only 4 services are Python — running `uv sync` in `script-gen`/`audio-gen` errors with "No pyproject.toml" (harmless) |
+| `xelatex failed` / blank slides | `brew install --cask basictex`, restart terminal |
+| ffmpeg-worker fails to stitch | `brew install ffmpeg` |
+| pdf2image / poppler errors | `brew install poppler` |
 
-### Frontend
+### Pipeline runs but a stage fails
 
-| Problem | Fix |
+Check `error_message`: `curl -s localhost:8080/api/papertovideo/<run_id>/status -H "X-User-ID: testuser1"`
+
+| Stage | Usual cause |
 |---|---|
-| `npm install` fails | Check Node/npm versions; delete `node_modules` and retry |
-| Port 3000 already in use | Stop the conflicting process, then rerun `npm run dev` |
-| `auth/invalid-api-key` in console | `.env.local` Firebase values missing/wrong; restart dev server after editing |
-| Login fails immediately | Verify all `NEXT_PUBLIC_FIREBASE_*` values; confirm Firebase Google sign-in is enabled |
-| API calls fail / CORS errors | Confirm gateway is running at `NEXT_PUBLIC_GATEWAY` (default `http://localhost:8080`) |
+| `script_gen` | `GEMINI_API_KEY` missing/invalid in `backend/.env.shared`, or (when `LLM_PROVIDER=openrouter`) `OPENROUTER_API_KEY` missing/invalid (`OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter`) |
+| `audio_gen` | `SARVAM_API_KEY` missing/invalid in `backend/.env.shared` |
+| `beamer_compile` | xelatex missing, or font issues (check `overmind connect latex-worker`) |
+| `ffmpeg_stitch` | ffmpeg missing |
+| Pipeline "stuck" after script_gen | Not stuck — it's the intentional human-review pause. `POST /script/confirm`. |
+
+### Frontend issues
+
+| Symptom | Fix |
+|---|---|
+| `auth/invalid-api-key` in browser console | `.env.local` Firebase values missing/wrong; restart dev server after editing |
+| API calls hit wrong host | Set `NEXT_PUBLIC_GATEWAY=http://localhost:8080` and restart |
 | PDF previews broken | `public/pdfjs/pdf.worker.min.mjs` missing — re-run `npm install` (postinstall copies it) |
-| `.env.local` changes not reflected | Stop and restart `npm run dev` |
+| Login works but dashboard kicks you out | Backend gateway not running, or `FIREBASE_PROJECT_ID` mismatch between gateway `.env` and frontend `.env.local` |
+
+### Redis / queue debugging
+
+```bash
+redis-cli -p 6380 XLEN saral:jobs:pdf            # queue depth
+redis-cli -p 6380 XINFO GROUPS saral:jobs:pdf    # consumer lag
+redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
+```
 
 ---
 
-## Notes for Contributors
+## 7. Environment Variable Reference
+
+### `backend/.env.shared` (all workers)
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `ENV` | yes | `local` / `production` |
+| `DATABASE_URL` | yes | Postgres DSN (workers write step state) |
+| `REDIS_URL` | yes | Job streams |
+| `STORAGE_BUCKET` | yes | `saral-artifacts-local` locally |
+| `STORAGE_EMULATOR_HOST` | local only | `http://localhost:4443` — unset in prod |
+| `GATEWAY_WEBHOOK_URL` | yes | Where workers POST completion webhooks |
+| `LLM_PROVIDER` | no | LLM backend: `vertex` (default), `gemini_api`, or `openrouter` |
+| `GEMINI_API_KEY` | depends | Required when `LLM_PROVIDER=gemini_api`; also used by audio-gen |
+| `OPENROUTER_API_KEY` | when `LLM_PROVIDER=openrouter` | OpenRouter bearer token |
+| `OPENROUTER_FLASH_MODEL` | no | OpenRouter model slug for Flash tier; default `google/gemini-2.5-flash` |
+| `OPENROUTER_PRO_MODEL` | no | OpenRouter model slug for Pro tier; default `google/gemini-2.5-pro` |
+| `OPENROUTER_SITE_URL` | no | `HTTP-Referer` header sent to OpenRouter |
+| `OPENROUTER_SITE_NAME` | no | `X-Title` header sent to OpenRouter |
+| `SARVAM_API_KEY` | yes | audio-gen TTS |
+| `GCP_PROJECT_ID` | yes | Gemini/Vertex project |
+| `TRANSLATION_PROVIDER` | no | `sarvam` (default) / `bhashini` |
+| `MODELS_JSON_PATH` | no | Override path to audio-gen models.json |
+| `FRONTEND_BASE_URL` | no | Used in links/redirects |
+| `LINKEDIN_*` | no | Social publishing (blank locally) |
+
+### `backend/gateway/.env` (gateway only)
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `ENV`, `PORT` | yes | `local`, `8080` |
+| `DATABASE_URL`, `REDIS_URL` | yes | Same values as .env.shared |
+| `STORAGE_BUCKET`, `STORAGE_EMULATOR_HOST` | yes | Artifact storage |
+| `FIREBASE_PROJECT_ID` | yes | Token verification |
+| `FIREBASE_CREDENTIALS_FILE` | yes | Path to service-account JSON (relative to `gateway/`) |
+| `FIREBASE_WEB_API_KEY` | for real auth | Email/password + Google OAuth REST flows |
+| `KEYS_ENCRYPTION_KEY` | yes | Encrypts per-user API keys stored in `users` table |
+| `GEMINI_MODEL` | no | Override default Gemini model |
+| `SARAL_ADMIN_UIDS` | no | Comma-separated admin Firebase UIDs |
+| `GCP_PROJECT_ID`, `GCP_REGION` | prod only | Cloud Run deployment |
+| `YOUTUBE_*`, `LINKEDIN_*`, `DASHBOARD_WEBHOOK_*` | no | Integrations (blank locally) |
+
+### `frontend/.env.local`
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | yes | Firebase web SDK |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | yes | 〃 |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | yes | 〃 (must match gateway's `FIREBASE_PROJECT_ID`) |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | yes | 〃 |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | yes | 〃 |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | yes | 〃 |
+| `NEXT_PUBLIC_GATEWAY` | no | Gateway URL; defaults to `http://localhost:8080` (`NEXT_PUBLIC_API_URL` also accepted) |
+
+---
+
+## 8. Further Reading
+
+- [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) — system diagrams, data flow, scaling
+- [backend/AUTH_ENDPOINTS.md](backend/AUTH_ENDPOINTS.md) — auth contract details
+- [backend/Saral Overhaul API Collection/](backend/Saral%20Overhaul%20API%20Collection/) — importable API collection
+
+---
+
+## 9. Notes for Contributors
 
 - **Never commit secrets.** Keep `.env*`, `firebase-service-account.json`, and `*firebase*.json` out of version control — they are already in `.gitignore`.
 - **Document new environment variables** in both `.env.shared` / `.env.local` and in this README immediately.
 - **Update this guide** if you add a new local dependency or setup step.
 - **Run linters before pushing:** `go vet ./...`, `ruff check .`, `bun run lint`, `npx tsc --noEmit`.
 - For full contribution guidelines, code of conduct, and PR checklist, see [CONTRIBUTING.md](CONTRIBUTING.md).
-- For the deeper architecture guide and route catalog, see [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
+
