@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { BASE_URL } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 import {
   GoogleAuthProvider,
@@ -37,11 +38,6 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_GATEWAY ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8080";
 
 // ── Provider instances (unchanged) ─────────────────────────────────────────────
 const googleProvider = new GoogleAuthProvider();
@@ -194,7 +190,7 @@ export default function LoginPage() {
           if (!existingProviderId || !existingProvider) {
             setError(
               "This email is already registered with a different sign-in method. " +
-                "Try Google, GitHub, or Microsoft — whichever you used first.",
+              "Try Google, GitHub, or Microsoft — whichever you used first.",
             );
             setLoadingId(null);
             return;
@@ -262,8 +258,8 @@ export default function LoginPage() {
         } else {
           setEmailError(
             data?.error?.message ??
-              data?.message ??
-              "Sign-in failed. Please try again.",
+            data?.message ??
+            "Sign-in failed. Please try again.",
           );
         }
         return;

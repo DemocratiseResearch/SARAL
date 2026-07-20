@@ -7,6 +7,7 @@ import Image from "next/image";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { useAuthStore } from "@/lib/auth-store";
+import { BASE_URL } from "@/lib/api/client";
 import {
   GoogleIcon,
   MicrosoftIcon,
@@ -58,12 +59,10 @@ export default function AuthShell({
           "Firebase is not configured. Add the NEXT_PUBLIC_FIREBASE_* environment variables and restart the dev server.",
         );
       }
-
       const result = await signInWithPopup(auth, provider);
       const token = await result.user.getIdToken();
-
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}/auth/login`,
+        `${BASE_URL}/auth/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
