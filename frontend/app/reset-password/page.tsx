@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import AuthCardShell, {
   AuthCardInner,
 } from "@/components/auth/auth-card-shell";
+import { BASE_URL } from "@/lib/api/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -20,11 +21,6 @@ import {
   Loader2,
   XCircle,
 } from "lucide-react";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_GATEWAY ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8080";
 
 const INPUT_CLASS =
   "h-[50px] rounded-[13px] border border-[rgba(209,207,201,0.9)] dark:border-darkcardborder bg-[#F2F1EE] dark:bg-white/5 px-4 font-sans font-medium text-[14px] text-ink dark:text-white shadow-none focus-visible:ring-2 focus-visible:ring-saral-forest/30 focus-visible:border-saral-forest placeholder:text-ink-faint dark:placeholder:text-white/40";
