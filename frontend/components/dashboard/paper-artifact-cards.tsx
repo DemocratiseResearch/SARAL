@@ -92,17 +92,23 @@ function GeneratingCard({
       className="h-full min-h-62 w-full min-w-0 flex-col items-stretch justify-start gap-0 rounded-xl border border-pill-border bg-linen dark:bg-saral-dark p-3.5 text-left font-normal shadow-sm transition-colors hover:bg-saral-forest/20 hover:shadow-md"
     >
       <div
-        className="w-full aspect-video rounded-[10px] mb-3 flex flex-col items-center justify-center gap-2"
+        className="w-full aspect-video rounded-[10px] mb-3 flex flex-col items-center justify-center gap-2 px-3"
         style={{ backgroundColor: color + "30" }}
       >
         <Loader2 size={22} className="animate-spin" style={{ color }} />
-        <span className="font-sans text-[11px] font-medium" style={{ color }}>
-          Click to view progress
+        <span
+          className="font-sans text-[11px] font-medium text-center line-clamp-2 whitespace-normal leading-snug"
+          style={{ color }}
+        >
+          {artifact.statusMessage ?? "Starting…"}
         </span>
       </div>
       <div className="mb-2">
         <p className="font-sans font-bold text-sm text-ink dark:text-white truncate">
           {ARTIFACT_CONFIG[artifact.type].label}
+        </p>
+        <p className="font-sans text-[11px] text-ink-muted dark:text-white/60 mt-0.5 truncate">
+          Click to view progress
         </p>
       </div>
       <div className="w-full h-1 bg-[#d9d0c4] rounded-full overflow-hidden mt-1">
