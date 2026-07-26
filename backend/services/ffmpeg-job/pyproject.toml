@@ -14,3 +14,23 @@ dependencies = [
 
 [tool.uv.sources]
 saral-shared = { path = "../shared", editable = true }
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+# Flat layout: sibling top-level modules run as `python job.py`. Declared
+# explicitly so packaging doesn't rely on setuptools auto-discovery, which is
+# ambiguous once there are several modules plus a tests/ dir.
+[tool.setuptools]
+py-modules = [
+    "job",
+    "config",
+    "ffmpeg_utils",
+    "imaging",
+    "subtitles",
+    "media_io",
+    "waveform",
+    "slides",
+    "reel",
+]
