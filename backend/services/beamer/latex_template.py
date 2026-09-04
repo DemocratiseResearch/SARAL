@@ -321,6 +321,7 @@ def compile_latex(tex_file: str, output_dir: str) -> str:
                 [
                     "xelatex",
                     "-interaction=nonstopmode",
+                    "-no-shell-escape",
                     f"-output-directory={temp_dir}",
                     tex_filename,
                 ],
