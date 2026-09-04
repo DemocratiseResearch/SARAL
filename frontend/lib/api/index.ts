@@ -10,3 +10,4 @@ export * from "./presentation";
 export * from "./social";
 export * from "./business-brief";
 export * from "./user";
+export * from "./paper-chat";

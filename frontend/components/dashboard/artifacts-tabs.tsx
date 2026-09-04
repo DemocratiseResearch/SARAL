@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ArrowRight,
   LayoutGrid,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/artifact-store";
 import { usePaperStore } from "@/lib/paper-store";
 import { useStartArtifactGeneration } from "@/lib/use-start-artifact-generation";
+import PaperChatPanel from "@/components/dashboard/paper-chat-panel";
 import {
   ARTIFACT_TAB_ITEMS,
   ArtifactEntriesGrid,
@@ -37,6 +39,7 @@ import {
 // import { TourGuide } from "@/components/dashboard/quick-guide";
 
 const ALL_ARTIFACTS_TAB = "all";
+const CHAT_TAB = "chat";
 
 /** Quick-pick cards on the “All” empty state — order matches product list. */
 const EMPTY_STATE_CARD_TYPES = [
@@ -421,6 +424,13 @@ export default function PaperArtifactsPanel({
                     <LayoutGrid className="size-3.5 shrink-0 opacity-90" />
                     <span>All outputs</span>
                   </TabsTrigger>
+                  <TabsTrigger
+                    value={CHAT_TAB}
+                    className={pillTriggerClass}
+                  >
+                    <MessageSquare className="size-3.5 shrink-0 opacity-90" />
+                    <span>Chat with Paper</span>
+                  </TabsTrigger>
                   {ARTIFACT_TAB_ITEMS.map((item) => (
                     <TabsTrigger
                       key={item.id}
@@ -516,6 +526,13 @@ export default function PaperArtifactsPanel({
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent
+          value={CHAT_TAB}
+          className="mt-0 min-w-0 w-full outline-none"
+        >
+          <PaperChatPanel paperId={paperId || ""} />
         </TabsContent>
 
         {ARTIFACT_TAB_ITEMS.map((item) => {

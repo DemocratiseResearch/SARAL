@@ -1,5 +1,5 @@
 import type { Artifact, ArtifactType, ArtifactConfig } from "./artifact-types";
-import type { VideoConfig, ReelTurn, Script } from "../types";
+import type { VideoConfig, ReelTurn, Script, ChatSession, ChatMessage } from "../types";
 
 // ── activeModal discriminated union ──────────────────────────────────────────
 // Read-only derived view over the flat boolean modal fields.
@@ -104,6 +104,19 @@ export interface ArtifactStore {
   setImageAssignment: (artifactId: string, sectionId: string, imageIndex: number) => void;
   retryArtifact: (id: string) => void;
   reset: () => void;
+
+  // ── Paper Chat (Q&A) ─────────────────────────────────────────────────────
+  chatSessions: ChatSession[];
+  activeChatSessionId: string | null;
+  chatMessages: ChatMessage[];
+  chatLoading: boolean;
+  chatError: string | null;
+
+  sendChatMessage: (paperId: string, message: string) => Promise<void>;
+  loadChatSessions: (paperId: string) => Promise<void>;
+  selectChatSession: (paperId: string, sessionId: string) => Promise<void>;
+  startNewChatSession: () => void;
+  clearChatError: () => void;
 
   // ── Slice-internal methods (called by dispatcher or other slices) ──────────
   startVideoGeneration: (runId: string, videoConfig?: VideoConfig) => void;

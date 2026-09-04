@@ -33,6 +33,7 @@
         │         │  • /api/patenttovideo/*  (patent pipeline)           │   │
         │         │  • /api/papers/arxiv     (preprint ingest)           │   │
         │         │  • /api/paper/:id/business-brief                     │   │
+        │         │  • /api/paper/:id/chat/* (paper chat Q&A)            │   │
         │         │  • /api/social/{youtube,linkedin}/*                  │   │
         │         │  • /webhooks/worker/:service                         │   │
         │         └──┬─────────────────┬─────────────────┬──────────────┘   │
@@ -87,8 +88,8 @@
         │  • business_briefs │  │  • poster      │  │  • Firebase Auth  │
         │  • social_tokens   │  │  • ffmpeg      │  │  • YouTube API    │
         │  • user_api_keys   │  │  • podcast     │  │  • LinkedIn API   │
-        │                    │  │  • reel        │  │                   │
-        │                    │  │  saral:dlq     │  │                   │
+        │  • paper_chat_sess │  │  • reel        │  │                   │
+        │  • paper_chat_msgs │  │  • saral:dlq   │  │                   │
         └────────────────────┘  └────────────────┘  └───────────────────┘
 ```
 
@@ -193,6 +194,34 @@ USER DOWNLOAD
 
 ---
 
+## Data Flow — Paper Chat (Q&A)
+
+Interactive question-answering over extracted paper content.
+
+```
+USER QUERY
+    │
+    └─> POST /api/paper/:paper_id/chat  { message, session_id? }
+        │
+        ├─ Validate Firebase auth & user ownership of paper
+        ├─ Fetch paper metadata & extracted text from GCS (extracted.json)
+        ├─ Check/increment Redis rate limiter (20 reqs/min per user)
+        ├─ Load last N chat messages for context
+        ├─ Call Gemini LLM (gemini-3.6-flash) with system prompt & paper context
+        ├─ Persist user message & assistant reply in PostgreSQL
+        │  (paper_chat_sessions & paper_chat_messages)
+        └─> Return { session_id, message: { id, role, content, created_at } }
+
+SESSION MANAGEMENT
+    ├─ GET /api/paper/:paper_id/chat/sessions
+    │   └─ Returns list of chat sessions for paper & user, newest first
+    │
+    └─ GET /api/paper/:paper_id/chat/sessions/:session_id/messages
+        └─ Returns message history for session in chronological order
+```
+
+---
+
 ## Workers
 
 | Worker | Language | Redis stream(s) consumed | Output |
@@ -223,6 +252,7 @@ All workers:
 - **SSE Manager**: Redis Pub/Sub relay for cross-instance real-time progress broadcast
 - **Janitor**: Background goroutine monitors stuck jobs (> 1 hour), retries or moves to DLQ
 - **Social Sharing**: YouTube and LinkedIn OAuth flows + video/post upload
+- **Paper Chat (Q&A)**: RAG Q&A over extracted paper content via Gemini (gemini-3.6-flash), session management and message persistence
 - **Analytics**: Firestore event tracking (non-fatal on failure)
 
 ### PDF Parser (Python)

@@ -14,6 +14,7 @@ import { createPresentationSlice } from "./slices/presentation-slice";
 import { createReelSlice } from "./slices/reel-slice";
 import { createSocialSlice } from "./slices/social-slice";
 import { createBusinessBriefSlice } from "./slices/business-brief-slice";
+import { createPaperChatSlice } from "./slices/paper-chat-slice";
 import { usePaperStore } from "../paper-store";
 
 const INITIAL_STATE = {
@@ -58,6 +59,7 @@ export const useArtifactStore = create<ArtifactStore>()(
       ...createReelSlice(set, get, api),
       ...createSocialSlice(set, get, api),
       ...createBusinessBriefSlice(set, get, api),
+      ...createPaperChatSlice(set, get, api),
 
       // ── Internal helpers used by slices ───────────────────────────────────
 

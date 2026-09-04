@@ -238,6 +238,11 @@ func main() {
 		protected.GET("/paper/:paper_id/business-brief/pdf", pipeline.BusinessBriefDownloadPDFHandler(pool))
 		protected.GET("/paper/:paper_id/business-brief/stream", sseMgr.BriefStreamHandler())
 
+		// ── Chat with Paper (Q&A) ───────────────────────────────────────────
+		protected.POST("/paper/:paper_id/chat", pipeline.PaperChatHandler(pool, rdb))
+		protected.GET("/paper/:paper_id/chat/sessions", pipeline.PaperChatSessionsHandler(pool))
+		protected.GET("/paper/:paper_id/chat/sessions/:session_id/messages", pipeline.PaperChatMessagesHandler(pool))
+
 		// ── ArXiv / BioRxiv / MedRxiv ingest ─────────────────────────────────
 		// Same pipeline as PDF upload — pdf-parser and all downstream workers unchanged.
 		protected.POST("/papers/arxiv", pipeline.ArxivIngestHandler(pool, rdb, sseMgr))
