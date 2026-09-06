@@ -30,7 +30,7 @@ type openRouterProvider struct {
 
 func newOpenRouterProvider(apiKey, flashModel, proModel, siteURL, siteName string) *openRouterProvider {
 	if flashModel == "" {
-		flashModel = "google/gemini-2.5-flash"
+		flashModel = "google/gemini-3.6-flash"
 	}
 	if proModel == "" {
 		proModel = "google/gemini-2.5-pro"

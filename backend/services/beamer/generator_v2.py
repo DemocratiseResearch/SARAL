@@ -10,7 +10,7 @@ from google.genai import types
 log = logging.getLogger(__name__)
 
 
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-3.6-flash"
 
 
 BUSINESS_BRIEF_SECTIONS = [
