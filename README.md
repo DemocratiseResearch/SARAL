@@ -1,14 +1,9 @@
 # SARAL AI: Simplified And Automated Research Amplification and Learning
 
-<a href="https://saral.democratiseresearch.in">SARAL AI</a> is a full-stack application that transforms research papers (PDF, arXiv, BioRxiv, patents) into AI-generated video presentations, podcasts, posters, reels, slides, and business briefs. It leverages a Go gateway orchestrator, seven workers across five services, and a Next.js 16 frontend with Firebase authentication to deliver a seamless pipeline from document upload to downloadable media. 
+<a href="https://saral.democratiseresearch.in">SARAL AI</a> is a full-stack application that transforms research papers (PDF, arXiv, BioRxiv, patents) into AI-generated video presentations, podcasts, posters, reels, slides, and business briefs. It leverages a Go gateway orchestrator, seven workers across five services, and a Next.js 16 frontend with Firebase authentication to deliver a seamless pipeline from document upload to downloadable media.
 
 Developed at <a href="https://precog.iiit.ac.in">Precog Labs, IIIT Hyderabad</a>, this national initiative by the <a href="anrfonline.in">Anusandhan National Research Foundation (ANRF)</a> aims to democratize knowledge and improve how research is consumed.
-Recognized by <a href="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2251627&reg=48&lang=2">Indian Ministry of Science and Technology</a>, featured on <a href="https://www.nature.com/articles/d44151-026-00069-x">Nature article</a>, and <a href="https://www.youtube.com/watch?v=R1UON2PQrRs">Analytics India Magazine (AIM)</a>. 
-
-
-
-
-
+Recognized by <a href="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2251627&reg=48&lang=2">Indian Ministry of Science and Technology</a>, featured on <a href="https://www.nature.com/articles/d44151-026-00069-x">Nature article</a>, and <a href="https://www.youtube.com/watch?v=R1UON2PQrRs">Analytics India Magazine (AIM)</a>.
 
 ## Repository Layout
 
@@ -16,7 +11,7 @@ Recognized by <a href="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2251627
 saral/
 ├── backend/
 │   ├── gateway/                 Go REST API + orchestrator (port 8080)
-│   │   ├── internal/            auth, pipeline, db, sse, gemini, sarvam, …
+│   │   ├── internal/            auth, pipeline, db, sse, inigemini, sarvam, …
 │   │   ├── .env                 ← you create (gateway-only config)
 │   │   └── firebase-service-account.json   ← you download (secret)
 │   ├── services/
@@ -39,7 +34,8 @@ saral/
     └── .env.local               ← you create (Firebase web config)
 ```
 
-**Architecture & User Flow:** 
+**Architecture & User Flow:**
+
 - The Next.js frontend (port 3000) talks to the Go gateway (port 8080).
 - The gateway authenticates via Firebase (optional locally), stores state in Postgres, uploads artifacts to GCS (fake-GCS locally), and enqueues jobs on Redis Streams.
 - Seven workers consume those streams and report back via webhooks; the gateway pushes progress to the browser over SSE.
@@ -50,7 +46,7 @@ flowchart TD
     UI -->|API POST /upload| Gateway[Go Gateway API]
     Gateway -->|Save File| Storage[(Storage: GCS / fake-GCS)]
     Gateway -->|Enqueue Task| Redis[Redis Streams]
-    
+  
     subgraph Workers
         PDF[pdf-parser]
         Script[script-gen]
@@ -58,25 +54,25 @@ flowchart TD
         Beamer[beamer_compile]
         FFmpeg[ffmpeg_stitch]
     end
-    
+  
     Redis -->|1. Parse| PDF
     PDF -->|Webhook| Gateway
-    
+  
     Gateway -->|2. Generate| Script
     Script -->|Webhook| Gateway
-    
+  
     Gateway -.->|3. Pause for human review| UI
     UI -->|Confirm Script| Gateway
-    
+  
     Gateway -->|4. Parallel Processing| Audio
     Gateway -->|4. Parallel Processing| Beamer
-    
+  
     Audio -->|Webhook| Gateway
     Beamer -->|Webhook| Gateway
-    
+  
     Gateway -->|5. Stitch Media| FFmpeg
     FFmpeg -->|Webhook| Gateway
-    
+  
     Gateway -->|SSE Progress| UI
     UI -->|Download video.mp4| User
 ```
@@ -105,12 +101,16 @@ For the deeper architecture guide, see [backend/ARCHITECTURE.md](backend/ARCHITE
 ### Step 1: Install Package Managers & Core Setup
 
 **macOS:**
+
 - Ensure you have [Homebrew](https://brew.sh/) installed.
 
 **Windows (WSL2):**
-> You must use **WSL2** (Windows Subsystem for Linux). Do not try to run `overmind` or `poppler` on native Windows. 
-1. Open PowerShell as Administrator and run `wsl --install`. 
+
+> You must use **WSL2** (Windows Subsystem for Linux). Do not try to run `overmind` or `poppler` on native Windows.
+
+1. Open PowerShell as Administrator and run `wsl --install`.
 2. Open your new `Ubuntu` terminal and install Homebrew for Linux:
+
 ```bash
 # 1. Install Homebrew for Linux
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -143,6 +143,7 @@ brew install ffmpeg poppler            # ffmpeg-job + beamer (pdf2image)
 ### Step 3: Install LaTeX (for Beamer)
 
 **macOS:**
+
 ```bash
 # Option A (full distribution):
 brew install --cask mactex-no-gui
@@ -157,6 +158,7 @@ sudo tlmgr install beamer collection-latexrecommended collection-fontsrecommende
 ```
 
 **Windows (WSL2) & Linux:**
+
 ```bash
 sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-recommended
 ```
@@ -166,6 +168,7 @@ sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-re
 Install [Docker Desktop](https://docker.com) (enable WSL2 integration on Windows).
 
 Verify everything is ready:
+
 ```bash
 go version            # ≥ 1.25
 python3.11 --version  # 3.11.x
@@ -178,13 +181,13 @@ node --version        # ≥ 20
 
 ### API keys you need
 
-| Key | Where to get it | Used by |
-|---|---|---|
-| Gemini API key | https://aistudio.google.com/app/apikey | script-gen, audio-gen, gateway |
-| OpenRouter API key | https://openrouter.ai/keys | script-gen (when `LLM_PROVIDER=openrouter`) |
-| Sarvam API key | https://dashboard.sarvam.ai | audio-gen (TTS) |
-| LinkedIn API keys | https://www.linkedin.com/developers/apps — create an app, request 'Share on LinkedIn' and 'Sign In with LinkedIn' | gateway (social publishing) |
-| YouTube API keys | https://console.cloud.google.com/apis/credentials — create OAuth 2.0 Client IDs, enable YouTube Data API v3 | gateway (social publishing) |
+| Key                | Where to get it                                                                                                    | Used by                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| Gemini API key     | https://aistudio.google.com/app/apikey                                                                             | script-gen, audio-gen, gateway               |
+| OpenRouter API key | https://openrouter.ai/keys                                                                                         | script-gen (when`LLM_PROVIDER=openrouter`) |
+| Sarvam API key     | https://dashboard.sarvam.ai                                                                                        | audio-gen (TTS)                              |
+| LinkedIn API keys  | https://www.linkedin.com/developers/apps — create an app, request 'Share on LinkedIn' and 'Sign In with LinkedIn' | gateway (social publishing)                  |
+| YouTube API keys   | https://console.cloud.google.com/apis/credentials — create OAuth 2.0 Client IDs, enable YouTube Data API v3       | gateway (social publishing)                  |
 
 ---
 
@@ -201,6 +204,7 @@ docker compose ps     # wait for postgres + redis → "healthy"
 
 > **Docker Permission Denied Error (WSL/Linux)?**
 > If you get `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock`, you can either run the commands with `sudo` (e.g. `sudo docker compose up -d`), or permanently fix it by adding your user to the docker group:
+>
 > ```bash
 > sudo usermod -aG docker $USER
 > newgrp docker
@@ -208,11 +212,11 @@ docker compose ps     # wait for postgres + redis → "healthy"
 
 This starts (host ports):
 
-| Container | Host port | Credentials / notes |
-|---|---|---|
-| postgres:15-alpine | **5433** | user `saral_app`, password **`localpassword`**, db `saral`. `init.sql` auto-applies on first boot. |
-| redis:7-alpine | **6380** | job streams |
-| fake-gcs-server | **4443** | bucket `saral-artifacts-local` auto-created by the `fake-gcs-init` container |
+| Container          | Host port      | Credentials / notes                                                                                             |
+| ------------------ | -------------- | --------------------------------------------------------------------------------------------------------------- |
+| postgres:15-alpine | **5433** | user`saral_app`, password **`localpassword`**, db `saral`. `init.sql` auto-applies on first boot. |
+| redis:7-alpine     | **6380** | job streams                                                                                                     |
+| fake-gcs-server    | **4443** | bucket`saral-artifacts-local` auto-created by the `fake-gcs-init` container                                 |
 
 > The DB password is `localpassword` (defined in docker-compose.yml). The old `backend/SETUP.md` says `saral_pass` — that is wrong.
 
@@ -271,11 +275,11 @@ LINKEDIN_REDIRECT_URI=
 
 The `script-gen` worker is LLM-agnostic. Pick a backend via `LLM_PROVIDER` in `backend/.env.shared`:
 
-| Mode | When to use | Required env vars |
-|---|---|---|
-| `vertex` *(default)* | Existing GCP deployments; uses Vertex AI Gemini | `GCP_PROJECT_ID`, ADC |
-| `gemini_api` | Quick Gemini access via direct API key | `GEMINI_API_KEY` |
-| `openrouter` | Any model on OpenRouter (free tier, GPT, Claude, Llama, etc.) | `OPENROUTER_API_KEY` (+ optional model overrides) |
+| Mode                     | When to use                                                   | Required env vars                                   |
+| ------------------------ | ------------------------------------------------------------- | --------------------------------------------------- |
+| `vertex` *(default)* | Existing GCP deployments; uses Vertex AI Gemini               | `GCP_PROJECT_ID`, ADC                             |
+| `gemini_api`           | Quick Gemini access via direct API key                        | `GEMINI_API_KEY`                                  |
+| `openrouter`           | Any model on OpenRouter (free tier, GPT, Claude, Llama, etc.) | `OPENROUTER_API_KEY` (+ optional model overrides) |
 
 Example `openrouter` block (uncomment in `.env.shared` and fill in your own key):
 
@@ -320,10 +324,10 @@ YOUTUBE_REDIRECT_URI=
 
 ### 2.5 Place required secret/data files
 
-| File | What | How |
-|---|---|---|
-| `gateway/internal/auth/common_passwords.txt` | SecLists 10k list, embedded at compile time | If missing: `curl -s https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt -o gateway/internal/auth/common_passwords.txt` |
-| `services/audio-gen/models.json` | Bhashini model registry | A stub file containing just `[]` is fine when `TRANSLATION_PROVIDER=sarvam`. Real Bhashini credentials only needed for the 10 extended Indic languages. |
+| File                                           | What                                        | How                                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gateway/internal/auth/common_passwords.txt` | SecLists 10k list, embedded at compile time | If missing:`curl -s https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10k-most-common.txt -o gateway/internal/auth/common_passwords.txt` |
+| `services/audio-gen/models.json`             | Bhashini model registry                     | A stub file containing just`[]` is fine when `TRANSLATION_PROVIDER=sarvam`. Real Bhashini credentials only needed for the 10 extended Indic languages.                             |
 
 ### 2.6 Install dependencies
 
@@ -351,6 +355,7 @@ overmind start -f Procfile.dev
 
 > ** WSL Error: `bind: operation not supported`?**
 > Overmind uses Unix sockets, which Windows file systems (`/mnt/c/`) do not natively support. You must tell Overmind to place its socket file on the Linux side (like `/tmp/`):
+>
 > ```bash
 > OVERMIND_SOCKET=/tmp/overmind.sock overmind start -f Procfile.dev
 > ```
@@ -416,15 +421,15 @@ bun run dev     # → http://localhost:3000
 
 ### 3.3 Frontend stack cheat-sheet
 
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16 App Router, React 19, TypeScript |
-| Styling | Tailwind v4, tokens in `app/globals.css` `@theme inline` |
-| Components | shadcn (`components/ui/`) — add via `npx shadcn@latest add <name>` |
-| State | zustand: `lib/auth-store.ts`, `lib/paper-store.ts`, `lib/artifact-store.ts` |
-| API client | `lib/api.ts` (all gateway calls), types in `lib/types.ts` |
-| Auth | Firebase client SDK (`lib/firebase.ts`); guard in `app/dashboard/layout.tsx` |
-| Theming | next-themes via `context/ThemeContext.tsx` (light default, class-based dark) |
+| Layer      | Choice                                                                           |
+| ---------- | -------------------------------------------------------------------------------- |
+| Framework  | Next.js 16 App Router, React 19, TypeScript                                      |
+| Styling    | Tailwind v4, tokens in`app/globals.css` `@theme inline`                      |
+| Components | shadcn (`components/ui/`) — add via `npx shadcn@latest add <name>`          |
+| State      | zustand:`lib/auth-store.ts`, `lib/paper-store.ts`, `lib/artifact-store.ts` |
+| API client | `lib/api.ts` (all gateway calls), types in `lib/types.ts`                    |
+| Auth       | Firebase client SDK (`lib/firebase.ts`); guard in `app/dashboard/layout.tsx` |
+| Theming    | next-themes via`context/ThemeContext.tsx` (light default, class-based dark)    |
 
 ---
 
@@ -441,25 +446,25 @@ cd saral/backend && overmind start -f Procfile.dev
 cd saral/frontend && bun run dev
 ```
 
-| Task | Command |
-|---|---|
-| Logs for one service | `overmind connect gateway` (Ctrl+B, D to detach) |
-| Restart one service | `overmind restart latex-worker` |
-| Stop backend services | `overmind kill` |
-| Stop infra (keep data) | `docker compose down` |
+| Task                   | Command                                                                   |
+| ---------------------- | ------------------------------------------------------------------------- |
+| Logs for one service   | `overmind connect gateway` (Ctrl+B, D to detach)                        |
+| Restart one service    | `overmind restart latex-worker`                                         |
+| Stop backend services  | `overmind kill`                                                         |
+| Stop infra (keep data) | `docker compose down`                                                   |
 | Stop infra (wipe data) | `docker compose down -v` (numbered migrations must be re-applied after) |
 
 ---
 
 ## 5. Ports Reference
 
-| Service | Port | What |
-|---|---|---|
-| Frontend (Next.js) | 3000 | Web UI |
-| Gateway (Go/Gin) | 8080 | REST API + SSE |
-| PostgreSQL | 5433 | State (container 5432) |
-| Redis | 6380 | Job streams (container 6379) |
-| fake-GCS | 4443 | Artifact storage emulator |
+| Service            | Port | What                         |
+| ------------------ | ---- | ---------------------------- |
+| Frontend (Next.js) | 3000 | Web UI                       |
+| Gateway (Go/Gin)   | 8080 | REST API + SSE               |
+| PostgreSQL         | 5433 | State (container 5432)       |
+| Redis              | 6380 | Job streams (container 6379) |
+| fake-GCS           | 4443 | Artifact storage emulator    |
 
 ---
 
@@ -467,38 +472,38 @@ cd saral/frontend && bun run dev
 
 ### Backend won't start
 
-| Error | Fix |
-|---|---|
-| `pattern common_passwords.txt: no matching files found` | Download SecLists file → `gateway/internal/auth/common_passwords.txt` (see §2.5) |
-| `bhashini registry: read models.json: no such file` | Create `services/audio-gen/models.json` with `[]` (see §2.5) |
-| `Firebase init failed: cannot read credentials file` | Service-account JSON missing at path in `FIREBASE_CREDENTIALS_FILE` (relative to `gateway/`) |
-| `Firebase init failed: no private key data found` | The JSON is a placeholder — download the real key from Firebase Console |
-| `dial tcp [::1]:6380: connect: connection refused` | Infra not running or ports unbound: `docker compose ps` must show `0.0.0.0:6380->6379`. If not: `docker compose down && docker compose up -d` **from `backend/`** |
-| Python `ModuleNotFoundError` | Recreate that worker's venv (§2.6). Note: only 4 services are Python — running `uv sync` in `script-gen`/`audio-gen` errors with "No pyproject.toml" (harmless) |
-| `xelatex failed` / blank slides | `brew install --cask basictex`, restart terminal |
-| ffmpeg-worker fails to stitch | `brew install ffmpeg` |
-| pdf2image / poppler errors | `brew install poppler` |
+| Error                                                     | Fix                                                                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pattern common_passwords.txt: no matching files found` | Download SecLists file →`gateway/internal/auth/common_passwords.txt` (see §2.5)                                                                                            |
+| `bhashini registry: read models.json: no such file`     | Create`services/audio-gen/models.json` with `[]` (see §2.5)                                                                                                               |
+| `Firebase init failed: cannot read credentials file`    | Service-account JSON missing at path in`FIREBASE_CREDENTIALS_FILE` (relative to `gateway/`)                                                                                |
+| `Firebase init failed: no private key data found`       | The JSON is a placeholder — download the real key from Firebase Console                                                                                                       |
+| `dial tcp [::1]:6380: connect: connection refused`      | Infra not running or ports unbound:`docker compose ps` must show `0.0.0.0:6380->6379`. If not: `docker compose down && docker compose up -d` **from `backend/`** |
+| Python`ModuleNotFoundError`                             | Recreate that worker's venv (§2.6). Note: only 4 services are Python — running`uv sync` in `script-gen`/`audio-gen` errors with "No pyproject.toml" (harmless)         |
+| `xelatex failed` / blank slides                         | `brew install --cask basictex`, restart terminal                                                                                                                             |
+| ffmpeg-worker fails to stitch                             | `brew install ffmpeg`                                                                                                                                                        |
+| pdf2image / poppler errors                                | `brew install poppler`                                                                                                                                                       |
 
 ### Pipeline runs but a stage fails
 
 Check `error_message`: `curl -s localhost:8080/api/papertovideo/<run_id>/status -H "X-User-ID: testuser1"`
 
-| Stage | Usual cause |
-|---|---|
-| `script_gen` | `GEMINI_API_KEY` missing/invalid in `backend/.env.shared`, or (when `LLM_PROVIDER=openrouter`) `OPENROUTER_API_KEY` missing/invalid (`OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter`) |
-| `audio_gen` | `SARVAM_API_KEY` missing/invalid in `backend/.env.shared` |
-| `beamer_compile` | xelatex missing, or font issues (check `overmind connect latex-worker`) |
-| `ffmpeg_stitch` | ffmpeg missing |
-| Pipeline "stuck" after script_gen | Not stuck — it's the intentional human-review pause. `POST /script/confirm`. |
+| Stage                             | Usual cause                                                                                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `script_gen`                    | `GEMINI_API_KEY` missing/invalid in `backend/.env.shared`, or (when `LLM_PROVIDER=openrouter`) `OPENROUTER_API_KEY` missing/invalid (`OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter`) |
+| `audio_gen`                     | `SARVAM_API_KEY` missing/invalid in `backend/.env.shared`                                                                                                                                                 |
+| `beamer_compile`                | xelatex missing, or font issues (check`overmind connect latex-worker`)                                                                                                                                      |
+| `ffmpeg_stitch`                 | ffmpeg missing                                                                                                                                                                                                |
+| Pipeline "stuck" after script_gen | Not stuck — it's the intentional human-review pause.`POST /script/confirm`.                                                                                                                                |
 
 ### Frontend issues
 
-| Symptom | Fix |
-|---|---|
-| `auth/invalid-api-key` in browser console | `.env.local` Firebase values missing/wrong; restart dev server after editing |
-| API calls hit wrong host | Set `NEXT_PUBLIC_GATEWAY=http://localhost:8080` and restart |
-| PDF previews broken | `public/pdfjs/pdf.worker.min.mjs` missing — re-run `npm install` (postinstall copies it) |
-| Login works but dashboard kicks you out | Backend gateway not running, or `FIREBASE_PROJECT_ID` mismatch between gateway `.env` and frontend `.env.local` |
+| Symptom                                     | Fix                                                                                                                  |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `auth/invalid-api-key` in browser console | `.env.local` Firebase values missing/wrong; restart dev server after editing                                       |
+| API calls hit wrong host                    | Set`NEXT_PUBLIC_GATEWAY=http://localhost:8080` and restart                                                         |
+| PDF previews broken                         | `public/pdfjs/pdf.worker.min.mjs` missing — re-run `npm install` (postinstall copies it)                        |
+| Login works but dashboard kicks you out     | Backend gateway not running, or`FIREBASE_PROJECT_ID` mismatch between gateway `.env` and frontend `.env.local` |
 
 ### Redis / queue debugging
 
@@ -514,55 +519,55 @@ redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
 
 ### `backend/.env.shared` (all workers)
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `ENV` | yes | `local` / `production` |
-| `DATABASE_URL` | yes | Postgres DSN (workers write step state) |
-| `REDIS_URL` | yes | Job streams |
-| `STORAGE_BUCKET` | yes | `saral-artifacts-local` locally |
-| `STORAGE_EMULATOR_HOST` | local only | `http://localhost:4443` — unset in prod |
-| `GATEWAY_WEBHOOK_URL` | yes | Where workers POST completion webhooks |
-| `LLM_PROVIDER` | no | LLM backend: `vertex` (default), `gemini_api`, or `openrouter` |
-| `GEMINI_API_KEY` | depends | Required when `LLM_PROVIDER=gemini_api`; also used by audio-gen |
-| `OPENROUTER_API_KEY` | when `LLM_PROVIDER=openrouter` | OpenRouter bearer token |
-| `OPENROUTER_FLASH_MODEL` | no | OpenRouter model slug for Flash tier; default `google/gemini-2.5-flash` |
-| `OPENROUTER_PRO_MODEL` | no | OpenRouter model slug for Pro tier; default `google/gemini-2.5-pro` |
-| `OPENROUTER_SITE_URL` | no | `HTTP-Referer` header sent to OpenRouter |
-| `OPENROUTER_SITE_NAME` | no | `X-Title` header sent to OpenRouter |
-| `SARVAM_API_KEY` | yes | audio-gen TTS |
-| `GCP_PROJECT_ID` | yes | Gemini/Vertex project |
-| `TRANSLATION_PROVIDER` | no | `sarvam` (default) / `bhashini` |
-| `MODELS_JSON_PATH` | no | Override path to audio-gen models.json |
-| `FRONTEND_BASE_URL` | no | Used in links/redirects |
-| `LINKEDIN_*` | no | Social publishing (blank locally) |
+| Variable                   | Required                        | Purpose                                                                                                                          |
+| -------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `ENV`                    | yes                             | `local` / `production`                                                                                                       |
+| `DATABASE_URL`           | yes                             | Postgres DSN (workers write step state)                                                                                          |
+| `REDIS_URL`              | yes                             | Job streams                                                                                                                      |
+| `STORAGE_BUCKET`         | yes                             | `saral-artifacts-local` locally                                                                                                |
+| `STORAGE_EMULATOR_HOST`  | local only                      | `http://localhost:4443` — unset in prod                                                                                       |
+| `GATEWAY_WEBHOOK_URL`    | yes                             | Where workers POST completion webhooks                                                                                           |
+| `LLM_PROVIDER`           | no                              | LLM backend:`vertex` (default), `gemini_api`, or `openrouter`                                                              |
+| `GEMINI_API_KEY`         | depends                         | Required when`LLM_PROVIDER=gemini_api`; also used by audio-gen                                                                 |
+| `OPENROUTER_API_KEY`     | when`LLM_PROVIDER=openrouter` | OpenRouter bearer token                                                                                                          |
+| `OPENROUTER_FLASH_MODEL` | no                              | OpenRouter model slug for Flash tier; default`google/gemini-3.6grep -R -n "gemini-2.5-flash" backend/services README.md-flash` |
+| `OPENROUTER_PRO_MODEL`   | no                              | OpenRouter model slug for Pro tier; default`google/gemini-2.5-pro`                                                             |
+| `OPENROUTER_SITE_URL`    | no                              | `HTTP-Referer` header sent to OpenRouter                                                                                       |
+| `OPENROUTER_SITE_NAME`   | no                              | `X-Title` header sent to OpenRouter                                                                                            |
+| `SARVAM_API_KEY`         | yes                             | audio-gen TTS                                                                                                                    |
+| `GCP_PROJECT_ID`         | yes                             | Gemini/Vertex project                                                                                                            |
+| `TRANSLATION_PROVIDER`   | no                              | `sarvam` (default) / `bhashini`                                                                                              |
+| `MODELS_JSON_PATH`       | no                              | Override path to audio-gen models.json                                                                                           |
+| `FRONTEND_BASE_URL`      | no                              | Used in links/redirects                                                                                                          |
+| `LINKEDIN_*`             | no                              | Social publishing (blank locally)                                                                                                |
 
 ### `backend/gateway/.env` (gateway only)
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `ENV`, `PORT` | yes | `local`, `8080` |
-| `DATABASE_URL`, `REDIS_URL` | yes | Same values as .env.shared |
-| `STORAGE_BUCKET`, `STORAGE_EMULATOR_HOST` | yes | Artifact storage |
-| `FIREBASE_PROJECT_ID` | yes | Token verification |
-| `FIREBASE_CREDENTIALS_FILE` | yes | Path to service-account JSON (relative to `gateway/`) |
-| `FIREBASE_WEB_API_KEY` | for real auth | Email/password + Google OAuth REST flows |
-| `KEYS_ENCRYPTION_KEY` | yes | Encrypts per-user API keys stored in `users` table |
-| `GEMINI_MODEL` | no | Override default Gemini model |
-| `SARAL_ADMIN_UIDS` | no | Comma-separated admin Firebase UIDs |
-| `GCP_PROJECT_ID`, `GCP_REGION` | prod only | Cloud Run deployment |
-| `YOUTUBE_*`, `LINKEDIN_*`, `DASHBOARD_WEBHOOK_*` | no | Integrations (blank locally) |
+| Variable                                               | Required      | Purpose                                                |
+| ------------------------------------------------------ | ------------- | ------------------------------------------------------ |
+| `ENV`, `PORT`                                      | yes           | `local`, `8080`                                    |
+| `DATABASE_URL`, `REDIS_URL`                        | yes           | Same values as .env.shared                             |
+| `STORAGE_BUCKET`, `STORAGE_EMULATOR_HOST`          | yes           | Artifact storage                                       |
+| `FIREBASE_PROJECT_ID`                                | yes           | Token verification                                     |
+| `FIREBASE_CREDENTIALS_FILE`                          | yes           | Path to service-account JSON (relative to`gateway/`) |
+| `FIREBASE_WEB_API_KEY`                               | for real auth | Email/password + Google OAuth REST flows               |
+| `KEYS_ENCRYPTION_KEY`                                | yes           | Encrypts per-user API keys stored in`users` table    |
+| `GEMINI_MODEL`                                       | no            | Override default Gemini model                          |
+| `SARAL_ADMIN_UIDS`                                   | no            | Comma-separated admin Firebase UIDs                    |
+| `GCP_PROJECT_ID`, `GCP_REGION`                     | prod only     | Cloud Run deployment                                   |
+| `YOUTUBE_*`, `LINKEDIN_*`, `DASHBOARD_WEBHOOK_*` | no            | Integrations (blank locally)                           |
 
 ### `frontend/.env.local`
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | yes | Firebase web SDK |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | yes | 〃 |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | yes | 〃 (must match gateway's `FIREBASE_PROJECT_ID`) |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | yes | 〃 |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | yes | 〃 |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | yes | 〃 |
-| `NEXT_PUBLIC_GATEWAY` | no | Gateway URL; defaults to `http://localhost:8080` (`NEXT_PUBLIC_API_URL` also accepted) |
+| Variable                                     | Required | Purpose                                                                                   |
+| -------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | yes      | Firebase web SDK                                                                          |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | yes      | 〃                                                                                        |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | yes      | 〃 (must match gateway's`FIREBASE_PROJECT_ID`)                                          |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | yes      | 〃                                                                                        |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | yes      | 〃                                                                                        |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | yes      | 〃                                                                                        |
+| `NEXT_PUBLIC_GATEWAY`                      | no       | Gateway URL; defaults to`http://localhost:8080` (`NEXT_PUBLIC_API_URL` also accepted) |
 
 ---
 
@@ -570,7 +575,7 @@ redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
 
 - [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) — system diagrams, data flow, scaling
 - [backend/AUTH_ENDPOINTS.md](backend/AUTH_ENDPOINTS.md) — auth contract details
-- [backend/Saral Overhaul API Collection/](backend/Saral%20Overhaul%20API%20Collection/) — importable API collection
+- [backend/Saral Overhaul API Collection/](<backend/Saral%20Overhaul%20API%20Collection/>) — importable API collection
 
 ---
 
@@ -581,4 +586,3 @@ redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
 - **Update this guide** if you add a new local dependency or setup step.
 - **Run linters before pushing:** `go vet ./...`, `ruff check .`, `bun run lint`, `npx tsc --noEmit`.
 - For full contribution guidelines, code of conduct, and PR checklist, see [CONTRIBUTING.md](CONTRIBUTING.md).
-

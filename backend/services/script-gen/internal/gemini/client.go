@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ModelFlash = "gemini-2.5-flash"
+	ModelFlash = "gemini-3.6-flash"
 	ModelPro   = "gemini-2.5-pro"
 )
 

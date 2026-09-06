@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultBaseURL          = "https://generativelanguage.googleapis.com/v1beta"
-	defaultTranslationModel = "gemini-2.5-flash"
+	defaultTranslationModel = "gemini-3.6-flash"
 	defaultTTSModel         = "gemini-2.5-flash-preview-tts"
 	pcmSampleRate           = 24000
 	pcmChannels             = 1
