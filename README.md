@@ -11,7 +11,7 @@ Recognized by <a href="https://www.pib.gov.in/PressReleasePage.aspx?PRID=2251627
 saral/
 ├── backend/
 │   ├── gateway/                 Go REST API + orchestrator (port 8080)
-│   │   ├── internal/            auth, pipeline, db, sse, inigemini, sarvam, …
+│   │   ├── internal/            auth, pipeline, db, sse, gemini, sarvam, …
 │   │   ├── .env                 ← you create (gateway-only config)
 │   │   └── firebase-service-account.json   ← you download (secret)
 │   ├── services/
