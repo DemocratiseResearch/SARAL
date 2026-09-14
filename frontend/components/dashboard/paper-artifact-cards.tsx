@@ -84,6 +84,127 @@ function GeneratingCard({
   color,
   onReopenModal,
 }: GeneratingCardProps) {
+  const pipelineSteps: Record<string, string[]> = {
+    video: ["script_gen", "beamer_compile", "audio_gen", "ffmpeg_stitch"],
+    podcast: ["podcast_script_gen", "podcast_tts", "ffmpeg_stitch"],
+    reel: ["reel_script_gen", "reel_audio_gen", "reel_video_gen"],
+    poster: ["script_gen", "poster_image_extract", "poster_compile"],
+    presentation: ["script_gen", "beamer_compile"],
+    "x-linkedin": ["linkedin_draft", "twitter_draft"],
+    "business-brief": [
+      "business_brief_script",
+      "business_brief_prepare_pdf",
+      "business_brief_pdf_render",
+    ],
+  };
+
+  const steps = pipelineSteps[artifact.type] ?? [];
+
+  const currentStepIndex = artifact.currentStep
+    ? steps.indexOf(artifact.currentStep)
+    : -1;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onReopenModal}
+      className="h-full min-h-62 w-full min-w-0 flex-col items-stretch justify-start gap-0 rounded-xl border border-pill-border bg-linen dark:bg-saral-dark p-3.5 text-left font-normal shadow-sm transition-colors hover:bg-saral-forest/20 hover:shadow-md"
+    >
+      <div
+        className="w-full aspect-video rounded-[10px] mb-3 flex flex-col items-center justify-center gap-2"
+        style={{ backgroundColor: color + "30" }}
+      >
+        <Loader2 size={22} className="animate-spin" style={{ color }} />
+
+        <span
+          className="font-sans text-[11px] font-semibold text-center px-3"
+          style={{ color }}
+        >
+          {artifact.statusMessage || "Starting generation…"}
+        </span>
+      </div>
+
+      <div className="mb-2 w-full">
+        <p className="font-sans font-bold text-sm text-ink dark:text-white truncate">
+          {ARTIFACT_CONFIG[artifact.type].label}
+        </p>
+
+        {steps.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {steps.map((step, index) => {
+              const isCompleted =
+                currentStepIndex >= 0 && index < currentStepIndex;
+
+              const isCurrent =
+                currentStepIndex >= 0 && index === currentStepIndex;
+
+              return (
+                <div
+                  key={step}
+                  className="flex items-center gap-2 text-[11px]"
+                >
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
+                      isCompleted
+                        ? "border-saral-forest bg-saral-forest text-white"
+                        : isCurrent
+                          ? "border-current"
+                          : "border-ink-faint dark:border-white/30"
+                    }`}
+                    style={isCurrent ? { color } : undefined}
+                  >
+                    {isCompleted ? "✓" : isCurrent ? "•" : ""}
+                  </span>
+
+                  <span
+                    className={
+                      isCompleted
+                        ? "text-ink-muted dark:text-white/60"
+                        : isCurrent
+                          ? "font-semibold"
+                          : "text-ink-faint dark:text-white/40"
+                    }
+                    style={isCurrent ? { color } : undefined}
+                  >
+                    {step
+                      .replaceAll("_", " ")
+                      .replace(/\b\w/g, (char) => char.toUpperCase())}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-auto w-full">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="font-sans text-[10px] text-ink-muted dark:text-white/60">
+            Live status
+          </span>
+
+          <span
+            className="font-sans text-[10px] font-semibold"
+            style={{ color }}
+          >
+            {Math.round(artifact.progress)}%
+          </span>
+        </div>
+
+        <div className="w-full h-1 bg-[#d9d0c4] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{
+              width: `${artifact.progress}%`,
+              backgroundColor: color,
+            }}
+          />
+        </div>
+      </div>
+    </Button>
+  );
+}
   return (
     <Button
       type="button"
