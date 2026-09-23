@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
 import { X, ZoomIn } from "lucide-react";
 import { BEAMER_THEMES } from "@/lib/beamer-themes";
@@ -8,11 +9,16 @@ import { BEAMER_THEMES } from "@/lib/beamer-themes";
 interface ThemePickerProps {
   value: string;
   onChange: (next: string) => void;
+  thumbnailSizes: string;
 }
 
 // Card grid + click-to-enlarge lightbox. Click a card to select; click the
 // zoom-in icon (top-right) to view the actual rendered slide full-size.
-export function ThemePicker({ value, onChange }: ThemePickerProps) {
+export function ThemePicker({
+  value,
+  onChange,
+  thumbnailSizes,
+}: ThemePickerProps) {
   const [zoomed, setZoomed] = useState<
     (typeof BEAMER_THEMES)[number] | null
   >(null);
@@ -36,11 +42,13 @@ export function ThemePicker({ value, onChange }: ThemePickerProps) {
                 onClick={() => onChange(t.value)}
                 className="block w-full cursor-pointer"
               >
-                <img
+                <Image
                   src={t.preview}
-                  alt={t.label}
+                  alt=""
+                  width={1260}
+                  height={709}
+                  sizes={thumbnailSizes}
                   className="w-full aspect-[16/9] object-cover bg-white"
-                  loading="lazy"
                 />
                 <div
                   className={`px-2 py-1.5 text-[12px] font-medium text-center ${
@@ -91,9 +99,12 @@ export function ThemePicker({ value, onChange }: ThemePickerProps) {
                 >
                   <X size={18} />
                 </button>
-                <img
+                <Image
                   src={zoomed.preview}
-                  alt={zoomed.label}
+                  alt={`Preview of ${zoomed.label} slide template`}
+                  width={1260}
+                  height={709}
+                  sizes="(max-width: 943px) calc(100vw - 3rem), 56rem"
                   className="w-full rounded-xl shadow-2xl bg-white"
                 />
                 <div className="mt-3 flex items-center justify-between">

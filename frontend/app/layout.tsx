@@ -83,7 +83,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: [SITE_OG_IMAGE],
+    images: [{ url: SITE_OG_IMAGE, alt: SITE_TITLE }],
   },
   appleWebApp: {
     capable: true,

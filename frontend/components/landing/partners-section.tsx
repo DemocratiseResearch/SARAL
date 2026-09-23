@@ -22,11 +22,13 @@ export default function PartnersSection() {
               <div className="rounded-2xl dark:bg-white/[0.06] dark:ring-1 dark:ring-white/10 dark:p-3 transition-colors">
                 <Image
                   src={partner.src}
-                  alt={partner.name}
-                  width={240}
-                  height={96}
+                  alt=""
+                  width={partner.width}
+                  height={partner.height}
+                  sizes="(max-width: 639px) 8.3rem, (max-width: 767px) 10.4rem, 12.5rem"
+                  style={{ width: "auto" }}
                   className="
-                    h-24 max-md:h-20 max-sm:h-16 w-auto max-w-60 max-sm:max-w-40 object-contain
+                    h-24 max-md:h-20 max-sm:h-16 max-w-60 max-sm:max-w-40 object-contain
                     group-hover:scale-110
                     transition-transform duration-300
                   "

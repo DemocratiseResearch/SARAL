@@ -97,7 +97,11 @@ export default function PresentationConfigModal() {
                   <p className="font-sans text-[13px] font-semibold text-ink dark:text-white mb-2">
                     Slide Template
                   </p>
-                  <ThemePicker value={theme} onChange={setTheme} />
+                  <ThemePicker
+                    value={theme}
+                    onChange={setTheme}
+                    thumbnailSizes="(max-width: 399px) calc((100vw - 4.75rem) / 2), (max-width: 639px) calc((94vw - 3.25rem) / 2), (max-width: 719px) calc((100vw - 7.5rem) / 3), 12.5rem"
+                  />
                 </div>
               </div>
 

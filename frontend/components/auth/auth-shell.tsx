@@ -126,10 +126,10 @@ export default function AuthShell({
       <AuthCardInner>
         {/* Logo row */}
         <div className="flex items-center mb-6">
-          <Image src="/light/Logo-Sqaure-light.svg" alt="Saral AI" width={32} height={32} className="block sm:hidden dark:hidden h-8 w-auto object-contain" priority />
-          <Image src="/dark/Logo-Sqaure-dark.svg" alt="Saral AI" width={32} height={32} className="hidden dark:block sm:dark:hidden h-8 w-auto object-contain" priority />
-          <Image src="/light/Logo-Full-light.svg" alt="Saral AI" width={120} height={32} className="hidden sm:block dark:hidden h-8 w-auto object-contain" priority />
-          <Image src="/dark/Logo-Full-dark.svg" alt="Saral AI" width={120} height={32} className="hidden sm:dark:block h-8 w-auto object-contain" priority />
+          <Image src="/light/Logo-Sqaure-light.svg" alt="Saral AI" width={207} height={100} loading="eager" style={{ width: "auto" }} className="block sm:hidden dark:hidden h-8 w-auto object-contain" />
+          <Image src="/dark/Logo-Sqaure-dark.svg" alt="Saral AI" width={207} height={100} loading="eager" style={{ width: "auto" }} className="hidden dark:block sm:dark:hidden h-8 w-auto object-contain" />
+          <Image src="/light/Logo-Full-light.svg" alt="Saral AI" width={520} height={100} loading="eager" style={{ width: "auto" }} className="hidden sm:block dark:hidden h-8 w-auto object-contain" />
+          <Image src="/dark/Logo-Full-dark.svg" alt="Saral AI" width={520} height={100} loading="eager" style={{ width: "auto" }} className="hidden sm:dark:block h-8 w-auto object-contain" />
         </div>
 
         {/* Heading */}

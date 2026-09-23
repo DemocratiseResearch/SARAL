@@ -13,6 +13,14 @@ export const metadata: Metadata = {
     description:
       "See what researchers, educators, and students say about Saral AI — real stories of turning dense papers into engaging videos, podcasts, and slides.",
     url: "/testimonials",
+    images: [
+      {
+        url: "/light/Logo-Sqaure-light.png",
+        width: 414,
+        height: 201,
+        alt: "Saral AI testimonials",
+      },
+    ],
   },
 };
 import Footer from "@/components/landing/footer";

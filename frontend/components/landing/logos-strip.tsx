@@ -41,16 +41,17 @@ export default function LogosStrip() {
         >
           {looped.map((logo, i) => {
             const px = logo.size ?? 90;
-            const smPx = Math.round(px * 0.75);
+            const isDuplicate = i >= instituteLogos.length;
             return (
               <div
                 key={`${logo.id}-${i}`}
+                aria-hidden={isDuplicate}
                 className="shrink-0 flex items-center justify-center"
                 style={{ width: px, height: px }}
               >
                 <Image
                   src={logo.src}
-                  alt={logo.alt}
+                  alt={isDuplicate ? "" : logo.alt}
                   width={px}
                   height={px}
                   className="object-contain rounded-xl hover:scale-110 transition-transform duration-300"

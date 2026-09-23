@@ -13,6 +13,14 @@ export const metadata: Metadata = {
     description:
       "Read the Saral AI privacy policy: how we collect, use, and protect your data when you use our research-to-media platform.",
     url: "/privacy-policy",
+    images: [
+      {
+        url: "/light/Logo-Sqaure-light.png",
+        width: 414,
+        height: 201,
+        alt: "Saral AI privacy policy",
+      },
+    ],
   },
 };
 

@@ -31,18 +31,20 @@ export default function NotFound() {
         <Image
           src="/light/Logo-Full-light.svg"
           alt="Saral AI"
-          width={200}
+          width={520}
           height={100}
+          loading="eager"
+          style={{ width: "auto" }}
           className="block dark:hidden h-16 w-auto object-contain"
-          priority
         />
         <Image
           src="/dark/Logo-Full-dark.svg"
           alt="Saral AI"
-          width={200}
+          width={520}
           height={100}
+          loading="eager"
+          style={{ width: "auto" }}
           className="hidden dark:block h-16 w-auto object-contain"
-          priority
         />
       </Link>
 

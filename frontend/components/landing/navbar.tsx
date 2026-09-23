@@ -43,34 +43,38 @@ function SaralLogo() {
         <Image
           src="/light/Logo-Sqaure-light.svg"
           alt="Saral AI"
-          width={20}
-          height={20}
+          width={207}
+          height={100}
+          loading="eager"
+          style={{ width: "auto" }}
           className="block sm:hidden dark:hidden h-6 w-auto object-contain"
-          priority
         />
         <Image
           src="/dark/Logo-Sqaure-dark.svg"
           alt="Saral AI"
-          width={20}
-          height={20}
+          width={207}
+          height={100}
+          loading="eager"
+          style={{ width: "auto" }}
           className="hidden dark:block sm:dark:hidden h-6 w-auto object-contain"
-          priority
         />
         <Image
           src="/light/Logo-Full-light.svg"
           alt="Saral AI"
-          width={50}
-          height={25}
+          width={520}
+          height={100}
+          loading="eager"
+          style={{ width: "auto" }}
           className="hidden sm:block dark:hidden h-8 w-auto object-contain"
-          priority
         />
         <Image
           src="/dark/Logo-Full-dark.svg"
           alt="Saral AI"
-          width={50}
-          height={25}
+          width={520}
+          height={100}
+          loading="eager"
+          style={{ width: "auto" }}
           className="hidden sm:dark:block h-8 w-auto object-contain"
-          priority
         />
       </Link>
       <div className="h-4 w-px bg-ink/15 dark:bg-white/20 shrink-0" />

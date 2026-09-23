@@ -13,6 +13,14 @@ export const metadata: Metadata = {
     description:
       "Learn about Saral AI — our mission to democratise research by turning academic papers into accessible videos, podcasts, slides, and reels.",
     url: "/about",
+    images: [
+      {
+        url: "/light/Logo-Sqaure-light.png",
+        width: 414,
+        height: 201,
+        alt: "About Saral AI",
+      },
+    ],
   },
 };
 

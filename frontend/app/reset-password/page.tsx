@@ -49,34 +49,38 @@ function LogoRow() {
       <Image
         src="/light/Logo-Sqaure-light.svg"
         alt="Saral AI"
-        width={32}
-        height={32}
+        width={207}
+        height={100}
+        loading="eager"
+        style={{ width: "auto" }}
         className="block h-8 w-auto object-contain dark:hidden sm:hidden"
-        priority
       />
       <Image
         src="/dark/Logo-Sqaure-dark.svg"
         alt="Saral AI"
-        width={32}
-        height={32}
+        width={207}
+        height={100}
+        loading="eager"
+        style={{ width: "auto" }}
         className="hidden h-8 w-auto object-contain dark:block sm:dark:hidden"
-        priority
       />
       <Image
         src="/light/Logo-Full-light.svg"
         alt="Saral AI"
-        width={120}
-        height={32}
+        width={520}
+        height={100}
+        loading="eager"
+        style={{ width: "auto" }}
         className="hidden h-8 w-auto object-contain dark:hidden sm:block"
-        priority
       />
       <Image
         src="/dark/Logo-Full-dark.svg"
         alt="Saral AI"
-        width={120}
-        height={32}
+        width={520}
+        height={100}
+        loading="eager"
+        style={{ width: "auto" }}
         className="hidden h-8 w-auto object-contain sm:dark:block"
-        priority
       />
     </div>
   );
