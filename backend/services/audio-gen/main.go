@@ -162,6 +162,9 @@ var (
 func main() {
 	_ = godotenv.Load("../../.env.shared")
 	_ = godotenv.Load("../../portugese.env", "../../portuguese.env", "portugese.env", "portuguese.env")
+	if len(os.Getenv("WORKER_WEBHOOK_SECRET")) < 32 {
+		log.Fatal("WORKER_WEBHOOK_SECRET must be configured with at least 32 bytes")
+	}
 	ctx := context.Background()
 
 	gatewayURL = os.Getenv("GATEWAY_WEBHOOK_URL")

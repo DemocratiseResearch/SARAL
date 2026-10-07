@@ -86,6 +86,10 @@ func handleBriefComplete(ctx interface{ Done() <-chan struct{} }, c *gin.Context
 
 func handleBriefScript(ctx interface{ Done() <-chan struct{} }, c *gin.Context, pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manager, update *contracts.WorkerUpdate) {
 	gctx := c.Request.Context()
+	if update.Status != "completed" && update.Status != "failed" {
+		apiresp.Error(c, http.StatusBadRequest, "invalid_status", "status must be 'completed' or 'failed'")
+		return
+	}
 	briefID, err := uuid.Parse(update.BriefID)
 	if err != nil {
 		apiresp.Error(c, http.StatusBadRequest, "invalid_brief_id", "invalid brief_id")

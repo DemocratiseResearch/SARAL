@@ -8,7 +8,6 @@ import tempfile
 import time
 from pathlib import Path
 
-import httpx
 import redis as redis_lib
 from dotenv import load_dotenv
 
@@ -35,8 +34,6 @@ BRIEF_STREAM = "saral:jobs:business_brief"
 GROUP = "saral-workers"
 CONSUMER = f"latex-worker-{os.environ.get('HOSTNAME', str(os.getpid()))}"
 DEFAULT_PPT_TEMPLATE = "template-saral"
-
-GATEWAY_URL = os.environ.get("GATEWAY_WEBHOOK_URL", "http://localhost:8080")
 
 # Translation provider: "sarvam" (default) uses Sarvam mayura/sarvam-translate;
 # "bhashini" falls back to the IIIT Bhashini models.
@@ -245,22 +242,11 @@ def _translate_script_for_slides(script: dict) -> dict:
 
 
 def _send_brief_webhook(brief_id: str, payload: dict, max_retries: int = 3, delay: float = 2.0) -> None:
-    """POST business-brief result to the generic webhook route.
-    Uses step_name='business_brief' and brief_id so the gateway routes it
-    to the business_brief handler inside webhook.Handler.
-    """
-    url = f"{GATEWAY_URL}/webhooks/worker/business_brief"
-    for attempt in range(1, max_retries + 1):
-        try:
-            r = httpx.post(url, json=payload, timeout=10.0)
-            r.raise_for_status()
-            log.info("brief webhook ok brief_id=%s status=%d", brief_id, r.status_code)
-            return
-        except (httpx.HTTPError, httpx.RequestError) as exc:
-            log.warning("brief webhook attempt %d/%d failed: %s", attempt, max_retries, exc)
-            if attempt < max_retries:
-                time.sleep(delay)
-    raise RuntimeError(f"business-brief webhook failed after {max_retries} attempts")
+    """POST business-brief result using the signed shared webhook client."""
+    payload["step_name"] = "business_brief"
+    payload["brief_id"] = brief_id
+    wh.send_webhook(payload, max_retries=max_retries, retry_delay=delay)
+    log.info("brief webhook ok brief_id=%s", brief_id)
 
 
 def _brief_gcs_key(user_id: str, paper_id: str, suffix: str) -> str:

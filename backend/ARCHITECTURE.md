@@ -34,7 +34,7 @@
         │         │  • /api/papers/arxiv     (preprint ingest)           │   │
         │         │  • /api/paper/:id/business-brief                     │   │
         │         │  • /api/social/{youtube,linkedin}/*                  │   │
-        │         │  • /webhooks/worker/:service                         │   │
+        │         │  • /webhooks/worker/:service (HMAC + replay guard)   │   │
         │         └──┬─────────────────┬─────────────────┬──────────────┘   │
         │            │                 │                 │                   │
         │    ┌───────▼────┐   ┌────────▼──────┐  ┌──────▼──────┐           │
@@ -207,8 +207,14 @@ USER DOWNLOAD
 All workers:
 1. Consume from a Redis Stream consumer group (`saral-workers`)
 2. Process the job (download from GCS → transform → upload to GCS)
-3. Send a webhook to `POST /webhooks/worker/:service` on completion or failure
+3. Send a signed webhook to `POST /webhooks/worker/:service` on completion or failure
 4. Retry failed webhook deliveries (3× exponential backoff)
+
+Worker webhooks are authenticated with `WORKER_WEBHOOK_SECRET` (minimum 32 bytes),
+HMAC-SHA256 over method, request-target, timestamp, nonce and the exact body. The
+gateway rejects expired signatures and replayed nonces. Configure the same secret
+in the gateway and every worker via the deployment secret manager; see
+`WORKER_WEBHOOKS.md`. Network-level isolation of the webhook route remains required.
 
 ---
 

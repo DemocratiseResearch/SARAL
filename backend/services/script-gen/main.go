@@ -79,6 +79,9 @@ func main() {
 
 // initApp reads environment variables and initialises all external clients.
 func initApp(ctx context.Context) (*app, error) {
+	if len(os.Getenv("WORKER_WEBHOOK_SECRET")) < 32 {
+		return nil, fmt.Errorf("WORKER_WEBHOOK_SECRET must be configured with at least 32 bytes")
+	}
 	gatewayURL := os.Getenv("GATEWAY_WEBHOOK_URL")
 	if gatewayURL == "" {
 		gatewayURL = "http://localhost:8080"

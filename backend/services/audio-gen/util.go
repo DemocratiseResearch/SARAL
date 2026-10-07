@@ -3,11 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -62,20 +68,56 @@ func sendWebhook(runID, stepID, status, gcsPath, errMsg, stepName string) {
 		ErrorMessage:  errMsg,
 		NextStep:      "",
 	}
-	body, _ := json.Marshal(payload)
-	url := fmt.Sprintf("%s/webhooks/worker/%s", gatewayURL, stepName)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("marshal webhook payload failed: %v", err)
+		return
+	}
+	webhookURL := fmt.Sprintf("%s/webhooks/worker/%s", strings.TrimRight(gatewayURL, "/"), stepName)
+	client := &http.Client{Timeout: 15 * time.Second}
 	for attempt := 1; attempt <= 3; attempt++ {
-		resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+		req, err := signedWorkerRequest(webhookURL, body)
 		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode < 300 {
-				return
+			var resp *http.Response
+			resp, err = client.Do(req)
+			if err == nil {
+				resp.Body.Close()
+				if resp.StatusCode < 300 {
+					return
+				}
+				err = fmt.Errorf("non-2xx webhook status %d", resp.StatusCode)
 			}
 		}
 		log.Printf("webhook attempt %d failed: %v", attempt, err)
 		time.Sleep(time.Duration(attempt*2) * time.Second)
 	}
 	log.Printf("webhook permanently failed for run=%s step=%s", runID, stepName)
+}
+
+func signedWorkerRequest(webhookURL string, body []byte) (*http.Request, error) {
+	secret := []byte(os.Getenv("WORKER_WEBHOOK_SECRET"))
+	if len(secret) < 32 {
+		return nil, fmt.Errorf("WORKER_WEBHOOK_SECRET must contain at least 32 bytes")
+	}
+	req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	nonceBytes := make([]byte, 16)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return nil, fmt.Errorf("generate webhook nonce: %w", err)
+	}
+	nonce := hex.EncodeToString(nonceBytes)
+	canonical := fmt.Sprintf("POST\n%s\n%s\n%s\n", req.URL.RequestURI(), timestamp, nonce)
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(canonical))
+	_, _ = mac.Write(body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Saral-Worker-Timestamp", timestamp)
+	req.Header.Set("X-Saral-Worker-Nonce", nonce)
+	req.Header.Set("X-Saral-Worker-Signature", hex.EncodeToString(mac.Sum(nil)))
+	return req, nil
 }
 
 // ── Language normalisation ────────────────────────────────────────────────────
@@ -171,4 +213,3 @@ func truncate(s string, n int) string {
 	}
 	return string(r[:n]) + "..."
 }
-
