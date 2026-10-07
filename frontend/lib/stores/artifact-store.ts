@@ -39,6 +39,8 @@ const INITIAL_STATE = {
   reelAvatarModalOpen: false,
   presentationConfigModalOpen: false,
   presentationConfigPaperId: null as string | null,
+  posterConfigModalOpen: false,
+  posterConfigPaperId: null as string | null,
 };
 
 export const useArtifactStore = create<ArtifactStore>()(
@@ -271,6 +273,9 @@ export const useArtifactStore = create<ArtifactStore>()(
       openPresentationConfigModal: (paperId) => { set({ presentationConfigModalOpen: true, presentationConfigPaperId: paperId }); },
       closePresentationConfigModal: () => { set({ presentationConfigModalOpen: false, presentationConfigPaperId: null }); },
 
+      openPosterConfigModal: (paperId) => { set({ posterConfigModalOpen: true, posterConfigPaperId: paperId }); },
+      closePosterConfigModal: () => { set({ posterConfigModalOpen: false, posterConfigPaperId: null }); },
+
       openVideoConfigModal: (runId) => { set({ videoConfigModalOpen: true, videoConfigRunId: runId }); },
       closeVideoConfigModal: () => { set({ videoConfigModalOpen: false, videoConfigRunId: null }); },
 
@@ -317,6 +322,8 @@ export function selectActiveModal(s: ArtifactStore): ActiveModal {
     return { type: "config-reel", paperId: s.reelConfigPaperId };
   if (s.presentationConfigModalOpen && s.presentationConfigPaperId)
     return { type: "config-presentation", paperId: s.presentationConfigPaperId };
+  if (s.posterConfigModalOpen && s.posterConfigPaperId)
+    return { type: "config-poster", paperId: s.posterConfigPaperId };
   if (s.reelScriptModalOpen && s.selectedArtifactId)
     return { type: "reel-script", artifactId: s.selectedArtifactId };
   if (s.reelAvatarModalOpen && s.selectedArtifactId)

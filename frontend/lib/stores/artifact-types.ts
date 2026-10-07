@@ -37,6 +37,8 @@ export interface ArtifactConfig {
   slideLanguage?: string;
   presentationOutputFormat?: "ppt" | "beamer_pdf";
   pptTemplate?: string;
+  posterTheme?: string;
+  posterLayout?: string;
 }
 
 export interface Artifact {

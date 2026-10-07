@@ -11,6 +11,7 @@ export function useStartArtifactGeneration() {
   const {
     startGeneration,
     startPosterGeneration,
+    openPosterConfigModal,
     openPresentationConfigModal,
     openPodcastConfigModal,
     openVideoConfigModal,
@@ -22,17 +23,11 @@ export function useStartArtifactGeneration() {
   return useCallback(
     (type: ArtifactType) => {
       const handlers: Partial<Record<ArtifactType, () => void>> = {
-        // All immediate-fire types: no modal, sensible defaults baked into
-        // the store action. User can tweak after generation via pencil.
-        poster: () => startPosterGeneration(paperId ?? ""),
+        poster: () => openPosterConfigModal(paperId ?? ""),
         presentation: () => openPresentationConfigModal(paperId ?? ""),
         podcast: () => openPodcastConfigModal(paperId ?? ""),
         reel: () => openReelConfigModal(paperId ?? ""),
         "x-linkedin": () => startSocialGeneration(runId ?? ""),
-        // Video is the only one that asks a question first — the audience
-        // pick genuinely changes the narration depth/tone. After the
-        // user picks one option, the modal fires the generation; no
-        // separate "Generate Video" click needed downstream.
         video: () => openVideoConfigModal(runId ?? ""),
       };
       const handler = handlers[type];
@@ -45,6 +40,7 @@ export function useStartArtifactGeneration() {
     [
       startGeneration,
       startPosterGeneration,
+      openPosterConfigModal,
       openPresentationConfigModal,
       openPodcastConfigModal,
       openVideoConfigModal,

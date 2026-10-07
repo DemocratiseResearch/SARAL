@@ -48,15 +48,18 @@ signal.signal(signal.SIGTERM, _sigterm_handler)
 
 
 def process_poster_job(rdb, msg_id: str, data: dict) -> None:
-    run_id = data["run_id"]
-    step_id = data["step_id"]
-    paper_id = data["paper_id"]
-    user_id = data["user_id"]
-    poster_content_gcs_path = data["poster_content_gcs_path"]
+    run_id = data.get("run_id", "")
+    step_id = data.get("step_id", "")
+    paper_id = data.get("paper_id", "")
+    user_id = data.get("user_id", "")
+    poster_content_gcs_path = str(data.get("poster_content_gcs_path") or "").strip()
 
     log.info("poster-worker: processing run_id=%s", run_id)
 
     try:
+        if not poster_content_gcs_path:
+            raise ValueError("poster_content_gcs_path is required for poster_compile")
+
         wh.send_webhook({
             "run_id":        run_id,
             "step_id":       step_id,
@@ -123,10 +126,14 @@ def process_poster_job(rdb, msg_id: str, data: dict) -> None:
             })
 
             # 3. Write theme files
-            create_theme_files(workdir)
+            poster_theme = (poster_content.get("theme") or data.get("theme") or "classic_navy").strip()
+            poster_layout = (poster_content.get("layout") or data.get("layout") or "structured_grid").strip()
+            create_theme_files(workdir, theme=poster_theme)
 
             # 4. Build LaTeX source
-            tex_source = build_poster_document(poster_content, local_image_paths)
+            tex_source = build_poster_document(
+                poster_content, local_image_paths, theme=poster_theme, layout=poster_layout
+            )
             tex_path = workdir / "poster.tex"
             tex_path.write_text(tex_source, encoding="utf-8")
 

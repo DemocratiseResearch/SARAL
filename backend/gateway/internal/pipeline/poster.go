@@ -36,6 +36,8 @@ func PosterStartHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Man
 
 		var body struct {
 			PaperID string `json:"paper_id" binding:"required"`
+			Theme   string `json:"theme"`
+			Layout  string `json:"layout"`
 		}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			apiresp.Error(c, http.StatusBadRequest, "invalid_body", "paper_id is required")
@@ -77,15 +79,29 @@ func PosterStartHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Man
 			Message: "Generating poster content",
 		})
 
-		if _, err := redisx.EnqueueJob(ctx, rdb, redisx.StreamScript, redisx.JobData{
-			"run_id":              runID.String(),
-			"step_id":             stepID.String(),
-			"paper_id":            paperID.String(),
-			"user_id":             userID.String(),
+		scriptJobData := redisx.JobData{
+			"run_id":             runID.String(),
+			"step_id":            stepID.String(),
+			"paper_id":           paperID.String(),
+			"user_id":            userID.String(),
 			"extracted_gcs_path": extractedPath,
-			"gemini_key":          geminiKey,
-			"mode":                "poster",
-		}); err != nil {
+			"gemini_key":         geminiKey,
+			"mode":               "poster",
+		}
+		ck := map[string]interface{}{}
+		if body.Theme != "" {
+			scriptJobData["theme"] = body.Theme
+			ck["theme"] = body.Theme
+		}
+		if body.Layout != "" {
+			scriptJobData["layout"] = body.Layout
+			ck["layout"] = body.Layout
+		}
+		if len(ck) > 0 {
+			_ = db.SaveCheckpoint(ctx, pool, runID, ck)
+		}
+
+		if _, err := redisx.EnqueueJob(ctx, rdb, redisx.StreamScript, scriptJobData); err != nil {
 			apiresp.Error(c, http.StatusInternalServerError, "job_enqueue_failed", "failed to enqueue script_gen job")
 			return
 		}
@@ -142,6 +158,12 @@ func PosterConfirmHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.M
 
 		ctx := c.Request.Context()
 
+		var body struct {
+			Theme  string `json:"theme"`
+			Layout string `json:"layout"`
+		}
+		_ = c.ShouldBindJSON(&body)
+
 		posterContentPath, err := db.GetStepOutput(ctx, pool, runID, "script_gen")
 		if err != nil {
 			apiresp.Error(c, http.StatusBadRequest, "content_not_ready", "poster content not ready")
@@ -173,7 +195,23 @@ func PosterConfirmHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.M
 			Message: "Compiling poster",
 		})
 
-		if _, err := redisx.EnqueueJob(ctx, rdb, redisx.StreamPoster, redisx.JobData{
+		theme := body.Theme
+		layout := body.Layout
+		if theme == "" || layout == "" {
+			_, ckData, _ := db.GetCheckpoint(ctx, pool, runID)
+			if theme == "" {
+				if t, ok := ckData["theme"].(string); ok && t != "" {
+					theme = t
+				}
+			}
+			if layout == "" {
+				if l, ok := ckData["layout"].(string); ok && l != "" {
+					layout = l
+				}
+			}
+		}
+
+		posterJobData := redisx.JobData{
 			"run_id":                  runID.String(),
 			"step_id":                 stepID.String(),
 			"paper_id":                run.PaperID.String(),
@@ -181,7 +219,26 @@ func PosterConfirmHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.M
 			"poster_content_gcs_path": posterContentPath,
 			"gemini_key":              geminiKey,
 			"extracted_gcs_path":      extractedPath,
-		}); err != nil {
+		}
+		if theme != "" {
+			posterJobData["theme"] = theme
+		}
+		if layout != "" {
+			posterJobData["layout"] = layout
+		}
+
+		ck := map[string]interface{}{}
+		if theme != "" {
+			ck["theme"] = theme
+		}
+		if layout != "" {
+			ck["layout"] = layout
+		}
+		if len(ck) > 0 {
+			_ = db.SaveCheckpoint(ctx, pool, runID, ck)
+		}
+
+		if _, err := redisx.EnqueueJob(ctx, rdb, redisx.StreamPoster, posterJobData); err != nil {
 			apiresp.Error(c, http.StatusInternalServerError, "job_enqueue_failed", "failed to enqueue poster_compile job")
 			return
 		}
