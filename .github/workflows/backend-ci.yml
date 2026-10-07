@@ -33,6 +33,10 @@ jobs:
         working-directory: backend/gateway
         run: go vet ./...
 
+      - name: Run Gateway Tests
+        working-directory: backend/gateway
+        run: go test ./...
+
       - name: Check Go Modules & Build Gateway
         working-directory: ./backend/gateway
         run: |
@@ -44,12 +48,14 @@ jobs:
         working-directory: ./backend/services/script-gen
         run: |
           go mod tidy
+          go test ./...
           go build ./...
 
       - name: Build Go Workers (Audio-Gen)
         working-directory: ./backend/services/audio-gen
         run: |
           go mod tidy
+          go test ./...
           go build ./...
 
   python-checks:
@@ -70,6 +76,13 @@ jobs:
 
       - name: Set up Python 3.11
         run: uv python install 3.11
+
+      - name: Test Shared Worker Webhook Signing
+        working-directory: ./backend/services/shared
+        run: |
+          uv sync
+          PYTHONPATH=. uv run python -m unittest discover -s tests -v
+          uv tool run ruff check saral_shared/webhook_client.py tests/test_webhook_client.py
 
       - name: Check PDF Parser
         working-directory: ./backend/services/pdf-parser

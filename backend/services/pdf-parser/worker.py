@@ -164,6 +164,7 @@ async def process_job_async(rdb, msg_id: str, data: dict, pool):
 
 async def main_async():
     global _rdb
+    wh.validate_webhook_config()
     log.info(f"PDF Parser starting, consumer={CONSUMER}")
     _rdb = redis_lib.from_url(os.environ["REDIS_URL"], decode_responses=True)
 

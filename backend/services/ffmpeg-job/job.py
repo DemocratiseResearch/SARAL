@@ -1538,6 +1538,7 @@ def _process_reel_video(rdb, msg_id: str, run_id: str, step_id: str, paper_id: s
 
 def main():
     global _rdb
+    wh.validate_webhook_config()
     _rdb = redis_lib.from_url(os.environ["REDIS_URL"], decode_responses=True)
 
     try:

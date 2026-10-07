@@ -1,5 +1,3 @@
-
-
 package analytics
 
 import (
@@ -16,9 +14,9 @@ import (
 // ── Collection names ──────────────────────────────────────────────────────────
 
 const (
-	CollPaperMetadata     = "paper_metadata"
-	CollUserActivity      = "user_activity_summary"
-	CollPaperPipeline     = "paper_pipeline"
+	CollPaperMetadata = "paper_metadata"
+	CollUserActivity  = "user_activity_summary"
+	CollPaperPipeline = "paper_pipeline"
 )
 
 // ── Pipeline stage ordering ───────────────────────────────────────────────────
@@ -38,26 +36,26 @@ var pipelineStageOrder = []string{
 
 // defaultETASeconds provides fallback ETA estimates (seconds) for each pipeline step.
 var defaultETASeconds = map[string]float64{
-	"uploaded":          5,
-	"pdf_extract":       30,
-	"metadata_extract":  15,
-	"script_gen":        75,
-	"beamer_compile":    90,
-	"audio_gen":         120,
-	"ffmpeg_stitch":     60,
+	"uploaded":         5,
+	"pdf_extract":      30,
+	"metadata_extract": 15,
+	"script_gen":       75,
+	"beamer_compile":   90,
+	"audio_gen":        120,
+	"ffmpeg_stitch":    60,
 	// podcast steps
 	"podcast_script_gen": 60,
 	"podcast_audio_gen":  120,
 	// reel steps
-	"reel_script_gen":  60,
-	"reel_audio_gen":   120,
-	"reel_video_gen":   120,
+	"reel_script_gen": 60,
+	"reel_audio_gen":  120,
+	"reel_video_gen":  120,
 	// poster steps
 	"poster_compile": 90,
 	// social / brief
 	"business_brief": 30,
-	"linkedin_draft":  20,
-	"twitter_draft":   20,
+	"linkedin_draft": 20,
+	"twitter_draft":  20,
 }
 
 // ── Generic map helpers ───────────────────────────────────────────────────────
@@ -317,9 +315,9 @@ func InitPipelineTracking(ctx context.Context, runID, paperID, userID, runMode s
 	now := time.Now()
 
 	payload := map[string]interface{}{
-		"run_id":   runID,
-		"paper_id": paperID,
-		"run_mode": runMode,
+		"run_id":     runID,
+		"paper_id":   paperID,
+		"run_mode":   runMode,
 		"updated_at": now,
 		"stages": map[string]interface{}{
 			"uploaded": map[string]interface{}{
@@ -481,6 +479,75 @@ func GetPipelinesByPaper(ctx context.Context, paperID string) []map[string]inter
 		}
 	}
 	return runs
+}
+
+// GetPipelinesByPaperForUser returns only runs whose persisted Firebase UID
+// owner matches callerUID. Missing owner metadata fails closed.
+func GetPipelinesByPaperForUser(ctx context.Context, paperID, callerUID string) []map[string]interface{} {
+	if fsClient == nil || callerUID == "" {
+		return nil
+	}
+	// Older run documents may predate the user_id field. The paper metadata is
+	// written with the owner UID at upload time, so it is a safe fallback.
+	paperOwnerUID := ""
+	if metadata := GetPaperMetadata(ctx, paperID); metadata != nil {
+		paperOwnerUID, _ = metadata["user_id"].(string)
+	}
+	iter := fsClient.Collection(CollPaperPipeline).Doc(paperID).
+		Collection("runs").Documents(ctx)
+	defer iter.Stop()
+
+	var runs []map[string]interface{}
+	for {
+		snap, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			log.Printf("analytics.GetPipelinesByPaperForUser(%s): %v", paperID, err)
+			break
+		}
+		ownerUID, _ := snap.Data()["user_id"].(string)
+		if ownerUID == "" {
+			ownerUID = paperOwnerUID
+		}
+		if !pipelineOwnerMatches(callerUID, ownerUID) {
+			continue
+		}
+		if result := processPipelineSnap(snap.Ref.ID, snap.Data()); result != nil {
+			runs = append(runs, result)
+		}
+	}
+
+	// Keep the same newest-first API ordering as GetPipelinesByPaper.
+	sort.Slice(runs, func(i, j int) bool {
+		ti, _ := runs[i]["created_at"].(time.Time)
+		tj, _ := runs[j]["created_at"].(time.Time)
+		return ti.After(tj)
+	})
+	return runs
+}
+
+// GetPipelineOwnerUID returns the Firebase UID recorded on a pipeline run.
+// Missing or malformed ownership metadata is reported as not found so callers
+// can fail closed rather than exposing orphaned analytics documents.
+func GetPipelineOwnerUID(ctx context.Context, paperID, runID string) (string, bool) {
+	if fsClient == nil {
+		return "", false
+	}
+	snap, err := pipelineRunRef(paperID, runID).Get(ctx)
+	if err != nil || snap == nil || !snap.Exists() {
+		return "", false
+	}
+	ownerUID, ok := snap.Data()["user_id"].(string)
+	if ok && ownerUID != "" {
+		return ownerUID, true
+	}
+	if metadata := GetPaperMetadata(ctx, paperID); metadata != nil {
+		ownerUID, ok = metadata["user_id"].(string)
+		return ownerUID, ok && ownerUID != ""
+	}
+	return "", false
 }
 
 // processPipelineSnap converts raw Firestore pipeline run data into the

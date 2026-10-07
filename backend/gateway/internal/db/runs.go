@@ -20,6 +20,13 @@ func CreatePipelineRun(ctx context.Context, pool *pgxpool.Pool, paperID, userID 
 	return id, err
 }
 
+// RunExists reports whether a run belongs to the persisted pipeline state.
+func RunExists(ctx context.Context, pool *pgxpool.Pool, runID uuid.UUID) (bool, error) {
+	var exists bool
+	err := pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pipeline_runs WHERE id = $1)`, runID).Scan(&exists)
+	return exists, err
+}
+
 func GetRun(ctx context.Context, pool *pgxpool.Pool, runID uuid.UUID) (*models.Run, error) {
 	row := &models.Run{}
 	err := pool.QueryRow(ctx, `

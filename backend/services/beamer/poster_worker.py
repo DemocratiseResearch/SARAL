@@ -188,6 +188,7 @@ def process_poster_job(rdb, msg_id: str, data: dict) -> None:
 
 def main():
     global _rdb
+    wh.validate_webhook_config()
     _rdb = redis_lib.from_url(os.environ["REDIS_URL"], decode_responses=True)
 
     try:

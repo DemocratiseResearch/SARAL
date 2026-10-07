@@ -28,6 +28,10 @@ import (
 
 func main() {
 	_ = godotenv.Overload()
+	workerWebhookSecret := []byte(os.Getenv("WORKER_WEBHOOK_SECRET"))
+	if len(workerWebhookSecret) < 32 {
+		log.Fatal("WORKER_WEBHOOK_SECRET must be configured with at least 32 bytes before the gateway can start")
+	}
 	ctx := context.Background()
 
 	storage.Init()
@@ -122,17 +126,20 @@ func main() {
 			"note":    "Pass the 'name' value (e.g. 'Hindi') as the 'language' field in PUT /script or POST /script/confirm. Case-insensitive. BCP-47 codes (e.g. 'hi-IN', 'pt-BR') are also accepted for backward compatibility.",
 		})
 	})
-	r.POST("/auth/login", auth.LoginHandler(pool))              // verify Firebase token (OAuth providers) + return user info
+	r.POST("/auth/login", auth.LoginHandler(pool)) // verify Firebase token (OAuth providers) + return user info
 	r.POST("/auth/logout", auth.LogoutHandler())
-	r.POST("/auth/email/signup", auth.EmailSignUpHandler(pool))          // email/password sign-up (with account-linking dedup)
-	r.POST("/auth/email/signin", auth.EmailSignInHandler(pool))          // email/password sign-in → returns same shape as /auth/login
-	r.POST("/auth/email/forgot-password", auth.EmailForgotPasswordHandler())    // triggers Firebase password-reset email
-	r.POST("/auth/email/reset-password", auth.EmailResetPasswordHandler())      // confirms reset using oobCode from the link
-	r.POST("/auth/oauth/google", auth.GoogleOAuthHandler(pool))                 // Chrome extension: Google access token → Firebase ID token
+	r.POST("/auth/email/signup", auth.EmailSignUpHandler(pool))              // email/password sign-up (with account-linking dedup)
+	r.POST("/auth/email/signin", auth.EmailSignInHandler(pool))              // email/password sign-in → returns same shape as /auth/login
+	r.POST("/auth/email/forgot-password", auth.EmailForgotPasswordHandler()) // triggers Firebase password-reset email
+	r.POST("/auth/email/reset-password", auth.EmailResetPasswordHandler())   // confirms reset using oobCode from the link
+	r.POST("/auth/oauth/google", auth.GoogleOAuthHandler(pool))              // Chrome extension: Google access token → Firebase ID token
 
-	// Webhook receiver — called by Python workers on private VPC network
-	// No auth middleware here: these are internal service-to-service calls
-	r.POST("/webhooks/worker/:service", webhook.Handler(pool, rdb, sseMgr))
+	// Worker callbacks are authenticated independently of Firebase user auth.
+	// Network isolation is still required in production; HMAC is defense in depth.
+	r.POST("/webhooks/worker/:service",
+		webhook.SignatureMiddleware(workerWebhookSecret, webhook.NewRedisReplayGuard(rdb)),
+		webhook.Handler(pool, rdb, sseMgr),
+	)
 
 	// OAuth callbacks — public routes (browser redirect from platform, no Firebase token)
 	r.GET("/auth/social/youtube/callback", social.YouTubeCallbackHandler(pool, rdb))

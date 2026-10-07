@@ -2,22 +2,39 @@ info:
   name: Webhook - Worker Update
   type: http
   seq: 109
+  description: >-
+    Internal worker callback. Requires X-Saral-Worker-Timestamp,
+    X-Saral-Worker-Nonce, and X-Saral-Worker-Signature generated over the exact
+    method, request-target, timestamp, nonce, and raw JSON body. See
+    backend/WORKER_WEBHOOKS.md. Do not send unsigned callbacks.
 
 http:
   method: POST
   url: http://localhost:8080/webhooks/worker/:service
   params:
     - name: service
-      value: script-gen
+      value: script_gen
       type: path
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: X-Saral-Worker-Timestamp
+      value: "{{worker_timestamp}}"
+    - name: X-Saral-Worker-Nonce
+      value: "{{worker_nonce}}"
+    - name: X-Saral-Worker-Signature
+      value: "{{worker_signature}}"
   body:
     type: json
     data: |-
       {
-        "run_id": "your-run-id-here",
+        "run_id": "{{run_id}}",
+        "step_id": "{{step_id}}",
+        "step_name": "script_gen",
         "status": "completed",
-        "step": "script_gen",
-        "payload": {}
+        "gcs_output_path": "gs://<bucket>/<validated-run-prefix>/script.json",
+        "next_step": "",
+        "next_job_data": {}
       }
 
 settings:

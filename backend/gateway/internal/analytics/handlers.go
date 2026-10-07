@@ -1,4 +1,3 @@
-
 package analytics
 
 import (
@@ -10,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/saral/gateway/internal/apiresp"
 )
-
 
 func RegisterRoutes(rg *gin.RouterGroup) {
 	a := rg.Group("/analytics")
@@ -39,15 +37,15 @@ func userSummaryHandler() gin.HandlerFunc {
 		summary := GetUserActivity(ctx, userID)
 		if summary == nil {
 			apiresp.OK(c, gin.H{
-				"user_id":              userID,
-				"total_papers":         0,
-				"total_videos":         0,
-				"total_podcasts":       0,
-				"total_reels":          0,
-				"total_posters":        0,
-				"total_slides":         0,
+				"user_id":               userID,
+				"total_papers":          0,
+				"total_videos":          0,
+				"total_podcasts":        0,
+				"total_reels":           0,
+				"total_posters":         0,
+				"total_slides":          0,
 				"total_business_briefs": 0,
-				"last_activity":        nil,
+				"last_activity":         nil,
 			})
 			return
 		}
@@ -170,11 +168,11 @@ func userDashboardHandler() gin.HandlerFunc {
 		}
 
 		apiresp.OK(c, gin.H{
-			"user_id":         userID,
-			"total_papers":    len(papers),
+			"user_id":          userID,
+			"total_papers":     len(papers),
 			"papers_by_source": papersBySource,
-			"total_outputs":   totalOutputs,
-			"papers":          paperDetails,
+			"total_outputs":    totalOutputs,
+			"papers":           paperDetails,
 		})
 	}
 }
@@ -192,9 +190,10 @@ func paperDetailsHandler() gin.HandlerFunc {
 			return
 		}
 
-		// Verify ownership
-		if ownerID, ok := paper["user_id"].(string); ok && ownerID != "" {
-			if !canAccessUser(c, ownerID) {
+		// Verify ownership. Missing owner metadata fails closed for non-admins.
+		if !isAdmin(c) {
+			ownerID, ok := paper["user_id"].(string)
+			if !ok || ownerID == "" || !pipelineOwnerMatches(c.GetString("firebase_uid"), ownerID) {
 				apiresp.Error(c, http.StatusForbidden, "forbidden", "cannot access other user's papers")
 				return
 			}
@@ -300,7 +299,21 @@ func platformStatsHandler() gin.HandlerFunc {
 func pipelineStatusHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		paperID := c.Param("paper_id")
-		runs := GetPipelinesByPaper(c.Request.Context(), paperID)
+		var runs []map[string]interface{}
+		if isAdmin(c) {
+			runs = GetPipelinesByPaper(c.Request.Context(), paperID)
+		} else {
+			callerUID := c.GetString("firebase_uid")
+			if callerUID == "" {
+				apiresp.Error(c, http.StatusUnauthorized, "missing_uid", "no authenticated user")
+				return
+			}
+			runs = GetPipelinesByPaperForUser(c.Request.Context(), paperID, callerUID)
+			if len(runs) == 0 {
+				apiresp.Error(c, http.StatusNotFound, "not_found", "pipeline not found")
+				return
+			}
+		}
 		if runs == nil {
 			runs = []map[string]interface{}{}
 		}
@@ -313,6 +326,14 @@ func pipelineRunStatusHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		paperID := c.Param("paper_id")
 		runID := c.Param("run_id")
+		if !isAdmin(c) {
+			callerUID := c.GetString("firebase_uid")
+			ownerUID, found := GetPipelineOwnerUID(c.Request.Context(), paperID, runID)
+			if callerUID == "" || !found || !pipelineOwnerMatches(callerUID, ownerUID) {
+				apiresp.Error(c, http.StatusNotFound, "not_found", "pipeline run not found")
+				return
+			}
+		}
 		status := GetPipelineStatus(c.Request.Context(), runID, paperID)
 		if status == nil {
 			apiresp.Error(c, http.StatusNotFound, "not_found", "pipeline run not found")
@@ -345,6 +366,10 @@ func isAdmin(c *gin.Context) bool {
 func canAccessUser(c *gin.Context, targetUID string) bool {
 	callerUID := c.GetString("firebase_uid")
 	return callerUID == targetUID || isAdmin(c)
+}
+
+func pipelineOwnerMatches(callerUID, ownerUID string) bool {
+	return callerUID != "" && ownerUID != "" && callerUID == ownerUID
 }
 
 // ── small utility functions ───────────────────────────────────────────────────

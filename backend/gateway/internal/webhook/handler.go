@@ -28,7 +28,7 @@ func Handler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manager) gin.H
 			return
 		}
 		serviceName := c.Param("service")
-		if serviceName != "" && update.StepName != "" && serviceName != update.StepName {
+		if serviceName == "" || update.StepName == "" || serviceName != update.StepName {
 			apiresp.Error(c, http.StatusBadRequest, "service_step_mismatch", "webhook route does not match step_name")
 			return
 		}
@@ -46,13 +46,33 @@ func Handler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manager) gin.H
 			apiresp.Error(c, http.StatusBadRequest, "invalid_run_id", "invalid run_id")
 			return
 		}
-		stepID, _ := uuid.Parse(update.StepID)
+		runExists, err := db.RunExists(ctx, pool, runID)
+		if err != nil {
+			apiresp.Error(c, http.StatusInternalServerError, "run_lookup_failed", "could not validate pipeline run")
+			return
+		}
+		if !runExists {
+			apiresp.Error(c, http.StatusNotFound, "run_not_found", "pipeline run not found")
+			return
+		}
 
 		// ── Poster image extraction — progress event only, no DB mutation ────
 		if update.StepName == "poster_image_extract" {
 			status := update.Status
 			if status == "" {
 				status = "processing"
+			}
+			if status != "processing" && status != "completed" && status != "failed" {
+				apiresp.Error(c, http.StatusBadRequest, "invalid_status", "unsupported worker status")
+				return
+			}
+			stepID := uuid.Nil
+			if update.StepID != "" {
+				stepID, err = uuid.Parse(update.StepID)
+				if err != nil {
+					apiresp.Error(c, http.StatusBadRequest, "invalid_step_id", "invalid step_id")
+					return
+				}
 			}
 			msg := update.ErrorMessage
 			if msg == "" {
@@ -77,6 +97,24 @@ func Handler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manager) gin.H
 				}
 			}
 			apiresp.OK(c, gin.H{"ok": true})
+			return
+		}
+		if update.Status != "completed" && update.Status != "failed" {
+			apiresp.Error(c, http.StatusBadRequest, "invalid_status", "worker status must be completed or failed")
+			return
+		}
+		stepID, err := uuid.Parse(update.StepID)
+		if err != nil {
+			apiresp.Error(c, http.StatusBadRequest, "invalid_step_id", "valid step_id is required")
+			return
+		}
+		stepMatches, err := db.StepBelongsToRun(ctx, pool, runID, stepID, update.StepName)
+		if err != nil {
+			apiresp.Error(c, http.StatusInternalServerError, "step_lookup_failed", "could not validate pipeline step")
+			return
+		}
+		if !stepMatches {
+			apiresp.Error(c, http.StatusNotFound, "step_not_found", "pipeline step not found")
 			return
 		}
 
@@ -191,6 +229,10 @@ func Handler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manager) gin.H
 		}
 
 		// ── Enqueue next step (generic path) ──────────────────────────────────
+		if update.NextStep != "script_gen" && update.NextStep != "metadata_extract" {
+			apiresp.Error(c, http.StatusBadRequest, "invalid_next_step", "unsupported next_step")
+			return
+		}
 		jobData := redisx.JobData(update.NextJobData)
 		if err := enqueueNextStep(ctx, pool, rdb, sseMgr, runID, update.RunID, update.NextStep, jobData); err != nil {
 			log.Printf("enqueueNextStep %s error: %v", update.NextStep, err)

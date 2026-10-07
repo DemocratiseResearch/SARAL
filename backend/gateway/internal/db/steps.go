@@ -48,6 +48,19 @@ func FailStep(ctx context.Context, pool *pgxpool.Pool, stepID uuid.UUID, errMsg 
 	return err
 }
 
+// StepBelongsToRun prevents a worker callback from pairing a valid run UUID
+// with a step ID from another pipeline or a different step name.
+func StepBelongsToRun(ctx context.Context, pool *pgxpool.Pool, runID, stepID uuid.UUID, stepName string) (bool, error) {
+	var exists bool
+	err := pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM pipeline_steps
+			WHERE id = $1 AND run_id = $2 AND step_name = $3::step_name_enum
+		)
+	`, stepID, runID, stepName).Scan(&exists)
+	return exists, err
+}
+
 // GetStepOutput returns the gcs_output_path for the latest completed attempt of a step.
 func GetStepOutput(ctx context.Context, pool *pgxpool.Pool, runID uuid.UUID, stepName string) (string, error) {
 	var gcsPath string
