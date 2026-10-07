@@ -4,53 +4,61 @@
 
 This verification report details the baseline defect analysis, implementation repairs, test suite coverage, and verification results for SARAL AI Issue #39 ("Improve presentation and poster templates").
 
-All **41 automated test cases across 7 test modules** pass with **100% success rate (0 failures, 0 errors)**.
+All **49 automated test cases across 7 test modules** pass with **100% success rate (0 failures, 0 errors)**.
 
 ```text
-test_currency_and_math_in_same_sentence .......................................... OK
-test_currency_dollars_escaped .................................................... OK
-test_dangerous_commands_disarmed ................................................. OK
-test_display_math_preserved ...................................................... OK
-test_equation_superscripts_and_subscripts ........................................ OK
-test_inline_math_preserved ....................................................... OK
-test_literal_dollar_in_prose ..................................................... OK
-test_normalise_bullets_preserves_math ............................................ OK
-test_plain_text_specials_escaped ................................................. OK
-test_all_five_beamer_themes ...................................................... OK
-test_archetype_classification .................................................... OK
-test_assigned_image_rendering .................................................... OK
-test_build_beamer_document_transformer_script .................................... OK
-test_sparse_script_edge_case ..................................................... OK
-test_create_theme_files_all_palettes ............................................. OK
-test_qualitative_paper_poster .................................................... OK
-test_structured_grid_layout_with_images ........................................... OK
-test_structured_grid_layout_zero_images .......................................... OK
-test_takeaway_led_layout ......................................................... OK
-test_workflow_led_layout ......................................................... OK
-test_hindi_poster_document ....................................................... OK
-test_hindi_presentation_document ................................................. OK
-test_language_font_mapping ....................................................... OK
-test_wrap_script_runs_devanagari ................................................. OK
-test_honest_handling_of_missing_references ....................................... OK
-test_no_fabricated_affiliations_in_sparse_presentation ........................... OK
-test_no_fabricated_metrics_in_qualitative_poster ................................. OK
-test_no_fake_qr_codes_or_promotional_urls ........................................ OK
-test_legacy_beamer_call_signature ................................................ OK
-test_legacy_create_theme_files_signature ......................................... OK
-test_legacy_poster_call_signature ................................................ OK
-test_legacy_theme_aliases ........................................................ OK
-test_all_frontend_poster_themes_resolve .......................................... OK
-test_docker_mirror_synchronization ............................................... OK
-test_latex_utils_no_par_in_math .................................................. OK
-test_poster_multilingual_all_layouts ............................................. OK
-test_poster_payload_fallbacks .................................................... OK
-test_poster_theme_and_layout_matrix .............................................. OK
-test_presentation_booktabs_and_fragile_frames .................................... OK
-test_presentation_footline_title_safety .......................................... OK
-test_takeaway_led_column_geometry ................................................ OK
+test_currency_and_math_in_same_sentence ............................................ OK
+test_currency_dollars_escaped ...................................................... OK
+test_dangerous_commands_disarmed ................................................... OK
+test_display_math_preserved ........................................................ OK
+test_equation_superscripts_and_subscripts .......................................... OK
+test_inline_math_preserved ......................................................... OK
+test_literal_dollar_in_prose ....................................................... OK
+test_normalise_bullets_preserves_math .............................................. OK
+test_plain_text_specials_escaped ................................................... OK
+test_all_five_beamer_themes ........................................................ OK
+test_archetype_classification ...................................................... OK
+test_assigned_image_rendering ...................................................... OK
+test_build_beamer_document_transformer_script ...................................... OK
+test_sparse_script_edge_case ....................................................... OK
+test_color_theme_surface_color_preserved ........................................... OK
+test_create_theme_files_all_palettes ............................................... OK
+test_qualitative_paper_poster ...................................................... OK
+test_structured_grid_layout_with_images ............................................ OK
+test_structured_grid_layout_zero_images ............................................ OK
+test_takeaway_led_layout ........................................................... OK
+test_theme_headline_uses_rule_not_tikz_fill ........................................ OK
+test_workflow_led_layout ........................................................... OK
+test_fallback_font_selection ....................................................... OK
+test_font_stem_prefix_matching ..................................................... OK
+test_generated_hindi_latex_font_declaration ........................................ OK
+test_hindi_poster_document ......................................................... OK
+test_hindi_presentation_document ................................................... OK
+test_language_font_mapping ......................................................... OK
+test_missing_fonts_graceful_handling ............................................... OK
+test_preferred_font_selection ...................................................... OK
+test_wrap_script_runs_devanagari ................................................... OK
+test_honest_handling_of_missing_references ......................................... OK
+test_no_fabricated_affiliations_in_sparse_presentation ............................. OK
+test_no_fabricated_metrics_in_qualitative_poster ................................... OK
+test_no_fake_qr_codes_or_promotional_urls .......................................... OK
+test_legacy_beamer_call_signature .................................................. OK
+test_legacy_create_theme_files_signature ........................................... OK
+test_legacy_poster_call_signature .................................................. OK
+test_legacy_theme_aliases .......................................................... OK
+test_all_frontend_poster_themes_resolve ............................................ OK
+test_docker_mirror_synchronization ................................................. OK
+test_latex_utils_no_par_in_math .................................................... OK
+test_poster_multilingual_all_layouts ............................................... OK
+test_poster_payload_fallbacks ...................................................... OK
+test_poster_theme_and_layout_matrix ................................................ OK
+test_poster_worker_validates_missing_content_path .................................. OK
+test_presentation_booktabs_and_fragile_frames ...................................... OK
+test_presentation_footline_title_safety ............................................ OK
+test_takeaway_led_column_geometry .................................................. OK
 
 ----------------------------------------------------------------------
-Ran 41 tests in 0.053s
+Ran 49 tests in 0.089s
 OK
 ```
 

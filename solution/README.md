@@ -119,14 +119,14 @@ python3 -m unittest discover -s solution/tests -p "test_*.py" -v
 ```
 
 ### Verification Results
-All 41 automated test cases pass across 7 test suites:
+All 49 automated test cases pass across 7 test suites:
 - **Math Preservation (9 tests)**: Inline equations (`$O(n)$`, `$QK^T$`), display math (`\[ \mathcal{L} \]`), superscripts/subscripts, currency (`\$100M`), currency and math in same sentence, and literal dollar signs in prose verified.
 - **Presentation Archetypes (5 tests)**: All archetypes, all 5 Beamer themes, and sparse scripts verified.
-- **Poster Balancing (6 tests)**: 0-image, 1-image, and 2-image cases verified for balanced column height and style file generation.
-- **Multilingual Support (4 tests)**: Devanagari Unicode wrapping and Indic font declarations verified across both presentations and posters.
+- **Poster Balancing (8 tests)**: 0-image, 1-image, and 2-image cases, qualitative paper, takeaway-led, workflow-led layouts, surface color preservation, and headline styling verified.
+- **Multilingual Support (9 tests)**: Devanagari Unicode wrapping, all 22 scheduled language font mappings, preferred/fallback font selection, and fontspec declarations verified across both presentations and posters.
 - **Scientific Integrity (4 tests)**: Absence of fabricated metrics, fake affiliations, or unverified promotional URLs verified.
 - **Backward Compatibility (4 tests)**: Legacy 2-argument calls and theme aliases verified.
-- **Integration Payloads & Regressions (9 tests)**: Docker mirror synchronization, long title slicing safety with Indic math, fragile frames with verbatim code, no `\par` in multiline math, complete 5x3 theme-layout matrix, multilingual blocks across all layouts, all frontend poster theme resolutions, and fallback defaults verified.
+- **Integration Payloads & Regressions (10 tests)**: Docker mirror synchronization, long title slicing safety with Indic math, fragile frames with verbatim code, no `\par` in multiline math, complete 5x3 theme-layout matrix, multilingual blocks across all layouts, all frontend poster theme resolutions, poster worker validation, and fallback defaults verified.
 
 ### Docker Build & Verification Commands
 To build and test the production Docker container:
@@ -155,6 +155,6 @@ Before merging, maintainers can verify:
 - [x] LaTeX equations and math symbols are preserved without backslash destruction.
 - [x] Dynamic column balancing prevents empty columns in posters without figures.
 - [x] Multilingual Indic font mapping is functional for both presentations and posters.
-- [x] All 41 unit and integration tests pass cleanly with `python3 solution/tests/run_all_tests.py`.
+- [x] All 49 unit and integration tests pass cleanly with `python3 solution/tests/run_all_tests.py`.
 - [x] Legacy theme aliases (`default`, `template-saral`, `classic-blue`) map cleanly without errors.
 - [x] Frontend `PosterConfigModal` allows seamless theme and layout selection.

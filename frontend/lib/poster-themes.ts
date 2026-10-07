@@ -2,11 +2,11 @@
 // Values match the backend poster engine (solution/poster/themes.py and solution/poster/layouts.py).
 
 export const POSTER_THEMES = [
-  { value: "classic_navy", label: "Classic Navy (Gemini)", preview: "/theme-previews/saral.png" },
-  { value: "teal_emerald", label: "Biomedical Emerald", preview: "/theme-previews/emerald.png" },
-  { value: "crimson_burgundy", label: "Crimson Academic", preview: "/theme-previews/cambridgeus.png" },
-  { value: "slate_indigo", label: "Slate Modern", preview: "/theme-previews/metropolis.png" },
-  { value: "amber_earth", label: "Earth Amber", preview: "/theme-previews/amber.png" },
+  { value: "classic_navy", label: "Classic Navy (Gemini)" },
+  { value: "teal_emerald", label: "Biomedical Emerald" },
+  { value: "crimson_burgundy", label: "Crimson Academic" },
+  { value: "slate_indigo", label: "Slate Modern" },
+  { value: "amber_earth", label: "Earth Amber" },
 ] as const;
 
 export const DEFAULT_POSTER_THEME = "classic_navy";
