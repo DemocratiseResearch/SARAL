@@ -19,9 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+COPY solution /app/solution
 COPY services/shared /app/shared
 COPY services/beamer /app/beamer
 COPY services/audio-gen/models.json /app/beamer/models.json
+
+ENV PYTHONPATH="/app:${PYTHONPATH}"
 
 # 1. Install local shared library so pip doesn't search PyPI for saral-shared
 RUN pip install --no-cache-dir /app/shared

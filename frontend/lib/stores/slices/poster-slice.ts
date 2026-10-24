@@ -1,30 +1,38 @@
 import type { StateCreator } from "zustand";
 import { startPoster, confirmPoster, connectPosterSSE, getPosterDownload, retryPosterRun } from "../../api";
 import { getSSEStatusMessage, getSSEErrorMessage, getPipelineStartMessage } from "../../sse-messages";
+import { DEFAULT_POSTER_THEME, DEFAULT_POSTER_LAYOUT } from "../../poster-themes";
 import { connectWithRetry, isModalBlocked, patchArtifact } from "../artifact-helpers";
 import type { Artifact } from "../artifact-types";
 import type { ArtifactStore } from "../artifact-store-types";
 
 export type PosterSlice = {
-  startPosterGeneration: (paperId: string) => void;
+  startPosterGeneration: (paperId: string, theme?: string, layout?: string) => void;
   retryPosterArtifact: (id: string, a: Artifact) => void;
 };
 
 export const createPosterSlice: StateCreator<ArtifactStore, [], [], PosterSlice> = (set, get) => ({
-  startPosterGeneration: (paperId) => {
+  startPosterGeneration: (paperId, theme = DEFAULT_POSTER_THEME, layout = DEFAULT_POSTER_LAYOUT) => {
     if (!paperId) { console.error("[poster-slice] no paperId"); return; }
 
     const id = `poster-${Date.now()}`;
     const artifact: Artifact = {
       id, type: "poster", status: "generating", progress: 5,
-      config: { audioLanguage: "English", textLanguage: "English", voiceGender: "female", language: "english" },
+      config: {
+        audioLanguage: "English",
+        textLanguage: "English",
+        voiceGender: "female",
+        language: "english",
+        posterTheme: theme,
+        posterLayout: layout,
+      },
       scripts: [], imageAssignments: {},
       statusMessage: getPipelineStartMessage("poster"), paperId,
     };
 
-    set({ artifacts: [...get().artifacts, artifact], generatingModalOpen: true, generatingId: id });
+    set({ artifacts: [...get().artifacts, artifact], generatingModalOpen: true, generatingId: id, posterConfigModalOpen: false, posterConfigPaperId: null });
 
-    startPoster(paperId)
+    startPoster(paperId, { theme, layout })
       .then(({ run_id }) => {
         set({ artifacts: patchArtifact(get().artifacts, id, { runId: run_id }) });
 
@@ -43,7 +51,7 @@ export const createPosterSlice: StateCreator<ArtifactStore, [], [], PosterSlice>
           if (event.step === "script_gen" && event.status === "completed" && !scriptGenConfirmed) {
             scriptGenConfirmed = true;
             const retryConfirm = (attemptsLeft: number, delayMs: number) => {
-              confirmPoster(run_id)
+              confirmPoster(run_id, { theme, layout })
                 .catch((err) => {
                   const msg = err instanceof Error ? err.message : String(err);
                   if ((msg.includes("not ready") || msg.includes("content_not_ready")) && attemptsLeft > 0) {
@@ -107,6 +115,9 @@ export const createPosterSlice: StateCreator<ArtifactStore, [], [], PosterSlice>
     let scriptGenConfirmed = false;
     let posterCompleted = false;
 
+    const theme = a.config?.posterTheme || DEFAULT_POSTER_THEME;
+    const layout = a.config?.posterLayout || DEFAULT_POSTER_LAYOUT;
+
     const es = connectWithRetry(connectPosterSSE, runId, (event) => {
       let progress = 5;
       if (event.step === "script_gen") { progress = event.status === "completed" ? 40 : 20; }
@@ -119,7 +130,7 @@ export const createPosterSlice: StateCreator<ArtifactStore, [], [], PosterSlice>
       if (event.step === "script_gen" && event.status === "completed" && !scriptGenConfirmed) {
         scriptGenConfirmed = true;
         const retryConfirm = (attemptsLeft: number, delayMs: number) => {
-          confirmPoster(runId)
+          confirmPoster(runId, { theme, layout })
             .catch((err) => {
               const msg = err instanceof Error ? err.message : String(err);
               if ((msg.includes("not ready") || msg.includes("content_not_ready")) && attemptsLeft > 0) {

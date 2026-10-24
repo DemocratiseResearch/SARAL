@@ -89,6 +89,11 @@ func RetryRunHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manage
 			return ""
 		}
 
+		ckStr := func(key string) string {
+			v, _ := ckData[key].(string)
+			return v
+		}
+
 		var resumed bool
 		switch mode {
 		case "video":
@@ -96,7 +101,7 @@ func RetryRunHandler(pool *pgxpool.Pool, rdb *goredis.Client, sseMgr *sse.Manage
 		case "podcast":
 			resumed = retryPodcast(ctx, pool, rdb, sseMgr, run, runID, failedStep, ckPath, geminiKey, sarvamKey)
 		case "poster":
-			resumed = retryPoster(ctx, pool, rdb, sseMgr, run, runID, failedStep, ckPath, geminiKey)
+			resumed = retryPoster(ctx, pool, rdb, sseMgr, run, runID, failedStep, ckPath, ckStr, geminiKey)
 		case "reel":
 			resumed = retryReel(ctx, pool, rdb, sseMgr, run, runID, failedStep, ckPath, geminiKey, sarvamKey)
 		default:
@@ -357,14 +362,18 @@ func retryPoster(
 	run *models.Run, runID uuid.UUID,
 	failedStep string,
 	ckPath func(string) string,
+	ckStr func(string) string,
 	geminiKey string,
 ) bool {
 	// poster_compile is the only retry-able step.
 	if failedStep == "poster_compile" {
 		// Try to find the poster content script that was generated.
-		contentPath, dbErr := db.GetStepOutput(ctx, pool, runID, "poster_compile")
+		contentPath, dbErr := db.GetStepOutput(ctx, pool, runID, "script_gen")
 		if dbErr != nil || contentPath == "" {
-			contentPath = ckPath("poster_path")
+			contentPath = ckPath("script_path")
+		}
+		if contentPath == "" {
+			return false
 		}
 		extractedPath := ckPath("pdf_extract_path")
 		if extractedPath == "" {
@@ -378,15 +387,25 @@ func retryPoster(
 		if err != nil {
 			return false
 		}
-		redisx.EnqueueJob(ctx, rdb, redisx.StreamPoster, redisx.JobData{
-			"run_id":             runID.String(),
-			"step_id":            stepID.String(),
-			"paper_id":           run.PaperID.String(),
-			"user_id":            run.UserID.String(),
-			"extracted_gcs_path": extractedPath,
-			"gemini_key":         geminiKey,
-			"is_retry":           "true",
-		})
+		posterJobData := redisx.JobData{
+			"run_id":                  runID.String(),
+			"step_id":                 stepID.String(),
+			"paper_id":                run.PaperID.String(),
+			"user_id":                 run.UserID.String(),
+			"poster_content_gcs_path": contentPath,
+			"extracted_gcs_path":      extractedPath,
+			"gemini_key":              geminiKey,
+			"is_retry":                "true",
+		}
+		if theme := ckStr("theme"); theme != "" {
+			posterJobData["theme"] = theme
+		}
+		if layout := ckStr("layout"); layout != "" {
+			posterJobData["layout"] = layout
+		}
+		if _, err := redisx.EnqueueJob(ctx, rdb, redisx.StreamPoster, posterJobData); err != nil {
+			return false
+		}
 		return true
 	}
 	return false

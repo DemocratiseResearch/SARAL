@@ -7,21 +7,34 @@ import type {
 import { request, requestRetry, getAuthHeader, BASE_URL } from "./client";
 import { createSSEConnection, type SSEHandle } from "./sse";
 
-export async function startPoster(paperId: string): Promise<PosterStartResponse> {
+export async function startPoster(
+  paperId: string,
+  opts?: { theme?: string; layout?: string },
+): Promise<PosterStartResponse> {
   return request<PosterStartResponse>("/api/papertoposter/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ paper_id: paperId }),
+    body: JSON.stringify({
+      paper_id: paperId,
+      ...(opts?.theme ? { theme: opts.theme } : {}),
+      ...(opts?.layout ? { layout: opts.layout } : {}),
+    }),
   });
 }
 
-export async function confirmPoster(runId: string): Promise<void> {
+export async function confirmPoster(
+  runId: string,
+  opts?: { theme?: string; layout?: string },
+): Promise<void> {
   await request<{ message: string; next_step: string }>(
     `/api/papertoposter/${runId}/confirm`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        ...(opts?.theme ? { theme: opts.theme } : {}),
+        ...(opts?.layout ? { layout: opts.layout } : {}),
+      }),
     },
   );
 }

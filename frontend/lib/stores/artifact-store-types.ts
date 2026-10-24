@@ -13,6 +13,7 @@ export type ActiveModal =
   | { type: "config-podcast"; paperId: string }
   | { type: "config-reel"; paperId: string }
   | { type: "config-presentation"; paperId: string }
+  | { type: "config-poster"; paperId: string }
   | { type: "reel-script"; artifactId: string }
   | { type: "reel-avatar"; artifactId: string };
 
@@ -54,9 +55,12 @@ export interface ArtifactStore {
   presentationConfigModalOpen: boolean;
   presentationConfigPaperId: string | null;
 
+  posterConfigModalOpen: boolean;
+  posterConfigPaperId: string | null;
+
   // ── Public actions ────────────────────────────────────────────────────────
   startGeneration: (type: ArtifactType, runId?: string, videoConfig?: VideoConfig) => void;
-  startPosterGeneration: (paperId: string) => void;
+  startPosterGeneration: (paperId: string, theme?: string, layout?: string) => void;
   startPresentationGeneration: (paperId: string, language?: string, pptTemplate?: string) => void;
   confirmPresentationDeck: (artifactId: string, language?: string, outputFormat?: "ppt" | "beamer_pdf", editedScript?: Script) => void;
   startPodcastGeneration: (paperId: string, opts?: { language?: string; hostAGender?: "female" | "male"; hostBGender?: "female" | "male"; renderVideo?: boolean; replacesArtifactId?: string }) => void;
@@ -82,6 +86,9 @@ export interface ArtifactStore {
 
   openPresentationConfigModal: (paperId: string) => void;
   closePresentationConfigModal: () => void;
+
+  openPosterConfigModal: (paperId: string) => void;
+  closePosterConfigModal: () => void;
 
   resumePipeline: (artifactId: string, opts?: { language?: string; voiceGender?: string; slideLanguage?: string; editedScript?: Script }) => void;
 

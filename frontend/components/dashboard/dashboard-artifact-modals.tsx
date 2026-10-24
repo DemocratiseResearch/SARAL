@@ -9,6 +9,7 @@ import ReelConfigModal from "@/components/modals/reel-config-modal";
 import ReelScriptModal from "@/components/modals/reel-script-modal";
 import ReelAvatarModal from "@/components/modals/reel-avatar-modal";
 import PresentationConfigModal from "@/components/modals/presentation-config-modal";
+import PosterConfigModal from "@/components/modals/poster-config-modal";
 import { useArtifactStore } from "@/lib/artifact-store";
 
 /**
@@ -31,6 +32,7 @@ export default function DashboardArtifactModals() {
       <ReelScriptModal />
       <ReelAvatarModal />
       <PresentationConfigModal />
+      <PosterConfigModal />
     </>
   );
 }
