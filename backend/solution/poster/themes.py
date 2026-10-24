@@ -66,48 +66,49 @@ def generate_gemini_theme_sty(palette: ColorPalette) -> str:
 
 % Typography
 \setbeamerfont{{headline title}}{{size=\VeryHuge,series=\bfseries}}
-\setbeamerfont{{headline author}}{{size=\Large}}
-\setbeamerfont{{headline institute}}{{size=\normalsize}}
-\setbeamerfont{{block title}}{{size=\large,series=\bfseries}}
-\setbeamerfont{{block body}}{{size=\normalsize}}
+\setbeamerfont{{headline author}}{{size=\huge}}
+\setbeamerfont{{headline institute}}{{size=\Large}}
+\setbeamerfont{{block title}}{{size=\LARGE,series=\bfseries}}
+\setbeamerfont{{block body}}{{size=\large}}
 
 % Itemize templates
 \setbeamertemplate{{itemize item}}{{\small\raisebox{{0.2ex}}{{$\bullet$}}}}
 \setbeamertemplate{{itemize subitem}}{{\footnotesize\raisebox{{0.2ex}}{{$\circ$}}}}
 \setbeamertemplate{{enumerate item}}{{\insertenumlabel.}}
+\setbeamertemplate{{itemize/enumerate body begin}}{{\setlength{{\itemsep}}{{0.6ex}}\setlength{{\parsep}}{{0.2ex}}}}
 
 % Standard Block
 \setbeamertemplate{{block begin}}{{
-  \vskip0.75em
-  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=.75ex]{{block title}}%
+  \vskip0.4em
+  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=0.8ex]{{block title}}%
     \usebeamerfont{{block title}}\insertblocktitle
   \end{{beamercolorbox}}%
-  \vskip-0.4em
-  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=.75ex,vmode]{{block body}}%
+  \vskip-0.35em
+  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=0.8ex,vmode]{{block body}}%
     \usebeamerfont{{block body}}%
     \vskip0.4em
 }}
 \setbeamertemplate{{block end}}{{
     \vskip0.4em
   \end{{beamercolorbox}}
-  \vskip0.75em
+  \vskip0.4em
 }}
 
 % Alert Block (e.g. Key Takeaway / Central Claim)
 \setbeamertemplate{{block alerted begin}}{{
-  \vskip0.75em
-  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=.75ex]{{block title alerted}}%
+  \vskip0.4em
+  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=0.8ex]{{block title alerted}}%
     \usebeamerfont{{block title}}\insertblocktitle
   \end{{beamercolorbox}}%
-  \vskip-0.4em
-  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=.75ex,vmode]{{block body alerted}}%
+  \vskip-0.35em
+  \begin{{beamercolorbox}}[rounded=true,shadow=false,leftskip=1.2em,rightskip=1.2em,colsep*=0.8ex,vmode]{{block body alerted}}%
     \usebeamerfont{{block body}}%
     \vskip0.4em
 }}
 \setbeamertemplate{{block alerted end}}{{
     \vskip0.4em
   \end{{beamercolorbox}}
-  \vskip0.75em
+  \vskip0.4em
 }}
 
 % Headline Banner
@@ -115,11 +116,11 @@ def generate_gemini_theme_sty(palette: ColorPalette) -> str:
   \leavevmode
   \begin{{beamercolorbox}}[wd=\paperwidth]{{headline}}
     \centering
-    \vskip2.5ex
-    {{\usebeamerfont{{headline title}}\usebeamercolor[fg]{{title}}\inserttitle}}\\[1.5ex]
-    {{\usebeamerfont{{headline author}}\usebeamercolor[fg]{{author}}\insertauthor}}\\[1ex]
+    \vskip1.5ex
+    {{\usebeamerfont{{headline title}}\usebeamercolor[fg]{{title}}\inserttitle}}\\[0.8ex]
+    {{\usebeamerfont{{headline author}}\usebeamercolor[fg]{{author}}\insertauthor}}\\[0.5ex]
     {{\usebeamerfont{{headline institute}}\usebeamercolor[fg]{{institute}}\insertinstitute}}
-    \vskip2.5ex
+    \vskip1.5ex
     {{\color{{geminiaccent}}\rule{{\paperwidth}}{{4pt}}}}
   \end{{beamercolorbox}}
 }}

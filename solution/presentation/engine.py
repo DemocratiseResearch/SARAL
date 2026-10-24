@@ -147,9 +147,9 @@ def _render_problem_slide(
         lines.append(r"\end{itemize}")
         lines.append(r"\end{saralcard}")
 
-        lines.append(r"\vspace{0.2em}")
+        lines.append(r"\vspace{1.0em}")
         lines.append(r"\begin{saralalertcard}{Core Challenge / Research Problem}")
-        lines.append(r"  " + challenge_bullet)
+        lines.append(r"  \large " + challenge_bullet)
         lines.append(r"\end{saralalertcard}")
     else:
         lines.append(r"\begin{saralalertcard}{Core Problem Statement}")
@@ -184,7 +184,7 @@ def _render_question_slide(
     lines.append(r"\end{saralaccentcard}")
 
     if supporting:
-        lines.append(r"\vspace{0.3em}")
+        lines.append(r"\vspace{1.0em}")
         lines.append(r"\begin{saralcard}{Key Objectives \& Hypotheses}")
         lines.append(r"\begin{itemize}")
         for b in supporting:
@@ -211,27 +211,13 @@ def _render_methodology_slide(
         lines.append(r"\begin{columns}[T,onlytextwidth]")
         lines.append(r"\begin{column}{0.54\textwidth}")
 
-    if 2 <= len(bullets) <= 3 and not image_block:
-        # Balanced 2 or 3-step sequential cards across slide
-        lines.append(r"\begin{columns}[T,onlytextwidth]")
-        col_w = f"{0.96 / len(bullets):.2f}"
-        for idx, bullet in enumerate(bullets):
-            lines.append(r"\begin{column}{" + col_w + r"\textwidth}")
-            step_num = f"{idx + 1:02d}"
-            lines.append(r"\begin{saralstepbox}{" + step_num + r"}{Phase " + str(idx + 1) + r"}")
-            lines.append(r"  " + bullet)
-            lines.append(r"\end{saralstepbox}")
-            lines.append(r"\end{column}")
-        lines.append(r"\end{columns}")
-    else:
-        # Stepped cards with badges in vertical stack
-        for idx, bullet in enumerate(bullets):
-            step_num = f"{idx + 1:02d}"
-            lines.append(r"\begin{saralcard}{Stage " + step_num + r"}")
-            lines.append(r"  " + bullet)
-            lines.append(r"\end{saralcard}")
-            if idx < len(bullets) - 1:
-                lines.append(r"\vspace{0.15em}")
+    for idx, bullet in enumerate(bullets):
+        step_num = f"{idx + 1:02d}"
+        lines.append(r"\begin{saralstepbox}{" + step_num + r"}{Phase " + str(idx + 1) + r"}")
+        lines.append(r"  " + bullet)
+        lines.append(r"\end{saralstepbox}")
+        if idx < len(bullets) - 1:
+            lines.append(r"\vspace{0.6em}")
 
     if image_block:
         lines.append(r"\end{column}")
@@ -267,7 +253,7 @@ def _render_results_slide(
             lines.append(r"\begin{saralalertcard}{Primary Empirical Finding}")
             lines.append(r"  \large " + top_result)
             lines.append(r"\end{saralalertcard}")
-            lines.append(r"\vspace{0.2em}")
+            lines.append(r"\vspace{1.0em}")
             lines.append(r"\begin{saralcard}{Supporting Evidence \& Validation}")
             lines.append(r"\begin{itemize}")
             for b in rest_results:
@@ -406,7 +392,7 @@ def _render_conclusion_slide(
         lines.append(r"\end{saralaccentcard}")
 
         if points:
-            lines.append(r"\vspace{0.2em}")
+            lines.append(r"\vspace{1.0em}")
             lines.append(r"\begin{saralcard}{Summary of Contributions}")
             lines.append(r"\begin{itemize}")
             for b in points:
@@ -585,7 +571,7 @@ def build_beamer_document(
             any(kw in b for kw in (r"\verb", r"\begin{verbatim}", r"\begin{lstlisting}"))
             for b in raw_bullets
         )
-        frame_opts = "[t,fragile]" if has_code else "[t]"
+        frame_opts = "[t,fragile]" if has_code else "[c]"
         slides.append(r"\section[" + short_title + "]{" + sec_title + "}")
         slides.append(r"\begin{frame}" + frame_opts + "{" + sec_title + "}")
 
@@ -650,21 +636,22 @@ def build_beamer_document(
         # Custom card environments with tcolorbox or native beamercolorbox fallback
         r"\IfFileExists{tcolorbox.sty}{",
         r"  \usepackage{tcolorbox}",
-        r"  \newtcolorbox{saralcard}[1]{colback=saralsurface,colframe=saralborder,coltitle=saralprimary,fonttitle=\bfseries\footnotesize,title={#1},boxrule=0.8pt,arc=3pt,left=6pt,right=6pt,top=4pt,bottom=4pt,boxsep=1pt}",
-        r"  \newtcolorbox{saralalertcard}[1]{colback=saralalertsurface,colframe=saralalertprimary,coltitle=saralalertprimary,fonttitle=\bfseries\footnotesize,title={#1},boxrule=1.0pt,arc=3pt,left=6pt,right=6pt,top=4pt,bottom=4pt,boxsep=1pt}",
-        r"  \newtcolorbox{saralaccentcard}[1]{colback=saralsurfacealt,colframe=saralaccent,coltitle=saralprimary,fonttitle=\bfseries\footnotesize,title={#1},boxrule=0.9pt,arc=3pt,left=6pt,right=6pt,top=4pt,bottom=4pt,boxsep=1pt}",
-        r"  \newtcolorbox{saralstepbox}[2]{colback=saralsurface,colframe=saralsecondary,coltitle=white,fonttitle=\bfseries\scriptsize,title={#1 $\cdot$ #2},boxrule=0.8pt,arc=3pt,left=5pt,right=5pt,top=4pt,bottom=4pt,boxsep=1pt}",
+        r"  \newtcolorbox{saralcard}[1]{colback=saralsurface,colframe=saralborder,coltitle=saralprimary,fonttitle=\bfseries\small,title={#1},boxrule=0.8pt,arc=3pt,left=8pt,right=8pt,top=7pt,bottom=7pt,boxsep=2pt}",
+        r"  \newtcolorbox{saralalertcard}[1]{colback=saralalertsurface,colframe=saralalertprimary,coltitle=saralalertprimary,fonttitle=\bfseries\small,title={#1},boxrule=1.0pt,arc=3pt,left=8pt,right=8pt,top=7pt,bottom=7pt,boxsep=2pt}",
+        r"  \newtcolorbox{saralaccentcard}[1]{colback=saralsurfacealt,colframe=saralaccent,coltitle=saralprimary,fonttitle=\bfseries\small,title={#1},boxrule=0.9pt,arc=3pt,left=8pt,right=8pt,top=7pt,bottom=7pt,boxsep=2pt}",
+        r"  \newtcolorbox{saralstepbox}[2]{colback=saralsurface,colframe=saralsecondary,coltitle=white,fonttitle=\bfseries\small,title={#1 $\cdot$ #2},boxrule=0.8pt,arc=3pt,left=8pt,right=8pt,top=7pt,bottom=7pt,boxsep=2pt}",
         r"  \newtcolorbox{saralframebox}{colback=white,colframe=saralborder,boxrule=0.6pt,arc=2pt,left=2pt,right=2pt,top=2pt,bottom=2pt,boxsep=0pt}",
         r"}{",
-        r"  \newenvironment{saralcard}[1]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=4pt,wd=\linewidth]{block body}\textbf{\color{saralprimary}#1}\par\vskip2pt}{\end{beamercolorbox}\vskip3pt}",
-        r"  \newenvironment{saralalertcard}[1]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=4pt,wd=\linewidth]{block body alerted}\textbf{\color{saralalertprimary}#1}\par\vskip2pt}{\end{beamercolorbox}\vskip3pt}",
-        r"  \newenvironment{saralaccentcard}[1]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=4pt,wd=\linewidth]{block body}\textbf{\color{saralaccent}#1}\par\vskip2pt}{\end{beamercolorbox}\vskip3pt}",
-        r"  \newenvironment{saralstepbox}[2]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=4pt,wd=\linewidth]{block title}\textbf{#1 $\cdot$ #2}\par\vskip2pt\normalfont}{\end{beamercolorbox}\vskip3pt}",
+        r"  \newenvironment{saralcard}[1]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=6pt,wd=\linewidth]{block body}\textbf{\color{saralprimary}#1}\par\vskip3pt}{\end{beamercolorbox}\vskip4pt}",
+        r"  \newenvironment{saralalertcard}[1]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=6pt,wd=\linewidth]{block body alerted}\textbf{\color{saralalertprimary}#1}\par\vskip3pt}{\end{beamercolorbox}\vskip4pt}",
+        r"  \newenvironment{saralaccentcard}[1]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=6pt,wd=\linewidth]{block body}\textbf{\color{saralaccent}#1}\par\vskip3pt}{\end{beamercolorbox}\vskip4pt}",
+        r"  \newenvironment{saralstepbox}[2]{\begin{beamercolorbox}[rounded=true,shadow=false,sep=6pt,wd=\linewidth]{block title}\textbf{#1 $\cdot$ #2}\par\vskip3pt\normalfont}{\end{beamercolorbox}\vskip4pt}",
         r"  \newenvironment{saralframebox}{\begin{beamercolorbox}[rounded=false,shadow=false,sep=1pt,wd=\linewidth]{block body}}{\end{beamercolorbox}}",
         r"}",
         # Theme configuration
         *BEAMER_THEMES[theme_key],
         r"\setbeamertemplate{navigation symbols}{}",
+        r"\setbeamertemplate{itemize/enumerate body begin}{\setlength{\itemsep}{0.45em}\setlength{\parskip}{0.15em}}",
         # Clean footline
         r"\setbeamertemplate{footline}{",
         r"  \leavevmode\hbox{",

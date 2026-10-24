@@ -39,7 +39,7 @@ def _generate_preamble(lang: str = "en-IN") -> str:
         r"\documentclass[final]{beamer}",
         "",
         r"%%%% Poster Geometry & Packages %%%%",
-        rf"\usepackage[size=custom,width={_WIDTH_CM},height={_HEIGHT_CM},scale=1.2]{{beamerposter}}",
+        rf"\usepackage[size=custom,width={_WIDTH_CM},height={_HEIGHT_CM},scale=1.7]{{beamerposter}}",
         r"\usetheme{gemini}",
         r"\usecolortheme{gemini}",
         r"\usepackage{fontspec}",
@@ -138,6 +138,7 @@ def build_poster_document(
             poster_content, image_local_paths, font_wrapper=font_wrapper, font_script=font_script
         )
     else:
+        doc += "\\vspace{0.2cm}\n"
         doc += "\\begin{columns}[t]\n"
         doc += "\\separatorcolumn\n\n"
         if selected_layout in ("workflow_led", "workflow", "systems", "pipeline"):
