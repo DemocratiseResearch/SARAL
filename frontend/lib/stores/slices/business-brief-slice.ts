@@ -103,7 +103,6 @@ export const createBusinessBriefSlice: StateCreator<ArtifactStore, [], [], Busin
             else { set({ artifacts: patchArtifact(get().artifacts, id, { statusMessage: getSSEStatusMessage("business-brief", event.step, event.status, event.message) }) }); }
           } else if (event.status === "failed") {
             sse.close();
-            briefCompleted = true;
             fail(event.message ?? "Pipeline step failed");
           }
         }, (err) => {
