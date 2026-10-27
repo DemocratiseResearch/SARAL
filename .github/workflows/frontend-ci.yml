@@ -39,6 +39,9 @@ jobs:
       - name: Lint (ESLint)
         run: bun run lint
 
+      - name: Unit tests
+        run: bun run test
+
       - name: Typecheck (TypeScript)
         run: npx tsc --noEmit
 
