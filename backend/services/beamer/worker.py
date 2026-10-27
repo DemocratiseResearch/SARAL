@@ -23,7 +23,6 @@ from ppt_generator import convert_pdf_to_images as ppt_convert_pdf_to_images  # 
 from ppt_generator import convert_pptx_to_pdf, process_presentation, script_to_paper_info  # noqa: E402
 from bhashini import get_registry  # noqa: E402
 from sarvam_translate import get_translator as get_sarvam_translator  # noqa: E402
-from generator import generate_business_brief_with_gemini  # noqa: E402
 from generator_v2 import generate_business_brief_v2  # noqa: E402
 from pdf_renderer import render_business_brief_pdf  # noqa: E402
 
@@ -336,6 +335,8 @@ def _process_brief_full(data: dict) -> dict:
         sections = generate_business_brief_v2(gemini_key, clean)
         model_version = "v2"
     else:
+        from generator import generate_business_brief_with_gemini
+
         sections = generate_business_brief_with_gemini(gemini_key, clean)
         model_version = "v1"
 
