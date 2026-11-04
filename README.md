@@ -30,7 +30,6 @@ saral/
 │   ├── docker-compose.yml       Postgres + Redis + fake-GCS
 │   ├── Procfile.dev             overmind process definitions
 │   ├── .env.shared              ← you create (shared by ALL workers)
-│   ├── ROUTES.md                Full API reference
 │   └── ARCHITECTURE.md          System design & data flow
 └── frontend/
     ├── app/                     Next.js 16 App Router pages
@@ -214,7 +213,7 @@ This starts (host ports):
 | redis:7-alpine | **6380** | job streams |
 | fake-gcs-server | **4443** | bucket `saral-artifacts-local` auto-created by the `fake-gcs-init` container |
 
-> The DB password is `localpassword` (defined in docker-compose.yml). The old `backend/SETUP.md` says `saral_pass` — that is wrong.
+> The DB password is `localpassword` (defined in docker-compose.yml).
 
 Health checks:
 
@@ -380,8 +379,6 @@ The pipeline **pauses after `script_gen`** for human review — confirm to conti
 curl -X POST http://localhost:8080/api/papertovideo/<run_id>/script/confirm \
   -H "X-User-ID: testuser1" -H "Content-Type: application/json" -d '{}'
 ```
-
-Full endpoint walkthrough: [backend/ROUTES.md](backend/ROUTES.md).
 
 ---
 

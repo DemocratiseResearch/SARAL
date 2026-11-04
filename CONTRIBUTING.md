@@ -33,8 +33,7 @@ We are committed to fostering a welcoming and respectful community. Harassment, 
 
 ## Getting Help
 
-- **Bug reports / feature requests** — open a [GitHub Issue](https://github.com/anomalyco/saral/issues).
-- **Quick questions** — start a [GitHub Discussion](https://github.com/anomalyco/saral/discussions).
+- **Bug reports / feature requests** — open a [GitHub Issue](https://github.com/DemocratiseResearch/SARAL/issues).
 - **Internal maintainers** — reach out to our [team of maintainers](https://saral.democratiseresearch.in/about) for any code maintenance related queries. 
 
 ---
@@ -91,7 +90,7 @@ saral/
 - **One change per branch** — keep pull requests focused on a single concern.
 - **Draft PRs early** — open a draft PR as soon as you start; mark it ready when CI passes and review is requested.
 - **UI changes require screenshots** — attach before/after screenshots or a screen recording to the PR description.
-- **Update docs** — if your change touches configuration, env vars, or endpoints, update [README.md](README.md) or the relevant `backend/` docs (`ROUTES.md`, `ARCHITECTURE.md`).
+- **Update docs** — if your change touches configuration, env vars, or endpoints, update [README.md](README.md) or the relevant `backend/` documentation.
 
 ---
 
@@ -144,7 +143,7 @@ Automated tests are currently sparse. We expect contributors to:
 
 - Add **unit tests** for new Go/Python logic (place them in `*_test.go` / `test_*.py` files alongside the source).
 - Add **integration tests** for new pipeline steps or API endpoints.
-- **Manually smoke-test** your changes using the `curl` upload-and-stream flow described in [README.md § Verify](README.md#8-verify).
+- **Manually smoke-test** your changes using the `curl` upload-and-stream flow described in [README.md § Verify](README.md#28-verify).
 
 All tests must pass before a PR is merged.
 
@@ -154,7 +153,7 @@ All tests must pass before a PR is merged.
 
 - **Go** — run `go vet ./...`; follow existing package layout (`internal/<pkg>`); use the `Provider` interface pattern from `script-gen/internal/gemini/` when adding new LLM backends.
 - **Python** — `ruff` defaults; type hints are strongly encouraged for all public functions.
-- **Frontend** — use shadcn components only (no raw HTML form controls); design tokens are defined in `app/globals.css` (`@theme inline`); dark-mode pairing rules and canonical form styles are documented in `frontend/CLAUDE.md` (read it before UI work).
+- **Frontend** — use shadcn components only (no raw HTML form controls); design tokens are defined in `app/globals.css` (`@theme inline`); follow existing dark-mode pairing rules and canonical form styles.
 - **SQL** — plain SQL in `backend/migrations/`; name files `NNNN_description.sql` where `NNNN` is the next sequence number.
 
 ---
@@ -193,7 +192,7 @@ Before opening or marking a PR as ready:
 - [ ] Manual smoke test completed (upload a paper, watch the pipeline).
 - [ ] No secrets committed (verify with `git diff --cached`).
 - [ ] UI changes include screenshots / screen recording.
-- [ ] Corresponding docs updated (`README.md`, `ROUTES.md`, `ARCHITECTURE.md`, etc.).
+- [ ] Corresponding documentation updated (`README.md`, `ARCHITECTURE.md`, etc.).
 
 ---
 
