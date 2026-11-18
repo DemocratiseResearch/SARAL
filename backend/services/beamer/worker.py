@@ -23,7 +23,6 @@ from ppt_generator import convert_pdf_to_images as ppt_convert_pdf_to_images  # 
 from ppt_generator import convert_pptx_to_pdf, process_presentation, script_to_paper_info  # noqa: E402
 from bhashini import get_registry  # noqa: E402
 from sarvam_translate import get_translator as get_sarvam_translator  # noqa: E402
-from generator import generate_business_brief_with_gemini  # noqa: E402
 from generator_v2 import generate_business_brief_v2  # noqa: E402
 from pdf_renderer import render_business_brief_pdf  # noqa: E402
 
@@ -336,6 +335,17 @@ def _process_brief_full(data: dict) -> dict:
         sections = generate_business_brief_v2(gemini_key, clean)
         model_version = "v2"
     else:
+        # generator.py is a legacy module that is not committed to the
+        # repository. Import it lazily so the worker can still start and
+        # handle PDF-only and v2 jobs when the module is absent; only an
+        # explicit v1 request will raise ImportError at runtime.
+        try:
+            from generator import generate_business_brief_with_gemini  # type: ignore[import]
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "v1 generator requested but 'generator' module is not installed. "
+                "Set BUSINESS_BRIEF_V2=true (the default) or model_version='v2' to use v2."
+            ) from exc
         sections = generate_business_brief_with_gemini(gemini_key, clean)
         model_version = "v1"
 
