@@ -13,13 +13,12 @@ type Metadata struct {
 	Date    string
 }
 
-// ExtractMetadata calls Gemini (flash/lite model) to pull title, authors, and
-// date from the beginning of a paper's extracted text.
-func ExtractMetadata(ctx context.Context, gc Provider, paperText string) (Metadata, error) {
+// ExtractMetadata pulls the title, authors, and date from the start of a paper.
+func ExtractMetadata(ctx context.Context, gc TextProvider, paperText string) (Metadata, error) {
 	prompt := buildMetadataPrompt(paperText)
 	raw, err := Generate(ctx, gc, ModelFlash, prompt)
 	if err != nil {
-		return Metadata{}, fmt.Errorf("gemini metadata call: %w", err)
+		return Metadata{}, fmt.Errorf("generate paper metadata: %w", err)
 	}
 	return parseMetadataJSON(raw)
 }

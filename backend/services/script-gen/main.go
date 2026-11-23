@@ -34,11 +34,12 @@ const (
 
 // app holds all long-lived dependencies initialised once at startup.
 type app struct {
-	store      *storage.Client
-	gemini     *gemini.Clients
-	rdb        *goredis.Client
-	prompts    config.PromptConfig
-	gatewayURL string
+	store        *storage.Client
+	gemini       *gemini.Clients
+	openAIXDraft gemini.TextProvider
+	rdb          *goredis.Client
+	prompts      config.PromptConfig
+	gatewayURL   string
 
 	// consumer identity for Redis stream group management
 	consumerName string
@@ -100,6 +101,11 @@ func initApp(ctx context.Context) (*app, error) {
 		llmMode = gemini.ModeVertex
 	}
 
+	openAIXDraft, err := gemini.NewOpenAIXDraftProvider(os.Getenv("OPENAI_API_KEY"), os.Getenv("X_DRAFT_OPENAI_MODEL"))
+	if err != nil {
+		return nil, err
+	}
+
 	bucketName := os.Getenv("STORAGE_BUCKET")
 	if bucketName == "" {
 		bucketName = "saral-artifacts-local"
@@ -155,6 +161,7 @@ func initApp(ctx context.Context) (*app, error) {
 	return &app{
 		store:        store,
 		gemini:       geminiClients,
+		openAIXDraft: openAIXDraft,
 		rdb:          rdb,
 		prompts:      prompts,
 		gatewayURL:   gatewayURL,
@@ -290,11 +297,15 @@ func (a *app) dispatch(ctx context.Context, msg goredis.XMessage) {
 func (a *app) runPipeline(ctx context.Context, mode, documentType, briefID string, f func(string) string, deps pipeline.Deps) error {
 	runID := f("run_id")
 	stepID := f("step_id")
-	audienceLevel := gemini.ResolveAudienceLevel(f("audience_level"))
-	tone := gemini.ResolveTone(f("tone"))
 	extractedPath := f("extracted_gcs_path")
 	userID := f("user_id")
 	paperID := f("paper_id")
+	if mode == "twitter_draft" && a.openAIXDraft != nil {
+		return pipeline.RunTwitter(ctx, a.openAIXDraft, deps, runID, stepID, extractedPath, userID, paperID)
+	}
+
+	audienceLevel := gemini.ResolveAudienceLevel(f("audience_level"))
+	tone := gemini.ResolveTone(f("tone"))
 	title := f("title")
 	authors := f("authors")
 	date := f("date")

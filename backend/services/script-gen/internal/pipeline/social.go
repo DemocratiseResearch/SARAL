@@ -155,7 +155,7 @@ type twitterThread struct {
 }
 
 // RunTwitter generates an X/Twitter thread and uploads it to GCS.
-func RunTwitter(ctx context.Context, gc gemini.Provider, deps Deps,
+func RunTwitter(ctx context.Context, gc gemini.TextProvider, deps Deps,
 	runID, stepID, extractedPath, userID, paperID string,
 ) error {
 	data, err := deps.Store.Download(ctx, extractedPath)
@@ -196,10 +196,10 @@ func RunTwitter(ctx context.Context, gc gemini.Provider, deps Deps,
 		"{paper_text}", paperText,
 	).Replace(deps.Prompts.Twitter)
 
-	log.Printf("[twitter][%s] calling Gemini", runID)
+	log.Printf("[twitter][%s] generating thread", runID)
 	rawThread, err := gemini.Generate(ctx, gc, gemini.ModelFlash, prompt)
 	if err != nil {
-		return fmt.Errorf("gemini twitter: %w", err)
+		return fmt.Errorf("generate X thread: %w", err)
 	}
 
 	var tweets []string
@@ -213,7 +213,7 @@ func RunTwitter(ctx context.Context, gc gemini.Provider, deps Deps,
 		tweets = parseAndFormatTweets(rawThread)
 	}
 	if len(tweets) == 0 {
-		return fmt.Errorf("could not parse any tweets from Gemini response")
+		return fmt.Errorf("could not parse any posts from model response")
 	}
 
 	thread := twitterThread{Title: title, Tweets: tweets, TweetCount: len(tweets)}

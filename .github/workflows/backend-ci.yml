@@ -40,10 +40,11 @@ jobs:
           git diff --exit-code go.mod go.sum || (echo "go.mod/go.sum is not tidy" && exit 1)
           go build ./...
 
-      - name: Build Go Workers (Script-Gen)
+      - name: Test and Build Go Worker (Script-Gen)
         working-directory: ./backend/services/script-gen
         run: |
           go mod tidy
+          go test ./...
           go build ./...
 
       - name: Build Go Workers (Audio-Gen)
