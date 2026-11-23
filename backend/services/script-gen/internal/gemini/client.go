@@ -203,8 +203,8 @@ Answer:`, paperTitle)
 // package-level functions so pipeline/*.go call sites need ZERO changes —
 // they already call gemini.Generate(ctx, gc, model, prompt) etc.
 //
-// Generate delegates to the Provider's Generate method.
-func Generate(ctx context.Context, gc Provider, model, prompt string) (string, error) {
+// Generate delegates to the text provider's Generate method.
+func Generate(ctx context.Context, gc TextProvider, model, prompt string) (string, error) {
 	return gc.Generate(ctx, model, prompt)
 }
 

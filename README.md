@@ -290,6 +290,27 @@ OPENROUTER_SITE_NAME="Saral Dev"
 
 Any OpenRouter model slug works for `OPENROUTER_FLASH_MODEL` and `OPENROUTER_PRO_MODEL`. The `HTTP-Referer` (`OPENROUTER_SITE_URL`) and `X-Title` (`OPENROUTER_SITE_NAME`) headers are recommended by OpenRouter for rankings and attribution.
 
+### 2.3.2 Direct OpenAI for X drafts
+
+To send X-draft metadata and thread generation directly to OpenAI, set these values in the Git-ignored `backend/.env.shared` file:
+
+```env
+X_DRAFT_OPENAI_MODEL=gpt-6-luna
+OPENAI_API_KEY=<your-openai-api-key>
+```
+
+Set `LLM_PROVIDER` for the worker's general script-generation jobs. Leaving `X_DRAFT_OPENAI_MODEL` unset also uses that provider for X drafts.
+
+To test with a public PDF without starting the local stack, run these commands from the repository root:
+
+```sh
+pdftotext /absolute/path/to/public-paper.pdf /tmp/saral-openai-paper.txt
+cd backend/services/script-gen
+SARAL_OPENAI_SMOKE_TEXT=/tmp/saral-openai-paper.txt go test -count=1 -run '^TestOpenAIXDraft$' -v .
+```
+
+Setting `SARAL_OPENAI_SMOKE_TEXT` opts into two billable calls to OpenAI. The test prints the draft and uses in-memory storage. With that variable unset, the test uses mock responses.
+
 ### 2.4 Create `backend/gateway/.env`
 
 Loaded only by the gateway (its working directory is `gateway/`, so relative paths resolve from there):
@@ -529,6 +550,8 @@ redis-cli -p 6380 XRANGE saral:dlq - + COUNT 10  # dead letters
 | `OPENROUTER_PRO_MODEL` | no | OpenRouter model slug for Pro tier; default `google/gemini-2.5-pro` |
 | `OPENROUTER_SITE_URL` | no | `HTTP-Referer` header sent to OpenRouter |
 | `OPENROUTER_SITE_NAME` | no | `X-Title` header sent to OpenRouter |
+| `X_DRAFT_OPENAI_MODEL` | no | OpenAI Responses API model for X drafts |
+| `OPENAI_API_KEY` | when `X_DRAFT_OPENAI_MODEL` is set | Server-side credential for direct OpenAI X drafts |
 | `SARVAM_API_KEY` | yes | audio-gen TTS |
 | `GCP_PROJECT_ID` | yes | Gemini/Vertex project |
 | `TRANSLATION_PROVIDER` | no | `sarvam` (default) / `bhashini` |

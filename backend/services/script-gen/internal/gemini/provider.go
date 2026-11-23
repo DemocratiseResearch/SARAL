@@ -2,17 +2,15 @@ package gemini
 
 import "context"
 
-// Provider is the transport-agnostic interface every LLM backend implements.
-// pipeline/*.go and the package-level Generate/GenerateWithGrounding/
-// GenerateVisionClassify helpers only ever depend on this interface — never
-// on *genai.Client or anything OpenRouter-specific — so adding a fourth
-// backend later never requires touching pipeline code.
-type Provider interface {
-	// Generate calls the model with a plain text prompt at low temperature.
-	// model is the logical Gemini model name (ModelFlash or ModelPro); each
-	// implementation translates it into whatever identifier its backend
-	// actually expects.
+// TextProvider generates text from a prompt. The backend maps the logical
+// model tier to its configured model.
+type TextProvider interface {
 	Generate(ctx context.Context, model, prompt string) (string, error)
+}
+
+// Provider is the interface for script jobs that can also use vision or grounding.
+type Provider interface {
+	TextProvider
 
 	// GenerateWithGrounding calls the model with web-search grounding and,
 	// where supported, dynamic/extended thinking enabled. Used only by the
